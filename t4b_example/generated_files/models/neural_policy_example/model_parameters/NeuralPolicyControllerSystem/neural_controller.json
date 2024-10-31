@@ -1,0 +1,6 @@
+{
+    "parameters": {
+        "input_size": 6,
+        "output_size": 2
+    }
+}

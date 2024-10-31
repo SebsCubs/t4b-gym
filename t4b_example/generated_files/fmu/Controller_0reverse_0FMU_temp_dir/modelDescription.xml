@@ -1,0 +1,795 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<fmiModelDescription
+  xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+  fmiVersion="2.0"
+  modelName="Controller_reverse_FMU"
+  guid="{164544f2-d181-4327-a75a-3ecfddd71475}"
+  generationTool="Dymola Version 2023x Refresh 1, 2023-04-12"
+  generationDateAndTime="2024-05-10T06:18:01Z"
+  variableNamingConvention="structured"
+  numberOfEventIndicators="0">
+  <CoSimulation
+    modelIdentifier="Controller_0reverse_0FMU"
+    canHandleVariableCommunicationStepSize="true"
+    canInterpolateInputs="true"
+    maxOutputDerivativeOrder="1"
+    canNotUseMemoryManagementFunctions="true"
+    canGetAndSetFMUstate="true"
+    canSerializeFMUstate="true"
+    providesDirectionalDerivative="true"/>
+  <UnitDefinitions>
+    <Unit
+      name="1"/>
+    <Unit
+      name="s">
+      <BaseUnit s="1"/>
+    </Unit>
+  </UnitDefinitions>
+  <TypeDefinitions>
+    <SimpleType
+      name="Modelica.Blocks.Interfaces.BooleanInput">
+      <Boolean/>
+    </SimpleType>
+    <SimpleType
+      name="Modelica.Blocks.Interfaces.RealInput">
+      <Real/>
+    </SimpleType>
+    <SimpleType
+      name="Modelica.Blocks.Interfaces.RealOutput">
+      <Real/>
+    </SimpleType>
+    <SimpleType
+      name="Modelica.Units.SI.Time">
+      <Real
+        quantity="Time"
+        unit="s"/>
+    </SimpleType>
+    <SimpleType
+      name="Buildings.Types.Reset">
+      <Enumeration>
+        <Item name="Disabled"
+          value="1"
+          description="Disabled"/>
+        <Item name="Parameter"
+          value="2"
+          description="Use parameter value"/>
+        <Item name="Input"
+          value="3"
+          description="Use input signal"/>
+      </Enumeration>
+    </SimpleType>
+    <SimpleType
+      name="Modelica.Blocks.Types.Init">
+      <Enumeration>
+        <Item name="NoInit"
+          value="1"
+          description="No initialization (start values are used as guess values with fixed=false)"/>
+        <Item name="SteadyState"
+          value="2"
+          description="Steady state initialization (derivatives of states are zero)"/>
+        <Item name="InitialState"
+          value="3"
+          description="Initialization with initial states"/>
+        <Item name="InitialOutput"
+          value="4"
+          description="Initialization with initial outputs (and steady state of the states if possible)"/>
+      </Enumeration>
+    </SimpleType>
+    <SimpleType
+      name="Modelica.Blocks.Types.SimpleController">
+      <Enumeration>
+        <Item name="P"
+          value="1"
+          description="P controller"/>
+        <Item name="PI"
+          value="2"
+          description="PI controller"/>
+        <Item name="PD"
+          value="3"
+          description="PD controller"/>
+        <Item name="PID"
+          value="4"
+          description="PID controller"/>
+      </Enumeration>
+    </SimpleType>
+  </TypeDefinitions>
+  <DefaultExperiment startTime="0.0"
+    stopTime="1.0"
+    tolerance="0.0001"/>
+  <ModelVariables>
+    <!-- Index for next variable = 1 -->
+    <ScalarVariable
+      name="conPID.u_s"
+      valueReference="436207616"
+      description="Connector of setpoint input signal">
+      <Real
+        declaredType="Modelica.Blocks.Interfaces.RealInput"/>
+    </ScalarVariable>
+    <!-- Index for next variable = 2 -->
+    <ScalarVariable
+      name="conPID.u_m"
+      valueReference="436207617"
+      description="Connector of measurement input signal">
+      <Real
+        declaredType="Modelica.Blocks.Interfaces.RealInput"/>
+    </ScalarVariable>
+    <!-- Index for next variable = 3 -->
+    <ScalarVariable
+      name="conPID.y"
+      valueReference="335544320"
+      description="Connector of actuator output signal">
+      <Real
+        declaredType="Modelica.Blocks.Interfaces.RealOutput"/>
+    </ScalarVariable>
+    <!-- Index for next variable = 4 -->
+    <ScalarVariable
+      name="conPID.controlError"
+      valueReference="905969714"
+      description="Control error (set point - measurement)">
+      <Real/>
+    </ScalarVariable>
+    <!-- Index for next variable = 5 -->
+    <ScalarVariable
+      name="conPID.controllerType"
+      valueReference="100663296"
+      description="Type of controller"
+      variability="constant">
+      <Enumeration
+        declaredType="Modelica.Blocks.Types.SimpleController"
+        start="2"/>
+    </ScalarVariable>
+    <!-- Index for next variable = 6 -->
+    <ScalarVariable
+      name="conPID.k"
+      valueReference="100663297"
+      description="Gain of controller"
+      variability="tunable">
+      <Real
+        unit="1"
+        min="0.0"/>
+    </ScalarVariable>
+    <!-- Index for next variable = 7 -->
+    <ScalarVariable
+      name="conPID.Ti"
+      valueReference="100663298"
+      description="Time constant of Integrator block"
+      variability="tunable">
+      <Real
+        declaredType="Modelica.Units.SI.Time"
+        min="1E-60"/>
+    </ScalarVariable>
+    <!-- Index for next variable = 8 -->
+    <ScalarVariable
+      name="conPID.Td"
+      valueReference="100663299"
+      description="Time constant of Derivative block"
+      variability="fixed">
+      <Real
+        declaredType="Modelica.Units.SI.Time"
+        min="0.0"/>
+    </ScalarVariable>
+    <!-- Index for next variable = 9 -->
+    <ScalarVariable
+      name="conPID.yMax"
+      valueReference="100663300"
+      description="Upper limit of output"
+      variability="constant">
+      <Real start="1"/>
+    </ScalarVariable>
+    <!-- Index for next variable = 10 -->
+    <ScalarVariable
+      name="conPID.yMin"
+      valueReference="100663301"
+      description="Lower limit of output"
+      variability="constant">
+      <Real start="0"/>
+    </ScalarVariable>
+    <!-- Index for next variable = 11 -->
+    <ScalarVariable
+      name="conPID.wp"
+      valueReference="100663302"
+      description="Set-point weight for Proportional block (0..1)"
+      variability="constant">
+      <Real min="0.0"
+        start="1"/>
+    </ScalarVariable>
+    <!-- Index for next variable = 12 -->
+    <ScalarVariable
+      name="conPID.wd"
+      valueReference="100663303"
+      description="Set-point weight for Derivative block (0..1)"
+      variability="constant">
+      <Real min="0.0"
+        start="0"/>
+    </ScalarVariable>
+    <!-- Index for next variable = 13 -->
+    <ScalarVariable
+      name="conPID.Ni"
+      valueReference="100663304"
+      description="Ni*Ti is time constant of anti-windup compensation"
+      variability="constant">
+      <Real min="1E-13"
+        start="0.9"/>
+    </ScalarVariable>
+    <!-- Index for next variable = 14 -->
+    <ScalarVariable
+      name="conPID.Nd"
+      valueReference="100663305"
+      description="The higher Nd, the more ideal the derivative block"
+      variability="constant">
+      <Real min="1E-13"
+        start="10"/>
+    </ScalarVariable>
+    <!-- Index for next variable = 15 -->
+    <ScalarVariable
+      name="conPID.initType"
+      valueReference="100663306"
+      description="Type of initialization (1: no init, 2: steady state, 3: initial state, 4: initial output)"
+      variability="constant">
+      <Enumeration
+        declaredType="Modelica.Blocks.Types.Init"
+        start="3"/>
+    </ScalarVariable>
+    <!-- Index for next variable = 16 -->
+    <ScalarVariable
+      name="conPID.xi_start"
+      valueReference="100663307"
+      description="Initial or guess value value for integrator output (= integrator state)"
+      variability="constant">
+      <Real start="0"/>
+    </ScalarVariable>
+    <!-- Index for next variable = 17 -->
+    <ScalarVariable
+      name="conPID.xd_start"
+      valueReference="100663308"
+      description="Initial or guess value for state of derivative block"
+      variability="constant">
+      <Real start="0"/>
+    </ScalarVariable>
+    <!-- Index for next variable = 18 -->
+    <ScalarVariable
+      name="conPID.y_start"
+      valueReference="100663309"
+      description="Initial value of output"
+      variability="constant">
+      <Real start="0"/>
+    </ScalarVariable>
+    <!-- Index for next variable = 19 -->
+    <ScalarVariable
+      name="conPID.strict"
+      valueReference="100663310"
+      description="= true, if strict limits with noEvent(..)"
+      variability="constant">
+      <Boolean start="true"/>
+    </ScalarVariable>
+    <!-- Index for next variable = 20 -->
+    <ScalarVariable
+      name="conPID.reverseActing"
+      valueReference="100663311"
+      description="Set to true for reverse acting, or false for direct acting control action"
+      variability="constant">
+      <Boolean start="true"/>
+    </ScalarVariable>
+    <!-- Index for next variable = 21 -->
+    <ScalarVariable
+      name="conPID.reset"
+      valueReference="100663312"
+      description="Type of controller output reset"
+      variability="constant">
+      <Enumeration
+        declaredType="Buildings.Types.Reset"
+        start="1"/>
+    </ScalarVariable>
+    <!-- Index for next variable = 22 -->
+    <ScalarVariable
+      name="conPID.y_reset"
+      valueReference="100663313"
+      description="Value to which the controller output is reset if the boolean trigger has a rising edge, used if reset == Buildings.Types.Reset.Parameter"
+      variability="constant">
+      <Real start="0"/>
+    </ScalarVariable>
+    <!-- Index for next variable = 23 -->
+    <ScalarVariable
+      name="conPID.addP.u1"
+      valueReference="436207616"
+      description="Connector of Real input signal 1">
+      <Real
+        declaredType="Modelica.Blocks.Interfaces.RealInput"/>
+    </ScalarVariable>
+    <!-- Index for next variable = 24 -->
+    <ScalarVariable
+      name="conPID.addP.u2"
+      valueReference="436207617"
+      description="Connector of Real input signal 2">
+      <Real
+        declaredType="Modelica.Blocks.Interfaces.RealInput"/>
+    </ScalarVariable>
+    <!-- Index for next variable = 25 -->
+    <ScalarVariable
+      name="conPID.addP.y"
+      valueReference="369098803"
+      description="Connector of Real output signal">
+      <Real
+        declaredType="Modelica.Blocks.Interfaces.RealOutput"/>
+    </ScalarVariable>
+    <!-- Index for next variable = 26 -->
+    <ScalarVariable
+      name="conPID.addP.k1"
+      valueReference="100663314"
+      description="Gain of input signal 1"
+      variability="constant">
+      <Real start="1.0"/>
+    </ScalarVariable>
+    <!-- Index for next variable = 27 -->
+    <ScalarVariable
+      name="conPID.addP.k2"
+      valueReference="100663315"
+      description="Gain of input signal 2"
+      variability="constant">
+      <Real start="-1.0"/>
+    </ScalarVariable>
+    <!-- Index for next variable = 28 -->
+    <ScalarVariable
+      name="conPID.P.k"
+      valueReference="100663316"
+      description="Gain value multiplied with input signal"
+      variability="constant">
+      <Real
+        unit="1"
+        start="1"/>
+    </ScalarVariable>
+    <!-- Index for next variable = 29 -->
+    <ScalarVariable
+      name="conPID.P.u"
+      valueReference="369098803"
+      description="Input signal connector">
+      <Real
+        declaredType="Modelica.Blocks.Interfaces.RealInput"/>
+    </ScalarVariable>
+    <!-- Index for next variable = 30 -->
+    <ScalarVariable
+      name="conPID.P.y"
+      valueReference="369098803"
+      description="Output signal connector">
+      <Real
+        declaredType="Modelica.Blocks.Interfaces.RealOutput"/>
+    </ScalarVariable>
+    <!-- Index for next variable = 31 -->
+    <ScalarVariable
+      name="conPID.addPID.k1"
+      valueReference="100663317"
+      description="Gain of input signal 1"
+      variability="constant">
+      <Real start="1"/>
+    </ScalarVariable>
+    <!-- Index for next variable = 32 -->
+    <ScalarVariable
+      name="conPID.addPID.k2"
+      valueReference="100663318"
+      description="Gain of input signal 2"
+      variability="constant">
+      <Real start="1"/>
+    </ScalarVariable>
+    <!-- Index for next variable = 33 -->
+    <ScalarVariable
+      name="conPID.addPID.k3"
+      valueReference="100663319"
+      description="Gain of input signal 3"
+      variability="constant">
+      <Real start="1"/>
+    </ScalarVariable>
+    <!-- Index for next variable = 34 -->
+    <ScalarVariable
+      name="conPID.addPID.u1"
+      valueReference="369098803"
+      description="Connector of Real input signal 1">
+      <Real
+        declaredType="Modelica.Blocks.Interfaces.RealInput"/>
+    </ScalarVariable>
+    <!-- Index for next variable = 35 -->
+    <ScalarVariable
+      name="conPID.addPID.u2"
+      valueReference="100663320"
+      description="Connector of Real input signal 2"
+      variability="constant">
+      <Real
+        declaredType="Modelica.Blocks.Interfaces.RealInput"
+        start="0.0"/>
+    </ScalarVariable>
+    <!-- Index for next variable = 36 -->
+    <ScalarVariable
+      name="conPID.addPID.u3"
+      valueReference="33554432"
+      description="Connector of Real input signal 3">
+      <Real
+        declaredType="Modelica.Blocks.Interfaces.RealInput"/>
+    </ScalarVariable>
+    <!-- Index for next variable = 37 -->
+    <ScalarVariable
+      name="conPID.addPID.y"
+      valueReference="369098804"
+      description="Connector of Real output signal">
+      <Real
+        declaredType="Modelica.Blocks.Interfaces.RealOutput"/>
+    </ScalarVariable>
+    <!-- Index for next variable = 38 -->
+    <ScalarVariable
+      name="conPID.revAct"
+      valueReference="100663322"
+      description="Switch for sign for reverse or direct acting controller"
+      variability="constant">
+      <Real start="1"/>
+    </ScalarVariable>
+    <!-- Index for next variable = 39 -->
+    <ScalarVariable
+      name="conPID.y_reset_internal"
+      valueReference="100663327"
+      description="Internal connector for controller output reset"
+      variability="constant">
+      <Real
+        declaredType="Modelica.Blocks.Interfaces.RealInput"
+        start="0.0"/>
+    </ScalarVariable>
+    <!-- Index for next variable = 40 -->
+    <ScalarVariable
+      name="conPID.addI.k1"
+      valueReference="100663328"
+      description="Gain of input signal 1"
+      variability="constant">
+      <Real start="1.0"/>
+    </ScalarVariable>
+    <!-- Index for next variable = 41 -->
+    <ScalarVariable
+      name="conPID.addI.k2"
+      valueReference="100663329"
+      description="Gain of input signal 2"
+      variability="constant">
+      <Real start="-1.0"/>
+    </ScalarVariable>
+    <!-- Index for next variable = 42 -->
+    <ScalarVariable
+      name="conPID.addI.k3"
+      valueReference="100663330"
+      description="Gain of input signal 3"
+      variability="constant">
+      <Real start="1"/>
+    </ScalarVariable>
+    <!-- Index for next variable = 43 -->
+    <ScalarVariable
+      name="conPID.addI.u1"
+      valueReference="436207616"
+      description="Connector of Real input signal 1">
+      <Real
+        declaredType="Modelica.Blocks.Interfaces.RealInput"/>
+    </ScalarVariable>
+    <!-- Index for next variable = 44 -->
+    <ScalarVariable
+      name="conPID.addI.u2"
+      valueReference="436207617"
+      description="Connector of Real input signal 2">
+      <Real
+        declaredType="Modelica.Blocks.Interfaces.RealInput"/>
+    </ScalarVariable>
+    <!-- Index for next variable = 45 -->
+    <ScalarVariable
+      name="conPID.addI.u3"
+      valueReference="637534261"
+      description="Connector of Real input signal 3">
+      <Real
+        declaredType="Modelica.Blocks.Interfaces.RealInput"/>
+    </ScalarVariable>
+    <!-- Index for next variable = 46 -->
+    <ScalarVariable
+      name="conPID.addI.y"
+      valueReference="637534262"
+      description="Connector of Real output signal">
+      <Real
+        declaredType="Modelica.Blocks.Interfaces.RealOutput"/>
+    </ScalarVariable>
+    <!-- Index for next variable = 47 -->
+    <ScalarVariable
+      name="conPID.addSat.u1"
+      valueReference="335544320"
+      description="Connector of Real input signal 1">
+      <Real
+        declaredType="Modelica.Blocks.Interfaces.RealInput"/>
+    </ScalarVariable>
+    <!-- Index for next variable = 48 -->
+    <ScalarVariable
+      name="conPID.addSat.u2"
+      valueReference="369098808"
+      description="Connector of Real input signal 2">
+      <Real
+        declaredType="Modelica.Blocks.Interfaces.RealInput"/>
+    </ScalarVariable>
+    <!-- Index for next variable = 49 -->
+    <ScalarVariable
+      name="conPID.addSat.y"
+      valueReference="637534263"
+      description="Connector of Real output signal">
+      <Real
+        declaredType="Modelica.Blocks.Interfaces.RealOutput"/>
+    </ScalarVariable>
+    <!-- Index for next variable = 50 -->
+    <ScalarVariable
+      name="conPID.addSat.k1"
+      valueReference="100663331"
+      description="Gain of input signal 1"
+      variability="constant">
+      <Real start="1"/>
+    </ScalarVariable>
+    <!-- Index for next variable = 51 -->
+    <ScalarVariable
+      name="conPID.addSat.k2"
+      valueReference="100663332"
+      description="Gain of input signal 2"
+      variability="constant">
+      <Real start="-1"/>
+    </ScalarVariable>
+    <!-- Index for next variable = 52 -->
+    <ScalarVariable
+      name="conPID.gainPID.k"
+      valueReference="100663333"
+      description="Gain value multiplied with input signal"
+      variability="tunable">
+      <Real
+        unit="1"/>
+    </ScalarVariable>
+    <!-- Index for next variable = 53 -->
+    <ScalarVariable
+      name="conPID.gainPID.u"
+      valueReference="369098804"
+      description="Input signal connector">
+      <Real
+        declaredType="Modelica.Blocks.Interfaces.RealInput"/>
+    </ScalarVariable>
+    <!-- Index for next variable = 54 -->
+    <ScalarVariable
+      name="conPID.gainPID.y"
+      valueReference="369098808"
+      description="Output signal connector">
+      <Real
+        declaredType="Modelica.Blocks.Interfaces.RealOutput"/>
+    </ScalarVariable>
+    <!-- Index for next variable = 55 -->
+    <ScalarVariable
+      name="conPID.gainTrack.k"
+      valueReference="100663334"
+      description="Gain value multiplied with input signal"
+      variability="tunable">
+      <Real
+        unit="1"/>
+    </ScalarVariable>
+    <!-- Index for next variable = 56 -->
+    <ScalarVariable
+      name="conPID.gainTrack.u"
+      valueReference="637534263"
+      description="Input signal connector">
+      <Real
+        declaredType="Modelica.Blocks.Interfaces.RealInput"/>
+    </ScalarVariable>
+    <!-- Index for next variable = 57 -->
+    <ScalarVariable
+      name="conPID.gainTrack.y"
+      valueReference="637534261"
+      description="Output signal connector">
+      <Real
+        declaredType="Modelica.Blocks.Interfaces.RealOutput"/>
+    </ScalarVariable>
+    <!-- Index for next variable = 58 -->
+    <ScalarVariable
+      name="conPID.limiter.uMax"
+      valueReference="100663335"
+      description="Upper limits of input signals"
+      variability="constant">
+      <Real start="1.0"/>
+    </ScalarVariable>
+    <!-- Index for next variable = 59 -->
+    <ScalarVariable
+      name="conPID.limiter.uMin"
+      valueReference="100663336"
+      description="Lower limits of input signals"
+      variability="constant">
+      <Real start="0.0"/>
+    </ScalarVariable>
+    <!-- Index for next variable = 60 -->
+    <ScalarVariable
+      name="conPID.limiter.strict"
+      valueReference="100663337"
+      description="= true, if strict limits with noEvent(..)"
+      variability="constant">
+      <Boolean start="true"/>
+    </ScalarVariable>
+    <!-- Index for next variable = 61 -->
+    <ScalarVariable
+      name="conPID.limiter.limitsAtInit"
+      valueReference="100663338"
+      description="Has no longer an effect and is only kept for backwards compatibility (the implementation uses now the homotopy operator)"
+      variability="constant">
+      <Boolean start="true"/>
+    </ScalarVariable>
+    <!-- Index for next variable = 62 -->
+    <ScalarVariable
+      name="conPID.limiter.u"
+      valueReference="369098808"
+      description="Connector of Real input signal">
+      <Real
+        declaredType="Modelica.Blocks.Interfaces.RealInput"/>
+    </ScalarVariable>
+    <!-- Index for next variable = 63 -->
+    <ScalarVariable
+      name="conPID.limiter.y"
+      valueReference="335544320"
+      description="Connector of Real output signal">
+      <Real
+        declaredType="Modelica.Blocks.Interfaces.RealOutput"/>
+    </ScalarVariable>
+    <!-- Index for next variable = 64 -->
+    <ScalarVariable
+      name="conPID.I.u"
+      valueReference="637534262"
+      description="Connector of Real input signal">
+      <Real
+        declaredType="Modelica.Blocks.Interfaces.RealInput"/>
+    </ScalarVariable>
+    <!-- Index for next variable = 65 -->
+    <ScalarVariable
+      name="conPID.I.y"
+      valueReference="33554432"
+      description="Connector of Real output signal">
+      <Real
+        declaredType="Modelica.Blocks.Interfaces.RealOutput"/>
+    </ScalarVariable>
+    <!-- Index for next variable = 66 -->
+    <ScalarVariable
+      name="der(conPID.I.y)"
+      valueReference="587202560"
+      description="der(Connector of Real output signal)">
+      <Real derivative="65"/>
+    </ScalarVariable>
+    <!-- Index for next variable = 67 -->
+    <ScalarVariable
+      name="conPID.I.k"
+      valueReference="100663339"
+      description="Integrator gain"
+      variability="tunable">
+      <Real
+        unit="1"/>
+    </ScalarVariable>
+    <!-- Index for next variable = 68 -->
+    <ScalarVariable
+      name="conPID.I.initType"
+      valueReference="100663340"
+      description="Type of initialization (1: no init, 2: steady state, 3,4: initial output)"
+      variability="constant">
+      <Enumeration
+        declaredType="Modelica.Blocks.Types.Init"
+        start="3"/>
+    </ScalarVariable>
+    <!-- Index for next variable = 69 -->
+    <ScalarVariable
+      name="conPID.I.y_start"
+      valueReference="100663341"
+      description="Initial or guess value of output (= state)"
+      variability="constant">
+      <Real start="0.0"/>
+    </ScalarVariable>
+    <!-- Index for next variable = 70 -->
+    <ScalarVariable
+      name="conPID.I.reset"
+      valueReference="100663342"
+      description="Type of integrator reset"
+      variability="constant">
+      <Enumeration
+        declaredType="Buildings.Types.Reset"
+        start="1"/>
+    </ScalarVariable>
+    <!-- Index for next variable = 71 -->
+    <ScalarVariable
+      name="conPID.I.y_reset"
+      valueReference="100663343"
+      description="Value to which integrator is reset, used if reset = Buildings.Types.Reset.Parameter"
+      variability="constant">
+      <Real start="0.0"/>
+    </ScalarVariable>
+    <!-- Index for next variable = 72 -->
+    <ScalarVariable
+      name="conPID.I.y_reset_internal"
+      valueReference="100663344"
+      description="Internal connector for integrator reset"
+      variability="constant">
+      <Real
+        declaredType="Modelica.Blocks.Interfaces.RealInput"
+        start="0.0"/>
+    </ScalarVariable>
+    <!-- Index for next variable = 73 -->
+    <ScalarVariable
+      name="conPID.I.trigger_internal"
+      valueReference="100663345"
+      description="Needed to use conditional connector trigger"
+      variability="constant">
+      <Boolean
+        declaredType="Modelica.Blocks.Interfaces.BooleanInput"
+        start="false"/>
+    </ScalarVariable>
+    <!-- Index for next variable = 74 -->
+    <ScalarVariable
+      name="k"
+      valueReference="16777216"
+      causality="parameter"
+      variability="tunable">
+      <Real
+        unit="1"
+        start="1"/>
+    </ScalarVariable>
+    <!-- Index for next variable = 75 -->
+    <ScalarVariable
+      name="Ti"
+      valueReference="16777217"
+      causality="parameter"
+      variability="tunable">
+      <Real
+        unit="s"
+        start="100"/>
+    </ScalarVariable>
+    <!-- Index for next variable = 76 -->
+    <ScalarVariable
+      name="Td"
+      valueReference="16777218"
+      causality="parameter"
+      variability="fixed">
+      <Real
+        unit="s"
+        start="100"/>
+    </ScalarVariable>
+    <!-- Index for next variable = 77 -->
+    <ScalarVariable
+      name="y"
+      valueReference="335544320"
+      causality="output">
+      <Real
+        declaredType="Modelica.Blocks.Interfaces.RealOutput"/>
+    </ScalarVariable>
+    <!-- Index for next variable = 78 -->
+    <ScalarVariable
+      name="u_s"
+      valueReference="352321536"
+      causality="input">
+      <Real
+        declaredType="Modelica.Blocks.Interfaces.RealInput"
+        start="0.0"/>
+    </ScalarVariable>
+    <!-- Index for next variable = 79 -->
+    <ScalarVariable
+      name="u_m"
+      valueReference="352321537"
+      causality="input">
+      <Real
+        declaredType="Modelica.Blocks.Interfaces.RealInput"
+        start="0.0"/>
+    </ScalarVariable>
+  </ModelVariables>
+  <ModelStructure>
+    <Outputs>
+      <Unknown index="77"
+        dependencies="65 78 79"
+        dependenciesKind="fixed fixed fixed"/>
+    </Outputs>
+    <Derivatives>
+      <Unknown index="66"
+        dependencies="65 78 79"
+        dependenciesKind="fixed fixed fixed"/>
+    </Derivatives>
+    <InitialUnknowns>
+      <Unknown index="65"
+        dependencies=""
+        dependenciesKind=""/>
+      <Unknown index="66"
+        dependencies="74 75 78 79"
+        dependenciesKind="dependent dependent dependent dependent"/>
+      <Unknown index="77"
+        dependencies="74 78 79"
+        dependenciesKind="dependent dependent dependent"/>
+    </InitialUnknowns>
+  </ModelStructure>
+</fmiModelDescription>
