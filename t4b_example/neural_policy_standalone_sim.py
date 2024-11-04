@@ -9,7 +9,10 @@ import json
 from dateutil.tz import gettz 
 import twin4build.utils.plot.plot as plot
 import twin4build.utils.input_output_types as tps
-
+import sys
+import os
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))) # Add the parent directory to the system path
+from RL_Algos.networks import PolicyNetwork
 
 def insert_neural_policy_in_fcn(self:tb.Model, input_output_dictionary, policy_path=None):
         """
@@ -47,18 +50,7 @@ def insert_neural_policy_in_fcn(self:tb.Model, input_output_dictionary, policy_p
         input_size = len(input_output_dictionary["input"])
         output_size = len(input_output_dictionary["output"])
 
-        policy = nn.Sequential(
-            nn.Linear(input_size, 128),
-            nn.ReLU(),
-            nn.Linear(128, 64),
-            nn.ReLU(),
-            nn.Linear(64, 64),
-            nn.ReLU(),
-            nn.Linear(64, 64),
-            nn.ReLU(),
-            nn.Linear(64, output_size),
-            nn.Sigmoid()
-        )
+        policy = PolicyNetwork(input_size, output_size, action_bound=1.0)
 
         #Load the policy model
         if policy_path is not None:

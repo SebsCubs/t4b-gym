@@ -8,11 +8,17 @@ class PolicyNetwork(nn.Module):
         self.fc = nn.Sequential(
             nn.Linear(state_dim, 128),
             nn.ReLU(),
-            nn.Linear(128, 128),
+            nn.Linear(128, 64),
+            nn.ReLU(),
+            nn.Linear(64, 64),
+            nn.ReLU(),
+            nn.Linear(64, 64),
             nn.ReLU(),
         )
-        self.mean = nn.Linear(128, action_dim)
+        self.mean = nn.Linear(64, action_dim)
         self.log_std = nn.Parameter(torch.zeros(action_dim))
+        # Could add bounds to prevent too small/large standard deviations
+        self.log_std = nn.Parameter(torch.clamp(self.log_std, min=-20, max=2))
 
     def forward(self, x):
         x = self.fc(x)
@@ -26,7 +32,12 @@ class ValueNetwork(nn.Module):
         self.fc = nn.Sequential(
             nn.Linear(state_dim, 128),
             nn.ReLU(),
-            nn.Linear(128, 1)
+            nn.Linear(128, 64),
+            nn.ReLU(),
+            nn.Linear(64, 64),
+            nn.ReLU(),
+            nn.Linear(64, 64),
+            nn.ReLU(),
         )
 
     def forward(self, x):

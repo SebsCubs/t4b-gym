@@ -59,6 +59,7 @@ class PPOAgent:
             # Take gradient step
             self.optimizer.zero_grad()
             loss.mean().backward()
+            torch.nn.utils.clip_grad_norm_(self.policy.parameters(), max_norm=0.5)
             self.optimizer.step()
 
         # Copy new weights into old policy
