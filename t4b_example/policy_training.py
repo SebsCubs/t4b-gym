@@ -115,7 +115,8 @@ class PolicyTrainer:
         
         # Calculate reward for this timestep
         reward = self.compute_reward_from_saved(model, '[020B][020B_space_heater]')
-        episode_reward += reward
+        reward = torch.tensor(reward, dtype=torch.float32)
+        episode_reward = torch.sum(reward).item()
             
         # Store transitions in memory
         self.memory.states = states
@@ -157,13 +158,23 @@ class PolicyTrainer:
             model: The model containing component dictionaries with saved outputs.
             
         Returns:
-            torch.Tensor: A tensor containing the state variables in the format expected by the policy.
+            torch.Tensor: A tensor containing the state variables with shape (timesteps, state_dim)
         """
         neural_controller = model.component_dict["neural_controller"]
-        state = []
-        for key in neural_controller.savedInput.keys():
-            state.append(neural_controller.savedInput[key])
-        return torch.tensor(state, dtype=torch.float32)
+        states = []
+        
+        # First, collect all state variables
+        for component_key in neural_controller.input_output_schema["input"]:
+            signal_key = neural_controller.input_output_schema["input"][component_key]["signal_key"]
+            input_component = model.component_dict[component_key]
+            controller_input = input_component.savedOutput[signal_key]
+            states.append(controller_input)
+        
+        # Convert to numpy array and transpose
+        states = np.array(states)  # Shape: (state_dim, timesteps)
+        states = states.T  # Shape: (timesteps, state_dim)
+        
+        return torch.tensor(states, dtype=torch.float32)
 
 
     def get_action_from_saved(self, model):
@@ -174,12 +185,19 @@ class PolicyTrainer:
             model: The model containing component dictionaries with saved outputs.
 
         Returns:
-            torch.Tensor: A tensor containing the action values in the format expected by the policy.
+            torch.Tensor: A tensor containing the action values with shape (timesteps, action_dim)
         """
         neural_controller = model.component_dict["neural_controller"]
         actions = []
+        
+        # Collect all action variables
         for key in neural_controller.savedOutput.keys():
             actions.append(neural_controller.savedOutput[key])
+        
+        # Convert to numpy array and transpose
+        actions = np.array(actions)  # Shape: (action_dim, timesteps)
+        actions = actions.T  # Shape: (timesteps, action_dim)
+        
         return torch.tensor(actions, dtype=torch.float32)
 
     def compute_reward_from_saved(self, model, space_id):
@@ -193,12 +211,13 @@ class PolicyTrainer:
         Returns:
             float: The computed reward.
         """
-        temperature = model.component_dict[space_id].savedOutput['indoorTemperature']
-        co2 = model.component_dict[space_id].savedOutput['indoorCo2Concentration']
-        energy = model.component_dict[space_id].savedOutput['heatingPower']
+        temperature = np.array(model.component_dict[space_id].savedOutput['indoorTemperature'])
+        co2 = np.array(model.component_dict[space_id].savedOutput['indoorCo2Concentration'])
+        energy = np.array(model.component_dict[space_id].savedOutput['spaceHeaterPower'])
+        
         # Calculate reward 
-        temp_penalty = max(0, temperature - 21.0) * 10
-        co2_penalty = max(0, co2 - 1000) * 10
+        temp_penalty = np.maximum(0, temperature - 21.0) * 10
+        co2_penalty = np.maximum(0, co2 - 1000) * 10
         energy_reward = -energy * 0.001
         
         return energy_reward - temp_penalty - co2_penalty

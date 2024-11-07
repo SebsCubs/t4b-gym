@@ -40,6 +40,7 @@ class PPOAgent:
             returns.insert(0, discounted_reward)
         returns = torch.tensor(returns)
         returns = (returns - returns.mean()) / (returns.std() + 1e-5)
+        # TODO: Check how to calculate advantages and what the value net should output
         advantages = returns - self.value_net(states).detach().squeeze()
 
         # PPO policy update
