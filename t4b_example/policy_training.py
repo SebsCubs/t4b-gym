@@ -1,3 +1,7 @@
+import sys
+import os
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
 import twin4build as tb
 import torch
 from collections import deque
@@ -8,11 +12,14 @@ import copy
 from RL_Algos.ppo_agent import PPOAgent, Memory
 from neural_policy_standalone_sim import fcn
 import twin4build.examples.utils as utils
+from torch.utils.tensorboard import SummaryWriter
+import numpy as np
 
 class PolicyTrainer:
     def __init__(self, model_path, input_output_schema_path):
         self.setup_twin4build_model(model_path, input_output_schema_path)
         self.setup_ppo()
+        self.setup_tensorboard()
         
     def setup_twin4build_model(self, model_path, schema_path):
         # Load the base model
@@ -40,24 +47,14 @@ class PolicyTrainer:
         self.eps_clip = 0.2
         self.value_coef = 0.5
         self.entropy_coef = 0.01
-        
-    def compute_reward(self, simulator, space_id):
-        # TODO: Get relevant metrics from the simulation
-        temperature = simulator.get_result(space_id, 'indoorTemperature')[-1] - 273.15  # Convert to Celsius
-        co2 = simulator.get_result(space_id, 'indoorCo2Concentration')[-1]
-        energy = simulator.get_result(space_id, 'heatingPower')[-1]
-        
-        # Penalties for constraint violations
-        temp_penalty = max(0, temperature - 21.0) * 10
-        co2_penalty = max(0, co2 - 1000) * 10
-        
-        # Reward for energy efficiency (negative because we want to minimize)
-        energy_reward = -energy * 0.001
-        
-        return energy_reward - temp_penalty - co2_penalty
 
+    def setup_tensorboard(self):
+        """Initialize TensorBoard writer"""
+        self.writer = SummaryWriter(f'runs/ppo_training_{datetime.datetime.now().strftime("%Y%m%d-%H%M%S")}')
+        
     def train(self, num_episodes=1000):
         best_reward = float('-inf')
+        rewards_history = []
         
         for episode in range(num_episodes):
             # Reset environment (create new simulation instance)
@@ -72,6 +69,12 @@ class PolicyTrainer:
             
             # Run simulation with current policy
             episode_reward = self.run_episode(simulation_model, simulator, startTime, endTime)
+            rewards_history.append(episode_reward)
+            
+            # Log metrics to TensorBoard
+            self.writer.add_scalar('Reward/episode', episode_reward, episode)
+            self.writer.add_scalar('Reward/moving_average', 
+                                 np.mean(rewards_history[-100:]), episode)
             
             # Update policy using PPO
             self.update_policy()
@@ -115,7 +118,10 @@ class PolicyTrainer:
         episode_reward += reward
             
         # Store transitions in memory
-        self.memory.add(states, actions, reward, log_prob)
+        self.memory.states = states
+        self.memory.actions = actions
+        self.memory.rewards = reward
+        self.memory.logprobs = log_prob
         
         return episode_reward
 
@@ -129,20 +135,31 @@ class PolicyTrainer:
         }
         
         # Update both policy and value networks using PPO agent
-        self.ppo_agent.update(memory_dict)
+        loss_stats = self.ppo_agent.update(memory_dict)  # Assuming update returns loss statistics
         
+        # Log training metrics
+        if loss_stats:  # Only log if the PPO agent returns statistics
+            self.writer.add_scalar('Loss/policy', loss_stats.get('policy_loss', 0), self.ppo_agent.training_step)
+            self.writer.add_scalar('Loss/value', loss_stats.get('value_loss', 0), self.ppo_agent.training_step)
+            self.writer.add_scalar('Loss/total', loss_stats.get('total_loss', 0), self.ppo_agent.training_step)
+            self.writer.add_scalar('Policy/entropy', loss_stats.get('entropy', 0), self.ppo_agent.training_step)
+            
         # Update the policy network in the model
-        self.base_model.component_dict["neural_controller"].policy = self.ppo_agent.policy
-
-        # Clear memory after update
+        self.base_model.component_dict["neural_controller"].policy.load_state_dict(self.ppo_agent.policy.state_dict())
         self.memory.clear()
 
     
     def get_state_from_saved(self, model):
-        # Extract state variables from model.component_dict saved outputs
-        # Return as tensor/array matching your state format
+        """
+        Extract state variables from model.component_dict saved outputs.
+        
+        Args:
+            model: The model containing component dictionaries with saved outputs.
+            
+        Returns:
+            torch.Tensor: A tensor containing the state variables in the format expected by the policy.
+        """
         neural_controller = model.component_dict["neural_controller"]
-        #The tensor will be a 2d array with the first dimension being the timesteps and the second dimension being the state variables
         state = []
         for key in neural_controller.savedInput.keys():
             state.append(neural_controller.savedInput[key])
@@ -150,16 +167,32 @@ class PolicyTrainer:
 
 
     def get_action_from_saved(self, model):
-        # Extract actions from model.component_dict['neural_controller'].savedOutput
-        # Return as tensor/array matching your action format
+        """
+        Extract action values from the neural controller's saved outputs.
+
+        Args:
+            model: The model containing component dictionaries with saved outputs.
+
+        Returns:
+            torch.Tensor: A tensor containing the action values in the format expected by the policy.
+        """
         neural_controller = model.component_dict["neural_controller"]
         actions = []
-        for key in neural_controller.savedOutput['output'].keys():
-            actions.append(neural_controller.savedOutput['output'][key])
+        for key in neural_controller.savedOutput.keys():
+            actions.append(neural_controller.savedOutput[key])
         return torch.tensor(actions, dtype=torch.float32)
 
     def compute_reward_from_saved(self, model, space_id):
-        # Extract relevant metrics from saved outputs
+        """
+        Compute reward based on saved outputs.
+
+        Args:
+            model: The model containing component dictionaries with saved outputs.
+            space_id: The ID of the space to compute reward for.
+
+        Returns:
+            float: The computed reward.
+        """
         temperature = model.component_dict[space_id].savedOutput['indoorTemperature']
         co2 = model.component_dict[space_id].savedOutput['indoorCo2Concentration']
         energy = model.component_dict[space_id].savedOutput['heatingPower']

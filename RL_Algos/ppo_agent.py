@@ -1,5 +1,5 @@
 import torch
-from networks import PolicyNetwork, ValueNetwork
+from RL_Algos.networks import PolicyNetwork, ValueNetwork
 
 class PPOAgent:
     def __init__(self, state_dim, action_dim, action_bound, lr=1e-4, gamma=0.99, eps_clip=0.2, K_epochs=10):
@@ -25,12 +25,12 @@ class PPOAgent:
         action_logprob = dist.log_prob(action).sum()
         return action.numpy(), action_logprob.numpy()
 
-    def update(self, memory):
+    def update(self, memory_dict):
         # Convert lists to tensors
-        states = torch.FloatTensor(memory['states'])
-        actions = torch.FloatTensor(memory['actions'])
-        rewards = torch.FloatTensor(memory['rewards'])
-        old_logprobs = torch.FloatTensor(memory['logprobs'])
+        states = torch.FloatTensor(memory_dict['states'])
+        actions = torch.FloatTensor(memory_dict['actions'])
+        rewards = torch.FloatTensor(memory_dict['rewards'])
+        old_logprobs = torch.FloatTensor(memory_dict['logprobs'])
 
         # Compute returns and advantages
         returns = []
@@ -64,6 +64,14 @@ class PPOAgent:
 
         # Copy new weights into old policy
         self.policy_old.load_state_dict(self.policy.state_dict())
+
+        # Return dictionary of loss statistics
+        return {
+            'policy_loss': loss.item(),
+            'value_loss': (returns - self.value_net(states).squeeze()).pow(2).mean().item(),
+            'total_loss': loss.item(),
+            'entropy': entropy.item()
+        }
 
 # Memory class to store experiences
 class Memory:
