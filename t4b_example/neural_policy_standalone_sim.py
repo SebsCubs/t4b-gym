@@ -3,6 +3,7 @@
 import twin4build as tb
 import datetime
 import twin4build.examples.utils as utils
+import numpy as np
 import torch.nn as nn
 import torch
 import json
@@ -224,7 +225,9 @@ def fcn(self):
     with open(utils.get_path(["neural_policy_controller_example", "policy_input_output.json"])) as f:
         input_output_dictionary = json.load(f)
 
-    insert_neural_policy_in_fcn(self, input_output_dictionary)
+    policy_path = r"C:\Users\asces\OneDriveUni\Projects\Adrenalin_BOPTEST_Challenge\RL_control\t4b_example\best_policy.pth"
+
+    #insert_neural_policy_in_fcn(self, input_output_dictionary, policy_path=None)
     set_model_parameters(self)
 
 if __name__ == "__main__":
@@ -259,6 +262,14 @@ if __name__ == "__main__":
     # Plot the results using plot_component
     space_id = '[020B][020B_space_heater]'
     
+    #print the total energy consumption
+    energy = np.array(model.component_dict[space_id].savedOutput['spaceHeaterPower'])
+    print(f"Total energy consumption: {energy.sum()} Wh")
+
+    #Print the deviation from the setpoint
+    deviation = np.array(model.component_dict[space_id].savedOutput['indoorTemperature']) - 21
+    print(f"Total deviation from setpoint: {deviation.sum()} °C")
+
     # Temperature plot
     plot.plot_component(
         simulator,
@@ -276,5 +287,29 @@ if __name__ == "__main__":
         components_2axis=[(space_id, 'airFlowRate')],
         ylabel_1axis='CO2 Concentration [ppm]',
         ylabel_2axis='Air Flow Rate [m³/s]',
+        show=True
+    )
+
+    # power plot
+    plot.plot_component(
+        simulator,
+        components_1axis=[(space_id, 'spaceHeaterPower')],
+        ylabel_1axis='Space Heater Power [W]',
+        show=True
+    )
+
+    #plot the CO2 setpoint
+    plot.plot_component(
+        simulator,
+        components_1axis=[("neural_controller", '020B_co2_controller_input_signal')],
+        ylabel_1axis='CO2 Setpoint [ppm]',
+        show=True
+    )
+
+    #plot the temperature setpoint
+    plot.plot_component(
+        simulator,
+        components_1axis=[("neural_controller", '020B_temperature_heating_controller_input_signal')],
+        ylabel_1axis='Temperature Setpoint [°C]',
         show=True
     )

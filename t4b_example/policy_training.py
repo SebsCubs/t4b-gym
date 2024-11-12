@@ -48,6 +48,12 @@ class PolicyTrainer:
         self.value_coef = 0.5
         self.entropy_coef = 0.01
         self.training_step = 0  # Add a training step counter here
+        # Add state normalization
+        self.state_mean = None
+        self.state_std = None
+        # Add action normalization
+        self.action_scale = 1.0
+        self.reward_scale = 0.01  # Scale down rewards
 
     def setup_tensorboard(self):
         """Initialize TensorBoard writer"""
@@ -63,9 +69,9 @@ class PolicyTrainer:
             simulator = tb.Simulator() 
             
             # Setup simulation timeframe
-            startTime = datetime.datetime(year=2023, month=11, day=27, hour=0, 
+            startTime = datetime.datetime(year=2023, month=11, day=27, hour=0, minute=0, second=0, 
                                        tzinfo=gettz("Europe/Copenhagen"))
-            endTime = datetime.datetime(year=2023, month=11, day=28, hour=0, 
+            endTime = datetime.datetime(year=2023, month=12, day=7, hour=0, minute=0, second=0,
                                      tzinfo=gettz("Europe/Copenhagen"))
             
             # Run simulation with current policy
@@ -88,68 +94,105 @@ class PolicyTrainer:
             print(f"Episode {episode}, Reward: {episode_reward:.2f}, Best: {best_reward:.2f}")
 
     def run_episode(self, model:tb.Model, simulator:tb.Simulator, start_time, end_time):
+        
+        
         step_size = 600  # 10 minutes
         # Run the full simulation at once
         simulator.simulate(model, startTime=start_time, endTime=end_time, stepSize=step_size)
-        episode_reward = 0
-        # Get state from saved outputs at this timestep
+        
+        # Get state from saved outputs
         states = self.get_state_from_saved(model)
-        # Get the action that was taken (from saved outputs)
         actions = self.get_action_from_saved(model)
-
-        # Get the log probability of the action using the policy network directly
+        
+        # Get state and normalize it
+        if self.state_mean is None:
+            self.state_mean = states.mean(0)
+            self.state_std = states.std(0) + 1e-8
+        else:
+            self.state_mean = 0.99 * self.state_mean + 0.01 * states.mean(0)
+            self.state_std = 0.99 * self.state_std + 0.01 * states.std(0)
+        
+        # Normalize states
+        normalized_states = (states - self.state_mean) / self.state_std
+        
+        # Calculate rewards for all timesteps at once
+        rewards = self.compute_reward_from_saved(model, '[020B][020B_space_heater]')
+        episode_reward = rewards.sum().item()  # Total episode reward
+        rewards = rewards * self.reward_scale  # Scale rewards
+        
         with torch.no_grad():
-            # Ensure states has shape [batch_size, state_dim]
-            if states.dim() == 1:
-                states = states.unsqueeze(0)
+            if normalized_states.dim() == 1:
+                normalized_states = normalized_states.unsqueeze(0)
             
-            # Get action distribution parameters for all states
-            action_mean, action_std = self.ppo_agent.policy_old(states)
+            action_mean, action_std = self.ppo_agent.policy_old(normalized_states)
+            action_mean = torch.clamp(action_mean, -1.0, 1.0)
+            action_std = torch.clamp(action_std, 0.1, 0.5)
             
-            # Ensure actions has same batch dimension as states
             if actions.dim() == 1:
                 actions = actions.unsqueeze(0)
                 
-            # Create distribution and get log probs for all actions
             dist = torch.distributions.Normal(action_mean, action_std)
-            log_prob = dist.log_prob(actions).sum(dim=-1)  # Sum across action dimensions, keeping batch dimension
+            log_prob = dist.log_prob(actions)
+            log_prob = torch.clamp(log_prob, -20.0, 2.0)
+            log_prob = log_prob.sum(dim=-1)
         
-        # Calculate reward for this timestep
-        reward = self.compute_reward_from_saved(model, '[020B][020B_space_heater]')
-        reward = torch.tensor(reward, dtype=torch.float32)
-        episode_reward = torch.sum(reward).item()
-            
-        # Store transitions in memory
-        self.memory.states = states
+        # Store episode data
+        self.memory.states = normalized_states
         self.memory.actions = actions
-        self.memory.rewards = reward
+        self.memory.rewards = rewards
         self.memory.logprobs = log_prob
         
+        model.reset()
+
         return episode_reward
 
     def update_policy(self):
-        # Convert memory to dictionary format expected by PPO agent
+        # Add value checks before update
+        if torch.isnan(self.memory.states).any() or torch.isinf(self.memory.states).any():
+            print("Invalid values in states, skipping update")
+            self.memory.clear()
+            return
+        
+        if torch.isnan(self.memory.actions).any() or torch.isinf(self.memory.actions).any():
+            print("Invalid values in actions, skipping update")
+            self.memory.clear()
+            return
+        
+        # Normalize rewards
+        rewards = self.memory.rewards
+        rewards = (rewards - rewards.mean()) / (rewards.std() + 1e-8)
+        
         memory_dict = {
-            'states': self.memory.states,
-            'actions': self.memory.actions,
-            'rewards': self.memory.rewards,
-            'logprobs': self.memory.logprobs
+            'states': self.memory.states.detach(),
+            'actions': self.memory.actions.detach(),
+            'rewards': rewards.detach(),
+            'logprobs': self.memory.logprobs.detach()
         }
         
-        # Update both policy and value networks using PPO agent
-        loss_stats = self.ppo_agent.update(memory_dict)
-        
-        # Log training metrics using local training_step instead
-        if loss_stats:
-            self.writer.add_scalar('Loss/policy', loss_stats.get('policy_loss', 0), self.training_step)
-            self.writer.add_scalar('Loss/value', loss_stats.get('value_loss', 0), self.training_step)
-            self.writer.add_scalar('Loss/total', loss_stats.get('total_loss', 0), self.training_step)
-            self.writer.add_scalar('Policy/entropy', loss_stats.get('entropy', 0), self.training_step)
+        try:
+            # Update both policy and value networks using PPO agent
+            loss_stats = self.ppo_agent.update(memory_dict)
             
-        self.training_step += 1  # Increment the counter
+            # Log training metrics
+            if loss_stats:
+                self.writer.add_scalar('Loss/policy', loss_stats.get('policy_loss', 0), self.training_step)
+                self.writer.add_scalar('Loss/value', loss_stats.get('value_loss', 0), self.training_step)
+                self.writer.add_scalar('Loss/total', loss_stats.get('total_loss', 0), self.training_step)
+                self.writer.add_scalar('Policy/entropy', loss_stats.get('entropy', 0), self.training_step)
+                
+            self.training_step += 1
+            
+            # Update the policy network in the model
+            self.base_model.component_dict["neural_controller"].policy.load_state_dict(
+                self.ppo_agent.policy.state_dict()
+            )
+        except Exception as e:
+            print("Error during policy update:", str(e))
+            print("Memory content summary:")
+            for key, value in memory_dict.items():
+                print(f"{key}:", value.shape, "Range:", value.min().item(), "to", value.max().item())
+            raise  # Re-raise the exception after printing debug info
         
-        # Update the policy network in the model
-        self.base_model.component_dict["neural_controller"].policy.load_state_dict(self.ppo_agent.policy.state_dict())
         self.memory.clear()
 
     
@@ -205,25 +248,43 @@ class PolicyTrainer:
 
     def compute_reward_from_saved(self, model, space_id):
         """
-        Compute reward based on saved outputs.
-
+        Compute rewards for all timesteps at once.
+        
         Args:
             model: The model containing component dictionaries with saved outputs.
             space_id: The ID of the space to compute reward for.
-
+        
         Returns:
-            float: The computed reward.
+            torch.Tensor: Tensor of rewards for all timesteps
         """
-        temperature = np.array(model.component_dict[space_id].savedOutput['indoorTemperature'])
-        co2 = np.array(model.component_dict[space_id].savedOutput['indoorCo2Concentration'])
-        energy = np.array(model.component_dict[space_id].savedOutput['spaceHeaterPower'])
+        # Get all timesteps at once
+        temperature = torch.tensor(model.component_dict[space_id].savedOutput['indoorTemperature'])
+        co2 = torch.tensor(model.component_dict[space_id].savedOutput['indoorCo2Concentration'])
+        energy = torch.tensor(model.component_dict[space_id].savedOutput['spaceHeaterPower'])
         
-        # Calculate reward 
-        temp_penalty = np.maximum(0, temperature - 21.0) * 10
-        co2_penalty = np.maximum(0, co2 - 1000) * 10
-        energy_reward = -energy * 0.001
+        # Calculate reward components
+        temp_setpoint = 21.0
+        co2_setpoint = 1000.0
         
-        return energy_reward - temp_penalty - co2_penalty
+        # Temperature penalty (quadratic)
+        temp_error = torch.abs(temperature - temp_setpoint)
+        temp_penalty = -(temp_error ** 2)
+        
+        # CO2 penalty (quadratic above setpoint)
+        co2_error = torch.clamp(co2 - co2_setpoint, min=0)
+        co2_penalty = -(co2_error ** 2) * 0.001
+        
+        # Energy penalty (linear)
+        energy_penalty = -energy * 0.001
+        
+        # Combine rewards
+        rewards = temp_penalty + co2_penalty + energy_penalty
+        
+        # Add debugging info for first and last timestep
+        print(f"First timestep - Temp: {temperature[0]:.2f}, CO2: {co2[0]:.2f}, Energy: {energy[0]:.2f}, Reward: {rewards[0]:.2f}")
+        print(f"Last timestep - Temp: {temperature[-1]:.2f}, CO2: {co2[-1]:.2f}, Energy: {energy[-1]:.2f}, Reward: {rewards[-1]:.2f}")
+        
+        return rewards
 
 if __name__ == "__main__":
     model_filename = utils.get_path(["parameter_estimation_example", "one_room_example_model.xlsm"])
