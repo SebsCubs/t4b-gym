@@ -41,6 +41,7 @@ class PolicyTrainer:
         # update the policy in the base model
         #The policy in the model must be a PolicyNetwork object, not a nn.Module object
         self.base_model.component_dict["neural_controller"].policy.load_state_dict(self.train_policy.state_dict())
+        self.base_model.component_dict["neural_controller"].is_training = True
 
     def setup_ppo(self):
         self.memory = Memory()  # Using the Memory class from ppo_agent.py
@@ -264,18 +265,18 @@ class PolicyTrainer:
         
         # Calculate reward components
         temp_setpoint = 21.0
-        co2_setpoint = 1000.0
+        co2_setpoint = 900.0
         
         # Temperature penalty (quadratic)
         temp_error = torch.abs(temperature - temp_setpoint)
-        temp_penalty = -(temp_error ** 2)
+        temp_penalty = -(temp_error) * 10
         
         # CO2 penalty (quadratic above setpoint)
-        co2_error = torch.clamp(co2 - co2_setpoint, min=0)
-        co2_penalty = -(co2_error ** 2) * 0.001
+        co2_error = torch.abs(co2 - co2_setpoint)
+        co2_penalty = -(co2_error) * 0.01
         
         # Energy penalty (linear)
-        energy_penalty = -energy * 0.001
+        energy_penalty = -energy * 0.01
         
         # Combine rewards
         rewards = temp_penalty + co2_penalty + energy_penalty
