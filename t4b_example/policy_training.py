@@ -47,6 +47,7 @@ class PolicyTrainer:
         self.eps_clip = 0.2
         self.value_coef = 0.5
         self.entropy_coef = 0.01
+        self.training_step = 0  # Add a training step counter here
 
     def setup_tensorboard(self):
         """Initialize TensorBoard writer"""
@@ -136,15 +137,17 @@ class PolicyTrainer:
         }
         
         # Update both policy and value networks using PPO agent
-        loss_stats = self.ppo_agent.update(memory_dict)  # Assuming update returns loss statistics
+        loss_stats = self.ppo_agent.update(memory_dict)
         
-        # Log training metrics
-        if loss_stats:  # Only log if the PPO agent returns statistics
-            self.writer.add_scalar('Loss/policy', loss_stats.get('policy_loss', 0), self.ppo_agent.training_step)
-            self.writer.add_scalar('Loss/value', loss_stats.get('value_loss', 0), self.ppo_agent.training_step)
-            self.writer.add_scalar('Loss/total', loss_stats.get('total_loss', 0), self.ppo_agent.training_step)
-            self.writer.add_scalar('Policy/entropy', loss_stats.get('entropy', 0), self.ppo_agent.training_step)
+        # Log training metrics using local training_step instead
+        if loss_stats:
+            self.writer.add_scalar('Loss/policy', loss_stats.get('policy_loss', 0), self.training_step)
+            self.writer.add_scalar('Loss/value', loss_stats.get('value_loss', 0), self.training_step)
+            self.writer.add_scalar('Loss/total', loss_stats.get('total_loss', 0), self.training_step)
+            self.writer.add_scalar('Policy/entropy', loss_stats.get('entropy', 0), self.training_step)
             
+        self.training_step += 1  # Increment the counter
+        
         # Update the policy network in the model
         self.base_model.component_dict["neural_controller"].policy.load_state_dict(self.ppo_agent.policy.state_dict())
         self.memory.clear()
