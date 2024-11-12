@@ -39,7 +39,10 @@ class ValueNetwork(nn.Module):
             nn.Linear(64, 64),
             nn.ReLU(),
         )
+        # Add final layer to output a scalar value
+        self.value_head = nn.Linear(64, 1)
 
     def forward(self, x):
-        value = self.fc(x)
+        x = self.fc(x)
+        value = self.value_head(x)
         return value

@@ -40,8 +40,10 @@ class PPOAgent:
             returns.insert(0, discounted_reward)
         returns = torch.tensor(returns)
         returns = (returns - returns.mean()) / (returns.std() + 1e-5)
-        # TODO: Check how to calculate advantages and what the value net should output
-        advantages = returns - self.value_net(states).detach().squeeze()
+        
+        values = self.value_net(states).detach().squeeze()
+
+        advantages = returns - values
 
         # PPO policy update
         for _ in range(self.K_epochs):
@@ -68,10 +70,11 @@ class PPOAgent:
 
         # Return dictionary of loss statistics
         return {
-            'policy_loss': loss.item(),
+            'policy_loss': (-torch.min(surr1, surr2)).mean().item(),
             'value_loss': (returns - self.value_net(states).squeeze()).pow(2).mean().item(),
-            'total_loss': loss.item(),
-            'entropy': entropy.item()
+            'total_loss': loss.mean().item(),
+            'entropy': entropy.mean().item(),
+            'training_step': self.K_epochs
         }
 
 # Memory class to store experiences
