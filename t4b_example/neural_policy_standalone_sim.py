@@ -227,7 +227,7 @@ def fcn(self):
 
     policy_path = r"C:\Users\asces\OneDriveUni\Projects\Adrenalin_BOPTEST_Challenge\RL_control\t4b_example\best_policy.pth"
 
-    insert_neural_policy_in_fcn(self, input_output_dictionary, policy_path=policy_path)
+    insert_neural_policy_in_fcn(self, input_output_dictionary, policy_path=None)
     set_model_parameters(self)
 
 if __name__ == "__main__":

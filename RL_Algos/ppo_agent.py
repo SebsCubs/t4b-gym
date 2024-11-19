@@ -64,7 +64,7 @@ class PPOAgent:
                 logprobs = logprobs.sum(dim=1)
                 
                 entropy = dist.entropy().sum(dim=1)
-                entropy = torch.clamp(entropy, -1.0, 1.0)  # Clip entropy
+                #entropy = torch.clamp(entropy, -1.0, 1.0)  # Clip entropy
                 
                 ratios = torch.exp(torch.clamp(logprobs - old_logprobs, -20.0, 2.0))
                 ratios = torch.clamp(ratios, 0.0, 4.0)  # Prevent extreme ratios
