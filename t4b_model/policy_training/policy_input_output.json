@@ -1,0 +1,57 @@
+{
+    "input": {
+        "supply_flow_junction": {
+            "signal_key" : "airFlowRateIn",
+            "min": 0,
+            "max": 20,      
+            "description": "Supply fan air flow rate"
+        },
+        "[HF04_heat_exchanger][HF04_heat_exchanger (return)][HF04_heat_exchanger (supply)]": {
+            "signal_key" : "primaryTemperatureOut",
+            "min": -20,
+            "max": 40,
+            "description": "Supply air temperature after heat exchanger"
+        },
+        "[cooling_coil][cooling_coil (airside)][heating_coil][heating_coil (airside)]": {
+            "signal_key" : "outletAirTemperature",
+            "min": -10,
+            "max": 40,
+            "description": "Supply air temperature after cooling & heating coil"
+        },
+        "exhaust_flow_junction": {
+            "signal_key" : "airFlowRateOut",
+            "min": 0,
+            "max": 20,
+            "description": "Exhaust air flow rate"
+        },
+        "supply_air_setpoint": {
+            "signal_key" : "scheduleValue",
+            "min": 0,
+            "max": 35,
+            "description": "Supply air temperature after cooling & heating coil"
+        }
+    },
+    "output": {
+        "cooling_coil_controller": {
+            "signal_key" : "setpointValue",
+            "min": 0,
+            "max": 30,
+            "description": "Cooling coil setpoint"
+        },
+        "heating_coil_controller": {
+            "signal_key" : "setpointValue",
+            "min": 0,
+            "max": 40,
+            "description": "Heating coil setpoint"
+        },
+        "air_to_air_heat_recovery_controller": {
+            "signal_key" : "setpointValue",
+            "min": 0,
+            "max": 40,
+            "description": "Air to air heat recovery temperature setpoint"
+        }
+    }
+}
+  
+
+  

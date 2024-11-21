@@ -1,0 +1,14 @@
+{
+  "supply_air_temperature_schedule": {
+    "weekDayRulesetDict": {
+      "ruleset_default_value": 21,
+      "ruleset_start_minute": [],
+      "ruleset_end_minute": [],
+      "ruleset_start_hour": [],
+      "ruleset_end_hour": [],
+      "ruleset_value": []
+    },
+    "saveSimulationResult": true,
+    "id": "HF04_supply_air_temperature_schedule"
+  }
+}
