@@ -15,6 +15,13 @@ import sys
 import os
 
 sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))) # Add the grandparent directory to the system path
+
+# Only for testing before distributing package
+if __name__ == '__main__':
+    uppath = lambda _path, n: os.sep.join(_path.split(os.sep)[:-n])
+    file_path = os.path.join(uppath(os.path.abspath(__file__), 4), "Twin4Build")
+    sys.path.append(file_path)
+
 from RL_Algos.networks import PolicyNetwork
 
 sys.setrecursionlimit(2000)
@@ -53,7 +60,7 @@ def insert_neural_policy_in_fcn(self:tb.Model, input_output_dictionary, policy_p
 
         #Create the controller
         input_size = len(input_output_dictionary["input"])
-        output_size = len(input_output_dictionary["output"])
+        output_size = 5 #TODO: Make this dynamic
 
         policy = PolicyNetwork(input_size, output_size, action_bound=1.0)
 
@@ -83,17 +90,15 @@ def insert_neural_policy_in_fcn(self:tb.Model, input_output_dictionary, policy_p
         setpoint_connections = {component_key: {} for component_key in setpoint_delivery_components}
         for setpoint_component_key in setpoint_delivery_components:
             sender_component = self.component_dict[setpoint_component_key]
-            try:
-                for connection_point in sender_component.connectedThrough[0].connectsSystemAt:
-                    receiver_component = connection_point.connectionPointOf
-                    setpoint_receiver_signal_key = connection_point.receiverPropertyName
-                    receiver_component_key = receiver_component.id
-                    setpoint_connections[setpoint_component_key][receiver_component_key] = setpoint_receiver_signal_key
 
-                #Deleting one connection deletes all of them in this case, since they all have "scheduleValue" as the sender signal key    
-                self.remove_connection(sender_component, receiver_component, "scheduleValue", setpoint_receiver_signal_key)
-            except Exception as e:
-                print(f"Could not find connection for {setpoint_component_key} and {input_output_dictionary['input'][setpoint_component_key]['signal_key']}")
+            for connection_point in sender_component.connectedThrough[0].connectsSystemAt:
+                receiver_component = connection_point.connectionPointOf
+                setpoint_receiver_signal_key = connection_point.receiverPropertyName
+                receiver_component_key = receiver_component.id
+                setpoint_connections[setpoint_component_key][receiver_component_key] = setpoint_receiver_signal_key
+
+            #Deleting one connection deletes all of them in this case, since they all have "scheduleValue" as the sender signal key    
+            self.remove_connection_multiple_receivers(sender_component, "scheduleValue")
 
         # Define the output dictionary for the NeuralController using a dictionary comprehension
         # Add the connections to the setpoint-receiving components
@@ -108,12 +113,7 @@ def insert_neural_policy_in_fcn(self:tb.Model, input_output_dictionary, policy_p
                     receiver_signal
                 )
 
-        # Define a custom initial dictionary for the NeuralController outputs:
-        custom_initial = {"neural_controller": {f"{component_key}_input_signal": tps.Scalar(0) for component_key in setpoint_connections.keys()}}
-        self.set_custom_initial_dict(custom_initial)
-       
         #Add the input connections
-        
         for component_key in input_output_dictionary["input"]:
             try:
                 sender_component = self.component_dict[component_key]
@@ -128,11 +128,21 @@ def insert_neural_policy_in_fcn(self:tb.Model, input_output_dictionary, policy_p
                 "actualValue"
             )
 
+        # Define a custom initial dictionary for the NeuralController outputs:
+        custom_initial = {"neural_controller": {f"{component_key}": tps.Scalar(0) for component_key in neural_policy_controller.output.keys()}}
+        self.set_custom_initial_dict(custom_initial)
 
+        return neural_policy_controller
         
 
 
 def fcn(self):
+    '''
+        The fcn() function adds connections between components in a system model,
+        creates a schedule object, and adds it to the component dictionary.
+        The test() function sets simulation parameters and runs a simulation of the system
+        model using the Simulator() class. It then generates several plots of the simulation results using functions from the plot module.
+    '''
     '''
         The fcn() function adds connections between components in a system model,
         creates a schedule object, and adds it to the component dictionary.
@@ -158,16 +168,20 @@ def fcn(self):
                             "scheduleValue", "supplyWaterTemperature")
         
     #Load the input/output dictionary from the file policy_input_output.json
-    with open(r"C:\Users\asces\OneDriveUni\Projects\Adrenalin_BOPTEST_Challenge\RL_control\t4b_model\policy_training\policy_input_output.json") as f:
+    script_dir = os.path.dirname(os.path.abspath(__file__))
+    json_path = os.path.join(script_dir, "policy_input_output.json")
+    with open(json_path) as f:
         input_output_dictionary = json.load(f)
 
-    insert_neural_policy_in_fcn(self, input_output_dictionary, policy_path= None)
+    neural_policy_controller = insert_neural_policy_in_fcn(self, input_output_dictionary, policy_path= None)
 
 if __name__ == "__main__":
     # Create a new model
     model = tb.Model(id="neural_policy_1stfloor", saveSimulationResult=True)
-    filename = r"C:\Users\asces\OneDriveUni\Projects\Adrenalin_BOPTEST_Challenge\RL_control\t4b_model\model\fan_flow_configuration_template_DP37_full_no_cooling.xlsm"
-    model.load(semantic_model_filename=filename, fcn=fcn, verbose=False)
+
+    filename = os.path.join(uppath(os.path.abspath(__file__), 1), "fan_flow_configuration_template_DP37_full_no_cooling.xlsm")
+
+    model.load(semantic_model_filename=filename, fcn=fcn, create_signature_graphs=False, validate_model=True, verbose=False, force_config_update=True)
 
     #Run a simulation
     stepSize = 600  # Seconds
@@ -220,18 +234,3 @@ if __name__ == "__main__":
         show=True
     )
 
-    #plot the CO2 setpoint
-    plot.plot_component(
-        simulator,
-        components_1axis=[("neural_controller", '020B_co2_controller_input_signal')],
-        ylabel_1axis='CO2 Setpoint [ppm]',
-        show=True
-    )
-
-    #plot the temperature setpoint
-    plot.plot_component(
-        simulator,
-        components_1axis=[("neural_controller", '020B_temperature_heating_controller_input_signal')],
-        ylabel_1axis='Temperature Setpoint [°C]',
-        show=True
-    )
