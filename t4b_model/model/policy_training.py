@@ -1,6 +1,6 @@
 import sys
 import os
-sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))) # Add the grandparent directory to the system path
 
 import twin4build as tb
 import torch
@@ -15,6 +15,12 @@ import twin4build.examples.utils as utils
 from torch.utils.tensorboard import SummaryWriter
 import numpy as np
 
+# Only for testing before distributing package
+if __name__ == '__main__':
+    uppath = lambda _path, n: os.sep.join(_path.split(os.sep)[:-n])
+    file_path = os.path.join(uppath(os.path.abspath(__file__), 4), "Twin4Build")
+    sys.path.append(file_path)
+
 class PolicyTrainer:
     def __init__(self, model_path, input_output_schema_path):
         self.setup_twin4build_model(model_path, input_output_schema_path)
@@ -28,7 +34,7 @@ class PolicyTrainer:
             self.input_output_schema = json.load(f)
         
         self.input_size = len(self.input_output_schema["input"])
-        self.output_size = len(self.input_output_schema["output"])
+        self.output_size =  5 #TODO: Make this dynamic
         
         # Create policy and value networks
         self.ppo_agent = PPOAgent(
@@ -37,7 +43,7 @@ class PolicyTrainer:
             action_bound=1.0
         )
         self.train_policy = self.ppo_agent.policy_old
-        self.base_model.load(semantic_model_filename=model_path, fcn=fcn, verbose=False)
+        self.base_model.load(semantic_model_filename=model_path, fcn=fcn, create_signature_graphs=False, validate_model=True, verbose=False, force_config_update=True)
         # update the policy in the base model
         #The policy in the model must be a PolicyNetwork object, not a nn.Module object
         self.base_model.component_dict["neural_controller"].policy.load_state_dict(self.train_policy.state_dict())
@@ -288,8 +294,11 @@ class PolicyTrainer:
         return rewards
 
 if __name__ == "__main__":
-    model_filename = utils.get_path(["parameter_estimation_example", "one_room_example_model.xlsm"])
-    input_output_schema_path = utils.get_path(["neural_policy_controller_example", "policy_input_output.json"])
+    model_filename = os.path.join(uppath(os.path.abspath(__file__), 1), "fan_flow_configuration_template_DP37_full_no_cooling.xlsm")
+    #Load the input/output dictionary from the file policy_input_output.json
+    script_dir = os.path.dirname(os.path.abspath(__file__))
+    input_output_schema_path = os.path.join(script_dir, "policy_input_output.json")
+
     trainer = PolicyTrainer(
         model_path=model_filename,
         input_output_schema_path=input_output_schema_path
