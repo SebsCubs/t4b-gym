@@ -29,6 +29,24 @@
             "min": 0,
             "max": 35,
             "description": "Supply air temperature after cooling & heating coil"
+        },
+        "[020B][020B_space_heater]": {
+            "signal_key" : "indoorTemperature",
+            "min": 0,
+            "max": 40,
+            "description": "Room 020B indoor temperature"
+        },
+        "020B_temperature_heating_setpoint": {
+            "signal_key" : "scheduleValue",
+            "min": 0,
+            "max": 40,
+            "description": "Room 020B heating setpoint"
+        },
+        "020B_co2_setpoint": {
+            "signal_key" : "scheduleValue",
+            "min": 0,
+            "max": 4000,
+            "description": "Room 020B CO2 setpoint"
         }
     },
     "output": {

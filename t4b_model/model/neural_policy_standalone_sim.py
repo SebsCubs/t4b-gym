@@ -60,7 +60,7 @@ def insert_neural_policy_in_fcn(self:tb.Model, input_output_dictionary, policy_p
 
         #Create the controller
         input_size = len(input_output_dictionary["input"])
-        output_size = 5 #TODO: Make this dynamic
+        output_size = 5 + 2 + 1 #TODO: Make this dynamic
 
         policy = PolicyNetwork(input_size, output_size, action_bound=1.0)
 
@@ -182,6 +182,8 @@ if __name__ == "__main__":
     filename = os.path.join(uppath(os.path.abspath(__file__), 1), "fan_flow_configuration_template_DP37_full_no_cooling.xlsm")
 
     model.load(semantic_model_filename=filename, fcn=fcn, create_signature_graphs=False, validate_model=True, verbose=False, force_config_update=True)
+
+    #model.component_dict["neural_controller"].policy.load_state_dict(torch.load(r"C:\Users\asces\OneDriveUni\Projects\Adrenalin_BOPTEST_Challenge\RL_control\best_policy.pth"))
 
     #Run a simulation
     stepSize = 600  # Seconds

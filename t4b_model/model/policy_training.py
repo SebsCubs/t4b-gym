@@ -34,7 +34,7 @@ class PolicyTrainer:
             self.input_output_schema = json.load(f)
         
         self.input_size = len(self.input_output_schema["input"])
-        self.output_size =  5 #TODO: Make this dynamic
+        self.output_size =  5 + 2 + 1 #TODO: Make this dynamic
         
         # Create policy and value networks
         self.ppo_agent = PPOAgent(
