@@ -80,7 +80,7 @@ def insert_neural_policy_in_fcn(self:tb.Model, input_output_dictionary, policy_p
         #3. Store the setpoint-receiving components
         setpoint_connections = {component_key: {} for component_key in setpoint_delivery_components}
         for setpoint_component_key in setpoint_delivery_components:
-            sender_component = self.component_dict[setpoint_component_key]
+            sender_component = self.components[setpoint_component_key]
 
             for connection_point in sender_component.connectedThrough[0].connectsSystemAt:
                 receiver_component = connection_point.connectionPointOf
@@ -99,7 +99,7 @@ def insert_neural_policy_in_fcn(self:tb.Model, input_output_dictionary, policy_p
                 neural_policy_controller.output[output_signal_key] = tps.Scalar()
                 self.add_connection(
                     neural_policy_controller,
-                    self.component_dict[receiver_key],
+                    self.components[receiver_key],
                     output_signal_key,
                     receiver_signal
                 )
@@ -107,7 +107,7 @@ def insert_neural_policy_in_fcn(self:tb.Model, input_output_dictionary, policy_p
         #Add the input connections
         for component_key in input_output_dictionary["input"]:
             try:
-                sender_component = self.component_dict[component_key]
+                sender_component = self.components[component_key]
             except KeyError:
                 print(f"Could not find component {component_key}")
                 continue
@@ -147,14 +147,14 @@ def fcn(self):
                                           "Y": [60, 50, 20]}},
             saveSimulationResult = True,
         id="supply_water_temperature_schedule")
-    outdoor_environment = self.get_component_by_class(self.component_dict, tb.OutdoorEnvironmentSystem)[0]
+    outdoor_environment = self.get_component_by_class(self.components, tb.OutdoorEnvironmentSystem)[0]
     self.add_connection(outdoor_environment, supply_water_temperature_schedule, "outdoorTemperature", "outdoorTemperature")
-    spaces = self.get_component_by_class(self.component_dict, tb.BuildingSpace1AdjBoundaryFMUSystem)
-    spaces.extend(self.get_component_by_class(self.component_dict, tb.BuildingSpace2AdjBoundaryFMUSystem))
-    spaces.extend(self.get_component_by_class(self.component_dict, tb.BuildingSpace11AdjBoundaryFMUSystem))
-    spaces.extend(self.get_component_by_class(self.component_dict, tb.BuildingSpace1AdjBoundaryOutdoorFMUSystem))
-    spaces.extend(self.get_component_by_class(self.component_dict, tb.BuildingSpace2AdjBoundaryOutdoorFMUSystem))
-    spaces.extend(self.get_component_by_class(self.component_dict, tb.BuildingSpace11AdjBoundaryOutdoorFMUSystem))
+    spaces = self.get_component_by_class(self.components, tb.BuildingSpace1AdjBoundaryFMUSystem)
+    spaces.extend(self.get_component_by_class(self.components, tb.BuildingSpace2AdjBoundaryFMUSystem))
+    spaces.extend(self.get_component_by_class(self.components, tb.BuildingSpace11AdjBoundaryFMUSystem))
+    spaces.extend(self.get_component_by_class(self.components, tb.BuildingSpace1AdjBoundaryOutdoorFMUSystem))
+    spaces.extend(self.get_component_by_class(self.components, tb.BuildingSpace2AdjBoundaryOutdoorFMUSystem))
+    spaces.extend(self.get_component_by_class(self.components, tb.BuildingSpace11AdjBoundaryOutdoorFMUSystem))
     for space in spaces:
         self.add_connection(supply_water_temperature_schedule, space, 
                             "scheduleValue", "supplyWaterTemperature")
@@ -175,8 +175,8 @@ if __name__ == "__main__":
 
     model.load(semantic_model_filename=filename, fcn=fcn, create_signature_graphs=False, validate_model=True, verbose=False, force_config_update=True)
 
-    #model.component_dict["neural_controller"].policy.load_state_dict(torch.load(r"C:\Users\asces\OneDriveUni\Projects\Adrenalin_BOPTEST_Challenge\RL_control\best_policy.pth"))
-
+    #model.components["neural_controller"].policy.load_state_dict(torch.load(r"C:\Users\asces\OneDriveUni\Projects\Adrenalin_BOPTEST_Challenge\RL_control\best_policy.pth"))
+    model.components["neural_controller"].policy.load_state_dict(torch.load(r"C:\Users\asces\OneDriveUni\Projects\Adrenalin_BOPTEST_Challenge\RL_control\t4b_model\model\best_policy.pth"))
     #Run a simulation
     stepSize = 600  # Seconds
     startTime = datetime.datetime(year=2024, month=1, day=5, hour=0, minute=0, second=0,
@@ -193,30 +193,26 @@ if __name__ == "__main__":
     space_id = '[020B][020B_space_heater]'
     
     #print the total energy consumption
-    energy = np.array(model.component_dict[space_id].savedOutput['spaceHeaterPower'])
+    energy = np.array(model.components[space_id].savedOutput['spaceHeaterPower'])
     print(f"Total energy consumption: {energy.sum()} Wh")
 
     #Print the deviation from the setpoint
-    deviation = np.array(model.component_dict[space_id].savedOutput['indoorTemperature']) - 21
+    deviation = np.array(model.components[space_id].savedOutput['indoorTemperature']) - 21
     print(f"Total deviation from setpoint: {deviation.sum()} °C")
 
     # Temperature plot
     plot.plot_component(
         simulator,
-        components_1axis=[(space_id, 'indoorTemperature')],
-        components_2axis=[(space_id, 'outdoorTemperature')],
-        ylabel_1axis='Room Temperature [°C]',
-        ylabel_2axis='Outdoor Temperature [°C]',
+        components_1axis=[(space_id, 'indoorTemperature'),("neural_controller", '020B_temperature_heating_setpoint_[020B_co2_controller][020B_damper_heating_controller]_input_signal'),("neural_controller", '020B_temperature_heating_setpoint_020B_temperature_controller_input_signal')],
+        ylabel_1axis='Room Temperature [°C] (Actual and Setpoint)',
         show=True
     )
 
     # CO2 plot
     plot.plot_component(
         simulator,
-        components_1axis=[(space_id, 'indoorCo2Concentration')],
-        components_2axis=[(space_id, 'airFlowRate')],
-        ylabel_1axis='CO2 Concentration [ppm]',
-        ylabel_2axis='Air Flow Rate [m³/s]',
+        components_1axis=[(space_id, 'indoorCo2Concentration'),("neural_controller", '020B_co2_setpoint_[020B_co2_controller][020B_damper_heating_controller]_input_signal')],
+        ylabel_1axis='CO2 Concentration [ppm] (Actual and Setpoint)',
         show=True
     )
 
@@ -224,7 +220,7 @@ if __name__ == "__main__":
     plot.plot_component(
         simulator,
         components_1axis=[(space_id, 'spaceHeaterPower')],
-        ylabel_1axis='Space Heater Power [W]',
+        ylabel_1axis='Space Heater Power [W] (Actual)',
         show=True
     )
 

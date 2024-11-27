@@ -46,8 +46,8 @@ class PolicyTrainer:
         self.base_model.load(semantic_model_filename=model_path, fcn=fcn, create_signature_graphs=False, validate_model=True, verbose=False, force_config_update=True)
         # update the policy in the base model
         #The policy in the model must be a PolicyNetwork object, not a nn.Module object
-        self.base_model.component_dict["neural_controller"].policy.load_state_dict(self.train_policy.state_dict())
-        self.base_model.component_dict["neural_controller"].is_training = True
+        self.base_model.components["neural_controller"].policy.load_state_dict(self.train_policy.state_dict())
+        self.base_model.components["neural_controller"].is_training = True
 
     def setup_ppo(self):
         self.memory = Memory()  # Using the Memory class from ppo_agent.py
@@ -190,7 +190,7 @@ class PolicyTrainer:
             self.training_step += 1
             
             # Update the policy network in the model
-            self.base_model.component_dict["neural_controller"].policy.load_state_dict(
+            self.base_model.components["neural_controller"].policy.load_state_dict(
                 self.ppo_agent.policy.state_dict()
             )
         except Exception as e:
@@ -205,7 +205,7 @@ class PolicyTrainer:
     
     def get_state_from_saved(self, model):
         """
-        Extract state variables from model.component_dict saved outputs.
+        Extract state variables from model.components saved outputs.
         
         Args:
             model: The model containing component dictionaries with saved outputs.
@@ -213,12 +213,12 @@ class PolicyTrainer:
         Returns:
             torch.Tensor: A tensor containing the state variables with shape (timesteps, state_dim)
         """
-        neural_controller = model.component_dict["neural_controller"]
+        neural_controller = model.components["neural_controller"]
         states = []
         
         # First, collect all state variables
         for component_key, signals in neural_controller.input_output_schema["input"].items():
-            input_component = model.component_dict[component_key]
+            input_component = model.components[component_key]
             for signal_name in signals.keys():
                 controller_input = input_component.savedOutput[signal_name]
                 states.append(controller_input)
@@ -240,7 +240,7 @@ class PolicyTrainer:
         Returns:
             torch.Tensor: A tensor containing the action values with shape (timesteps, action_dim)
         """
-        neural_controller = model.component_dict["neural_controller"]
+        neural_controller = model.components["neural_controller"]
         actions = []
         
         # Collect all action variables
@@ -265,10 +265,11 @@ class PolicyTrainer:
             torch.Tensor: Tensor of rewards for all timesteps
         """
         # Get all timesteps at once
-        temperature = torch.tensor(model.component_dict[space_id].savedOutput['indoorTemperature'])
-        co2 = torch.tensor(model.component_dict[space_id].savedOutput['indoorCo2Concentration'])
-        energy = torch.tensor(model.component_dict[space_id].savedOutput['spaceHeaterPower'])
-        
+        temperature = torch.tensor(model.components[space_id].savedOutput['indoorTemperature'])
+        co2 = torch.tensor(model.components[space_id].savedOutput['indoorCo2Concentration'])
+        room_heating_energy = torch.tensor(model.components[space_id].savedOutput['spaceHeaterPower'])
+        fan_energy = torch.tensor(model.components['supply_fan'].savedOutput['Power'])
+
         # Calculate reward components
         temp_setpoint = 21.0
         co2_setpoint = 900.0
@@ -282,14 +283,14 @@ class PolicyTrainer:
         co2_penalty = -(co2_error) * 0.01
         
         # Energy penalty (linear)
-        energy_penalty = -energy * 0.01
+        energy_penalty = -room_heating_energy * 0.01 - fan_energy * 0.01
         
         # Combine rewards
         rewards = temp_penalty + co2_penalty + energy_penalty
         
         # Add debugging info for first and last timestep
-        print(f"First timestep - Temp: {temperature[0]:.2f}, CO2: {co2[0]:.2f}, Energy: {energy[0]:.2f}, Reward: {rewards[0]:.2f}")
-        print(f"Last timestep - Temp: {temperature[-1]:.2f}, CO2: {co2[-1]:.2f}, Energy: {energy[-1]:.2f}, Reward: {rewards[-1]:.2f}")
+        print(f"First timestep - Temp: {temperature[0]:.2f}, CO2: {co2[0]:.2f}, Energy: {room_heating_energy[0]:.2f}, Reward: {rewards[0]:.2f}")
+        print(f"Last timestep - Temp: {temperature[-1]:.2f}, CO2: {co2[-1]:.2f}, Energy: {room_heating_energy[-1]:.2f}, Reward: {rewards[-1]:.2f}")
         
         return rewards
 
@@ -303,4 +304,4 @@ if __name__ == "__main__":
         model_path=model_filename,
         input_output_schema_path=input_output_schema_path
     )
-    trainer.train(num_episodes=1000)
+    trainer.train(num_episodes=350)
