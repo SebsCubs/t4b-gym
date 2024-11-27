@@ -28,38 +28,28 @@ sys.setrecursionlimit(2000)
 
 def insert_neural_policy_in_fcn(self:tb.Model, input_output_dictionary, policy_path=None):
         """
-        The input/output dictionary contains information on the input and output signals of the controller.
-        These signals must match the component and signal keys to replace in the model
-        The input dictionary will have items like this:
-            "component_key": {
-                "component_output_signal_key": {
-                    "min": 0,
-                    "max": 1,
-                    "description": "Description of the signal"
-                }
-            }
-        Whilst the output items will have a similar structure but for the output signals:
-            "component_key": {
-                "component_input_signal_key": {
-                    "min": 0,
-                    "max": 1,
-                    "description": "Description of the signal"
-                }
-            }
-        Note that the input signals must contain the key for the output compoenent signal and the output signals must contain the key for the input component signal
+        Example of an input_output_dictionary:
 
-        This function instantiates the controller and adds it to the model.
-        Then it goes through the input dictionary adding connection to the input signals
-        Then it goes through the output dictionary finding the corresponding existing connections, deleting the existing connections and adding the new connections
+        "[020B][020B_space_heater]": {
+            "indoorTemperature": {
+                "min": 0,
+                "max": 40,
+                "description": "Room 020B indoor temperature"
+            },
+            "indoorCo2Concentration": {
+                "min": 0,
+                "max": 4000,
+                "description": "Room 020B indoor CO2 concentration"
+            }
+        }
+
+        The outputs are the setpoints overrided from the input components that are setpoints, identified by the "scheduleValue" key.
         """
-        try:
-            utils.validate_schema(input_output_dictionary)
-        except Exception as e:
-            print("Validation error:", e)
-            return
+        # Validate schema - will raise error if invalid
+        utils.validate_schema(input_output_dictionary)
 
         #Create the controller
-        input_size = len(input_output_dictionary["input"])
+        input_size = sum(len(signals) for signals in input_output_dictionary["input"].values())
         output_size = 5 + 2 + 1 #TODO: Make this dynamic
 
         policy = PolicyNetwork(input_size, output_size, action_bound=1.0)
@@ -81,8 +71,9 @@ def insert_neural_policy_in_fcn(self:tb.Model, input_output_dictionary, policy_p
 
         setpoint_delivery_components = []
         for input_component_key in input_output_dictionary["input"]:
-            if input_output_dictionary["input"][input_component_key]["signal_key"] == "scheduleValue":
-                setpoint_delivery_components.append(input_component_key)
+            for input_signal_key in input_output_dictionary["input"][input_component_key]:
+                if input_signal_key == "scheduleValue":
+                    setpoint_delivery_components.append(input_component_key)
 
         #1. Find the existing connections to the setpoint-receiving components
         #2. Remove the existing connections
@@ -100,7 +91,7 @@ def insert_neural_policy_in_fcn(self:tb.Model, input_output_dictionary, policy_p
             #Deleting one connection deletes all of them in this case, since they all have "scheduleValue" as the sender signal key    
             self.remove_connection_multiple_receivers(sender_component, "scheduleValue")
 
-        # Define the output dictionary for the NeuralController using a dictionary comprehension
+
         # Add the connections to the setpoint-receiving components
         for sender_key, receivers in setpoint_connections.items():
             for receiver_key, receiver_signal in receivers.items():
@@ -121,12 +112,13 @@ def insert_neural_policy_in_fcn(self:tb.Model, input_output_dictionary, policy_p
                 print(f"Could not find component {component_key}")
                 continue
             receiving_component = neural_policy_controller
-            self.add_connection(
-                sender_component,
-                receiving_component,
-                input_output_dictionary["input"][component_key]["signal_key"],
-                "actualValue"
-            )
+            for input_signal_key in input_output_dictionary["input"][component_key]:    
+                self.add_connection(
+                    sender_component,
+                    receiving_component,
+                    input_signal_key,
+                    "actualValue"
+                )
 
         # Define a custom initial dictionary for the NeuralController outputs:
         custom_initial = {"neural_controller": {f"{component_key}": tps.Scalar(0) for component_key in neural_policy_controller.output.keys()}}

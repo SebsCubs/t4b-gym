@@ -32,8 +32,8 @@ class PolicyTrainer:
         self.base_model = tb.Model(id="training_model")
         with open(schema_path) as f:
             self.input_output_schema = json.load(f)
-        
-        self.input_size = len(self.input_output_schema["input"])
+            
+        self.input_size = sum(len(signals) for signals in self.input_output_schema["input"].values())
         self.output_size =  5 + 2 + 1 #TODO: Make this dynamic
         
         # Create policy and value networks
@@ -66,7 +66,7 @@ class PolicyTrainer:
         """Initialize TensorBoard writer"""
         self.writer = SummaryWriter(f'runs/ppo_training_{datetime.datetime.now().strftime("%Y%m%d-%H%M%S")}')
         
-    def train(self, num_episodes=1000):
+    def train(self, num_episodes=350):
         best_reward = float('-inf')
         rewards_history = []
         
@@ -217,11 +217,11 @@ class PolicyTrainer:
         states = []
         
         # First, collect all state variables
-        for component_key in neural_controller.input_output_schema["input"]:
-            signal_key = neural_controller.input_output_schema["input"][component_key]["signal_key"]
+        for component_key, signals in neural_controller.input_output_schema["input"].items():
             input_component = model.component_dict[component_key]
-            controller_input = input_component.savedOutput[signal_key]
-            states.append(controller_input)
+            for signal_name in signals.keys():
+                controller_input = input_component.savedOutput[signal_name]
+                states.append(controller_input)
         
         # Convert to numpy array and transpose
         states = np.array(states)  # Shape: (state_dim, timesteps)
