@@ -216,11 +216,19 @@ if __name__ == "__main__":
         show=True
     )
 
-    # power plot
+    # Duct temperature plot
     plot.plot_component(
         simulator,
-        components_1axis=[(space_id, 'spaceHeaterPower')],
-        ylabel_1axis='Space Heater Power [W] (Actual)',
+        components_1axis=[("supply_air_setpoint", 'scheduleValue'), ("neural_controller", "supply_air_setpoint_heating_coil_controller_input_signal"),],
+        ylabel_1axis='Duct Temperature [°C] (Original setpoint and Neural Controller setpoint)',
+        show=True
+    )
+    
+    # 020B occupancy plot
+    plot.plot_component(
+        simulator,
+        components_1axis=[("020B_occupancy_profile", 'scheduleValue')],
+        ylabel_1axis='Occupancy 020B (Actual)',
         show=True
     )
 
