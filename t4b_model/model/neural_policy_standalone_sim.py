@@ -1,5 +1,4 @@
 #Only code version
-
 import twin4build as tb
 import datetime
 import twin4build.examples.utils as utils
@@ -10,7 +9,6 @@ import json
 from dateutil.tz import gettz 
 import twin4build.utils.plot.plot as plot
 import twin4build.utils.input_output_types as tps
-
 import sys
 import os
 
