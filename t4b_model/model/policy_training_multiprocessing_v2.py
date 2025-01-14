@@ -15,21 +15,31 @@ import twin4build.examples.utils as utils
 from torch.utils.tensorboard import SummaryWriter
 import numpy as np
 
-
 if __name__ == '__main__':
     uppath = lambda _path, n: os.sep.join(_path.split(os.sep)[:-n])
     file_path = os.path.join(uppath(os.path.abspath(__file__), 4), "Twin4Build")
     sys.path.append(file_path)
 
-class PolicyTrainer:
-    def __init__(self, model_path, input_output_schema_path, num_processes=4):
-        self.model_path = model_path  # Store paths for worker processes
-        self.schema_path = input_output_schema_path
-        self.num_processes = num_processes
-        self.setup_twin4build_model(model_path, input_output_schema_path)
-        self.setup_ppo()
-        self.writer = None
 
+class ExperienceCollector:
+    """
+    Collects experience from the simulation environment in a multiprocessing manner.
+    Saves the experience to a memory object. buffered in a queue.
+    Goes inside the PolicyTrainer class.
+    Instantiates the model and the memory object, it contains the RL agent policy.
+    Starts the simulation in a multiprocessing manner.
+    Collects the experience from the simulation and saves it to the memory object through a queue.
+    The PolicyTrainer updates the policy every num_processes episodes. -> Needs a lock to update the policy.
+    """
+    def __init__(self, model_path, schema_path, rl_policy, num_processes=4):
+        self.model_path = model_path
+        self.schema_path = schema_path
+        self.num_processes = num_processes
+        self.setup_twin4build_model(model_path, schema_path)
+        self.memory = Memory() #TODO: Make this a shared memory object
+        self.queue = mp.Queue() 
+        self.rl_policy = rl_policy
+        
     def setup_twin4build_model(self, model_path, schema_path):
         # Load the base model
         self.base_model = tb.Model(id="training_model")
@@ -38,22 +48,41 @@ class PolicyTrainer:
             
         self.input_size = sum(len(signals) for signals in self.input_output_schema["input"].values())
         self.output_size =  5 + 2 + 1 #TODO: Make this dynamic
-        
-        # Create policy and value networks
-        self.ppo_agent = PPOAgent(
-            state_dim=self.input_size,
-            action_dim=self.output_size,
-            action_bound=1.0
-        )
-        self.train_policy = self.ppo_agent.policy_old
+        self.train_policy = self.rl_policy
         self.base_model.load(semantic_model_filename=model_path, fcn=fcn, create_signature_graphs=False, validate_model=True, verbose=False, force_config_update=True)
         # update the policy in the base model
         #The policy in the model must be a PolicyNetwork object, not a nn.Module object
         self.base_model.components["neural_controller"].policy.load_state_dict(self.train_policy.state_dict())
         self.base_model.components["neural_controller"].is_training = True
 
+
+
+
+class PolicyTrainer:
+    """
+    Trains the policy using the collected experience.
+    Retrieves the experience from the memory object.
+    Updates the policy using PPO.
+    The PolicyTrainer updates the policy every num_processes episodes. -> Needs a lock to update the policy.
+    """
+    def __init__(self, model_path, input_output_schema_path, num_processes=4):
+        self.model_path = model_path  # Store paths for worker processes
+        self.schema_path = input_output_schema_path
+        self.num_processes = num_processes
+        self.setup_ppo()
+        self.experience_collector = ExperienceCollector(model_path, input_output_schema_path, self.ppo_agent.policy_old, num_processes)
+        self.writer = SummaryWriter(f'runs/ppo_training_{datetime.datetime.now().strftime("%Y%m%d-%H%M%S")}')
+
     def setup_ppo(self):
-        self.memory = Memory()  # Using the Memory class from ppo_agent.py
+        with open(self.schema_path) as f:
+            self.input_output_schema = json.load(f)
+        self.input_size = sum(len(signals) for signals in self.input_output_schema["input"].values())
+        self.output_size =  5 + 2 + 1 #TODO: Make this dynamic
+        self.ppo_agent = PPOAgent(
+            state_dim=self.input_size,
+            action_dim=self.output_size,
+            action_bound=1.0
+        )
         self.eps_clip = 0.2
         self.value_coef = 0.5
         self.entropy_coef = 0.01
@@ -66,78 +95,70 @@ class PolicyTrainer:
         self.reward_scale = 0.01  # Scale down rewards
 
     def train(self, num_episodes=350):
-        # Initialize tensorboard writer only in the main process
-        self.writer = SummaryWriter(f'runs/ppo_training_{datetime.datetime.now().strftime("%Y%m%d-%H%M%S")}')
+        """
+        Runs the training loop using ExperienceCollector for parallel simulations.
+        Updates the policy every num_processes episodes using collected experiences from the queue.
+        """
         best_reward = float('-inf')
         rewards_history = []
+        processes = []
         
-        # Create episode configurations
-        episode_configs = []
-        for episode in range(num_episodes):
-            startTime = datetime.datetime(year=2023, month=11, day=27, hour=0, minute=0, second=0, 
-                                       tzinfo=gettz("Europe/Copenhagen"))
-            endTime = datetime.datetime(year=2023, month=12, day=7, hour=0, minute=0, second=0,
-                                     tzinfo=gettz("Europe/Copenhagen"))
-            episode_configs.append((self.model_path, self.schema_path, startTime, endTime))
+        # Create episode configurations in batches
+        for episode in range(0, num_episodes, self.num_processes):
+            # TODO: Fix the args, think of a more robust paralellization
+            for i in range(min(self.num_processes, num_episodes - episode)):
+                startTime = datetime.datetime(year=2023, month=11, day=27, hour=0, minute=0, second=0, 
+                                           tzinfo=gettz("Europe/Copenhagen"))
+                endTime = datetime.datetime(year=2023, month=12, day=7, hour=0, minute=0, second=0,
+                                         tzinfo=gettz("Europe/Copenhagen"))
+                p = mp.Process(target=self.experience_collector.run_episode, 
+                             args=(startTime, endTime))
+                processes.append(p)
+                p.start()
 
-        # Run episodes in parallel
-        with Pool(processes=self.num_processes, maxtasksperchild=3) as pool:
-            for episode, (episode_data, episode_reward) in enumerate(
-                pool.imap_unordered(self._run_episode_worker, episode_configs)
-            ):
+            # Collect results from the queue
+            collected_episodes = 0
+            while collected_episodes < len(processes):
+                episode_data = self.experience_collector.queue.get()  # Blocking get
+                episode_reward = episode_data['reward']
                 rewards_history.append(episode_reward)
                 
                 # Update memory with episode data
-                self.memory.extend(episode_data)
+                self.memory.extend({
+                    'states': episode_data['states'],
+                    'actions': episode_data['actions'],
+                    'rewards': episode_data['rewards'],
+                    'logprobs': episode_data['logprobs']
+                })
                 
                 # Log metrics to TensorBoard
-                self.writer.add_scalar('Reward/episode', episode_reward, episode)
+                current_episode = episode + collected_episodes
+                self.writer.add_scalar('Reward/episode', episode_reward, current_episode)
                 self.writer.add_scalar('Reward/moving_average', 
-                                     np.mean(rewards_history[-100:]), episode)
+                                     np.mean(rewards_history[-100:]), current_episode)
                 
-                # Update policy using PPO after collecting enough episodes
-                if (episode + 1) % self.num_processes == 0:
-                    self.update_policy()
+                collected_episodes += 1
                 
                 # Save best policy
                 if episode_reward > best_reward:
                     best_reward = episode_reward
                     torch.save(self.ppo_agent.policy.state_dict(), 'best_policy.pth')
                     
-                print(f"Episode {episode}, Reward: {episode_reward:.2f}, Best: {best_reward:.2f}")
+                print(f"Episode {current_episode}, Reward: {episode_reward:.2f}, Best: {best_reward:.2f}")
 
-    @staticmethod
-    def _run_episode_worker(config):
-        """Worker function for running a single episode"""
-        model_path, schema_path, start_time, end_time = config
-        
-        # Create new trainer instance without tensorboard setup
-        trainer = PolicyTrainer(model_path, schema_path)
-        trainer.writer = None  # Ensure no tensorboard writing in workers
-        
-        # Run episode
-        simulation_model = copy.deepcopy(trainer.base_model)
-        simulator = tb.Simulator()
-        
-        episode_reward = trainer.run_episode(simulation_model, simulator, start_time, end_time)
-        
-        # Return episode data and reward
-        episode_data = {
-            'states': trainer.memory.states,
-            'actions': trainer.memory.actions,
-            'rewards': trainer.memory.rewards,
-            'logprobs': trainer.memory.logprobs
-        }
-        
-        return episode_data, episode_reward
-    
-    @staticmethod
-    def _run_episode_worker_multicore(args):
-        trainer, (model_path, schema_path, start_time, end_time) = args
-        # Run episode
-        simulation_model = copy.deepcopy(trainer.base_model)
-        simulator = tb.Simulator()
-        return trainer.run_episode(simulation_model, simulator, start_time, end_time)
+            # Wait for all processes to complete
+            for p in processes:
+                p.join()
+            processes = []
+            
+            # Update policy using PPO after collecting all episodes in batch
+            self.update_policy()
+            
+            # Update the policy in the experience collector for next batch
+            self.experience_collector.rl_policy.load_state_dict(
+                self.ppo_agent.policy_old.state_dict()
+            )
+
 
     def run_episode(self, model, simulator, start_time, end_time):
         step_size = 600  # 10 minutes
@@ -239,7 +260,6 @@ class PolicyTrainer:
         
         self.memory.clear()
 
-    
     def get_state_from_saved(self, model):
         """
         Extract state variables from model.components saved outputs.
@@ -265,7 +285,6 @@ class PolicyTrainer:
         states = states.T  # Shape: (timesteps, state_dim)
         
         return torch.tensor(states, dtype=torch.float32)
-
 
     def get_action_from_saved(self, model):
         """
@@ -331,56 +350,11 @@ class PolicyTrainer:
         
         return rewards
 
-def train_multicore(model_path, schema_path, num_episodes=350, num_processes=4):
-    # Initialize tensorboard writer only in the main process
-    trainer = PolicyTrainer(model_path, schema_path, num_processes)
-    trainer.writer = SummaryWriter(f'runs/ppo_training_{datetime.datetime.now().strftime("%Y%m%d-%H%M%S")}')
-
-    best_reward = float('-inf')
-    rewards_history = []
-    # Create episode configurations
-    args = []
-    for episode in range(num_episodes):
-        startTime = datetime.datetime(year=2023, month=11, day=27, hour=0, minute=0, second=0, 
-                                    tzinfo=gettz("Europe/Copenhagen"))
-        endTime = datetime.datetime(year=2023, month=12, day=7, hour=0, minute=0, second=0,
-                                    tzinfo=gettz("Europe/Copenhagen"))
-        args.append((model_path, schema_path, startTime, endTime))
-
-    # Run episodes in parallel
-    with Pool(processes=trainer.num_processes, maxtasksperchild=10) as pool:
-        # Wrap trainer with each config tuple
-        wrapped_args = [(trainer, config) for config in args]
-        for episode, (episode_data, episode_reward) in enumerate(
-            pool.imap_unordered(trainer._run_episode_worker_multicore, wrapped_args)
-        ):
-            rewards_history.append(episode_reward)
-            
-            # Update memory with episode data
-            trainer.memory.extend(episode_data)
-            
-            # Log metrics to TensorBoard
-            trainer.writer.add_scalar('Reward/episode', episode_reward, episode)
-            trainer.writer.add_scalar('Reward/moving_average', 
-                                    np.mean(rewards_history[-100:]), episode)
-            
-            # Update policy using PPO after collecting enough episodes
-            if (episode + 1) % trainer.num_processes == 0:
-                trainer.update_policy()
-            
-            # Save best policy
-            if episode_reward > best_reward:
-                best_reward = episode_reward
-                torch.save(trainer.ppo_agent.policy.state_dict(), 'best_policy.pth')
-                
-            print(f"Episode {episode}, Reward: {episode_reward:.2f}, Best: {best_reward:.2f}")
 
 if __name__ == "__main__":
     model_path = os.path.join(uppath(os.path.abspath(__file__), 1), "fan_flow_configuration_template_DP37_full_no_cooling.xlsm")
     script_dir = os.path.dirname(os.path.abspath(__file__))
     input_output_schema_path = os.path.join(script_dir, "policy_input_output.json")
 
-    train_multicore(model_path=model_path,
-                   schema_path=input_output_schema_path,
-                   num_episodes=350,
-                   num_processes=2)
+    trainer = PolicyTrainer(model_path, input_output_schema_path, num_processes=2)
+    trainer.train(num_episodes=350)

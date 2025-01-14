@@ -167,3 +167,5 @@ generated_files/
 runs/
 
 *.pth
+# Graphviz
+*.dot
