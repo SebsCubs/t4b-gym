@@ -114,13 +114,49 @@ class Memory:
         self.clear()
 
     def clear(self):
-        self.states = []
-        self.actions = []
-        self.rewards = []
-        self.logprobs = []
+        # Initialize as empty tensors instead of lists
+        self.states = torch.empty((0,), dtype=torch.float32)
+        self.actions = torch.empty((0,), dtype=torch.float32)
+        self.rewards = torch.empty((0,), dtype=torch.float32)
+        self.logprobs = torch.empty((0,), dtype=torch.float32)
 
     def add(self, state, action, reward, logprob):
-        self.states.append(state)
-        self.actions.append(action)
-        self.rewards.append(reward)
-        self.logprobs.append(logprob)
+        # Convert inputs to tensors and reshape to add batch dimension if needed
+        state = torch.as_tensor(state, dtype=torch.float32).view(1, -1)
+        action = torch.as_tensor(action, dtype=torch.float32).view(1, -1)
+        reward = torch.as_tensor(reward, dtype=torch.float32).view(1)
+        logprob = torch.as_tensor(logprob, dtype=torch.float32).view(1)
+
+        # Concatenate new experiences
+        self.states = torch.cat([self.states, state])
+        self.actions = torch.cat([self.actions, action])
+        self.rewards = torch.cat([self.rewards, reward])
+        self.logprobs = torch.cat([self.logprobs, logprob])
+
+    def extend(self, episode_data):
+        """Add episode data to memory"""
+        # Convert inputs to tensors if they aren't already
+        states = torch.as_tensor(episode_data['states'], dtype=torch.float32)
+        actions = torch.as_tensor(episode_data['actions'], dtype=torch.float32)
+        rewards = torch.as_tensor(episode_data['rewards'], dtype=torch.float32)
+        logprobs = torch.as_tensor(episode_data['logprobs'], dtype=torch.float32)
+
+        if self.states.nelement() == 0:  # If memory is empty
+            self.states = states
+            self.actions = actions
+            self.rewards = rewards
+            self.logprobs = logprobs
+        else:
+            self.states = torch.cat([self.states, states])
+            self.actions = torch.cat([self.actions, actions])
+            self.rewards = torch.cat([self.rewards, rewards])
+            self.logprobs = torch.cat([self.logprobs, logprobs])
+
+    def get_batch(self):
+        """Return all stored experiences as a dictionary of tensors"""
+        return {
+            'states': self.states,
+            'actions': self.actions,
+            'rewards': self.rewards,
+            'logprobs': self.logprobs
+        }

@@ -1,7 +1,8 @@
+import multiprocessing as mp
+from multiprocessing import Pool
 import sys
 import os
 sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))) # Add the grandparent directory to the system path
-
 import twin4build as tb
 import torch
 import datetime
@@ -14,18 +15,21 @@ import twin4build.examples.utils as utils
 from torch.utils.tensorboard import SummaryWriter
 import numpy as np
 
-# Only for testing before distributing package
+
 if __name__ == '__main__':
     uppath = lambda _path, n: os.sep.join(_path.split(os.sep)[:-n])
     file_path = os.path.join(uppath(os.path.abspath(__file__), 4), "Twin4Build")
     sys.path.append(file_path)
 
 class PolicyTrainer:
-    def __init__(self, model_path, input_output_schema_path):
+    def __init__(self, model_path, input_output_schema_path, num_processes=4):
+        self.model_path = model_path  # Store paths for worker processes
+        self.schema_path = input_output_schema_path
+        self.num_processes = num_processes
         self.setup_twin4build_model(model_path, input_output_schema_path)
         self.setup_ppo()
-        self.setup_tensorboard()
-        
+        self.writer = None
+
     def setup_twin4build_model(self, model_path, schema_path):
         # Load the base model
         self.base_model = tb.Model(id="training_model")
@@ -61,47 +65,73 @@ class PolicyTrainer:
         self.action_scale = 1.0
         self.reward_scale = 0.01  # Scale down rewards
 
-    def setup_tensorboard(self):
-        """Initialize TensorBoard writer"""
-        self.writer = SummaryWriter(f'runs/ppo_training_{datetime.datetime.now().strftime("%Y%m%d-%H%M%S")}')
-        
     def train(self, num_episodes=350):
+        # Initialize tensorboard writer only in the main process
+        self.writer = SummaryWriter(f'runs/ppo_training_{datetime.datetime.now().strftime("%Y%m%d-%H%M%S")}')
         best_reward = float('-inf')
         rewards_history = []
         
+        # Create episode configurations
+        episode_configs = []
         for episode in range(num_episodes):
-            # Reset environment (create new simulation instance)
-            simulation_model = copy.deepcopy(self.base_model)
-            simulator = tb.Simulator() 
-            
-            # Setup simulation timeframe
             startTime = datetime.datetime(year=2023, month=11, day=27, hour=0, minute=0, second=0, 
                                        tzinfo=gettz("Europe/Copenhagen"))
             endTime = datetime.datetime(year=2023, month=12, day=7, hour=0, minute=0, second=0,
                                      tzinfo=gettz("Europe/Copenhagen"))
-            
-            # Run simulation with current policy
-            episode_reward = self.run_episode(simulation_model, simulator, startTime, endTime)
-            rewards_history.append(episode_reward)
-            
-            # Log metrics to TensorBoard
-            self.writer.add_scalar('Reward/episode', episode_reward, episode)
-            self.writer.add_scalar('Reward/moving_average', 
-                                 np.mean(rewards_history[-100:]), episode)
-            
-            # Update policy using PPO
-            self.update_policy()
-            
-            # Save best policy
-            if episode_reward > best_reward:
-                best_reward = episode_reward
-                torch.save(self.ppo_agent.policy.state_dict(), 'best_policy.pth')
-                
-            print(f"Episode {episode}, Reward: {episode_reward:.2f}, Best: {best_reward:.2f}")
+            episode_configs.append((self.model_path, self.schema_path, startTime, endTime))
 
-    def run_episode(self, model:tb.Model, simulator:tb.Simulator, start_time, end_time):
+        # Run episodes in parallel
+        with Pool(processes=self.num_processes, maxtasksperchild=3) as pool:
+            for episode, (episode_data, episode_reward) in enumerate(
+                pool.imap_unordered(self._run_episode_worker, episode_configs)
+            ):
+                rewards_history.append(episode_reward)
+                
+                # Update memory with episode data
+                self.memory.extend(episode_data)
+                
+                # Log metrics to TensorBoard
+                self.writer.add_scalar('Reward/episode', episode_reward, episode)
+                self.writer.add_scalar('Reward/moving_average', 
+                                     np.mean(rewards_history[-100:]), episode)
+                
+                # Update policy using PPO after collecting enough episodes
+                if (episode + 1) % self.num_processes == 0:
+                    self.update_policy()
+                
+                # Save best policy
+                if episode_reward > best_reward:
+                    best_reward = episode_reward
+                    torch.save(self.ppo_agent.policy.state_dict(), 'best_policy.pth')
+                    
+                print(f"Episode {episode}, Reward: {episode_reward:.2f}, Best: {best_reward:.2f}")
+
+    @staticmethod
+    def _run_episode_worker(config):
+        """Worker function for running a single episode"""
+        model_path, schema_path, start_time, end_time = config
         
+        # Create new trainer instance without tensorboard setup
+        trainer = PolicyTrainer(model_path, schema_path)
+        trainer.writer = None  # Ensure no tensorboard writing in workers
         
+        # Run episode
+        simulation_model = copy.deepcopy(trainer.base_model)
+        simulator = tb.Simulator()
+        
+        episode_reward = trainer.run_episode(simulation_model, simulator, start_time, end_time)
+        
+        # Return episode data and reward
+        episode_data = {
+            'states': trainer.memory.states,
+            'actions': trainer.memory.actions,
+            'rewards': trainer.memory.rewards,
+            'logprobs': trainer.memory.logprobs
+        }
+        
+        return episode_data, episode_reward
+
+    def run_episode(self, model, simulator, start_time, end_time):
         step_size = 600  # 10 minutes
         # Run the full simulation at once
         simulator.simulate(model, startTime=start_time, endTime=end_time, stepSize=step_size)
@@ -293,14 +323,14 @@ class PolicyTrainer:
         
         return rewards
 
+
+
 if __name__ == "__main__":
-    model_filename = os.path.join(uppath(os.path.abspath(__file__), 1), "fan_flow_configuration_template_DP37_full_no_cooling.xlsm")
-    #Load the input/output dictionary from the file policy_input_output.json
     script_dir = os.path.dirname(os.path.abspath(__file__))
     input_output_schema_path = os.path.join(script_dir, "policy_input_output.json")
-
     trainer = PolicyTrainer(
-        model_path=model_filename,
-        input_output_schema_path=input_output_schema_path
+        model_path = os.path.join(uppath(os.path.abspath(__file__), 1), "fan_flow_configuration_template_DP37_full_no_cooling.xlsm"),
+        input_output_schema_path = input_output_schema_path,
+        num_processes=1  # Adjust based on your CPU cores
     )
     trainer.train(num_episodes=350)

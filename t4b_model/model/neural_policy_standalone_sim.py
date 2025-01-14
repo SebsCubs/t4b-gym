@@ -125,7 +125,6 @@ def insert_neural_policy_in_fcn(self:tb.Model, input_output_dictionary, policy_p
         return neural_policy_controller
         
 
-
 def fcn(self):
     '''
         The fcn() function adds connections between components in a system model,
