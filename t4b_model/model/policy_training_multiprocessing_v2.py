@@ -31,234 +31,88 @@ class ExperienceCollector:
     Collects the experience from the simulation and saves it to the memory object through a queue.
     The PolicyTrainer updates the policy every num_processes episodes. -> Needs a lock to update the policy.
     """
-    def __init__(self, model_path, schema_path, rl_policy, num_processes=4):
-        self.model_path = model_path
-        self.schema_path = schema_path
-        self.num_processes = num_processes
-        self.setup_twin4build_model(model_path, schema_path)
-        self.memory = Memory() #TODO: Make this a shared memory object
-        self.queue = mp.Queue() 
-        self.rl_policy = rl_policy
-        
-    def setup_twin4build_model(self, model_path, schema_path):
-        # Load the base model
-        self.base_model = tb.Model(id="training_model")
-        with open(schema_path) as f:
-            self.input_output_schema = json.load(f)
-            
-        self.input_size = sum(len(signals) for signals in self.input_output_schema["input"].values())
-        self.output_size =  5 + 2 + 1 #TODO: Make this dynamic
-        self.train_policy = self.rl_policy
-        self.base_model.load(semantic_model_filename=model_path, fcn=fcn, create_signature_graphs=False, validate_model=True, verbose=False, force_config_update=True)
-        # update the policy in the base model
-        #The policy in the model must be a PolicyNetwork object, not a nn.Module object
-        self.base_model.components["neural_controller"].policy.load_state_dict(self.train_policy.state_dict())
-        self.base_model.components["neural_controller"].is_training = True
+    def __init__(self, t4b_model, queue=None):
+        self.t4b_model = t4b_model
+        self.queue = queue
 
-
-
-
-class PolicyTrainer:
-    """
-    Trains the policy using the collected experience.
-    Retrieves the experience from the memory object.
-    Updates the policy using PPO.
-    The PolicyTrainer updates the policy every num_processes episodes. -> Needs a lock to update the policy.
-    """
-    def __init__(self, model_path, input_output_schema_path, num_processes=4):
-        self.model_path = model_path  # Store paths for worker processes
-        self.schema_path = input_output_schema_path
-        self.num_processes = num_processes
-        self.setup_ppo()
-        self.experience_collector = ExperienceCollector(model_path, input_output_schema_path, self.ppo_agent.policy_old, num_processes)
-        self.writer = SummaryWriter(f'runs/ppo_training_{datetime.datetime.now().strftime("%Y%m%d-%H%M%S")}')
-
-    def setup_ppo(self):
-        with open(self.schema_path) as f:
-            self.input_output_schema = json.load(f)
-        self.input_size = sum(len(signals) for signals in self.input_output_schema["input"].values())
-        self.output_size =  5 + 2 + 1 #TODO: Make this dynamic
-        self.ppo_agent = PPOAgent(
-            state_dim=self.input_size,
-            action_dim=self.output_size,
-            action_bound=1.0
-        )
-        self.eps_clip = 0.2
-        self.value_coef = 0.5
-        self.entropy_coef = 0.01
-        self.training_step = 0  # Add a training step counter here
-        # Add state normalization
-        self.state_mean = None
-        self.state_std = None
-        # Add action normalization
-        self.action_scale = 1.0
-        self.reward_scale = 0.01  # Scale down rewards
-
-    def train(self, num_episodes=350):
+    @staticmethod
+    def _run_episode_worker(t4b_model, start_time, end_time, queue):
         """
-        Runs the training loop using ExperienceCollector for parallel simulations.
-        Updates the policy every num_processes episodes using collected experiences from the queue.
+        Static worker method that runs in each process.
+        
+        Args:
+            model_path: Path to the Twin4Build model
+            schema_path: Path to the I/O schema
+            policy_state_dict: State dict of the policy to use
+            start_time: Simulation start time
+            end_time: Simulation end time
+            queue: Multiprocessing queue to store results
         """
-        best_reward = float('-inf')
-        rewards_history = []
-        processes = []
-        
-        # Create episode configurations in batches
-        for episode in range(0, num_episodes, self.num_processes):
-            # TODO: Fix the args, think of a more robust paralellization
-            for i in range(min(self.num_processes, num_episodes - episode)):
-                startTime = datetime.datetime(year=2023, month=11, day=27, hour=0, minute=0, second=0, 
-                                           tzinfo=gettz("Europe/Copenhagen"))
-                endTime = datetime.datetime(year=2023, month=12, day=7, hour=0, minute=0, second=0,
-                                         tzinfo=gettz("Europe/Copenhagen"))
-                p = mp.Process(target=self.experience_collector.run_episode, 
-                             args=(startTime, endTime))
-                processes.append(p)
-                p.start()
-
-            # Collect results from the queue
-            collected_episodes = 0
-            while collected_episodes < len(processes):
-                episode_data = self.experience_collector.queue.get()  # Blocking get
-                episode_reward = episode_data['reward']
-                rewards_history.append(episode_reward)
-                
-                # Update memory with episode data
-                self.memory.extend({
-                    'states': episode_data['states'],
-                    'actions': episode_data['actions'],
-                    'rewards': episode_data['rewards'],
-                    'logprobs': episode_data['logprobs']
-                })
-                
-                # Log metrics to TensorBoard
-                current_episode = episode + collected_episodes
-                self.writer.add_scalar('Reward/episode', episode_reward, current_episode)
-                self.writer.add_scalar('Reward/moving_average', 
-                                     np.mean(rewards_history[-100:]), current_episode)
-                
-                collected_episodes += 1
-                
-                # Save best policy
-                if episode_reward > best_reward:
-                    best_reward = episode_reward
-                    torch.save(self.ppo_agent.policy.state_dict(), 'best_policy.pth')
-                    
-                print(f"Episode {current_episode}, Reward: {episode_reward:.2f}, Best: {best_reward:.2f}")
-
-            # Wait for all processes to complete
-            for p in processes:
-                p.join()
-            processes = []
-            
-            # Update policy using PPO after collecting all episodes in batch
-            self.update_policy()
-            
-            # Update the policy in the experience collector for next batch
-            self.experience_collector.rl_policy.load_state_dict(
-                self.ppo_agent.policy_old.state_dict()
-            )
-
-
-    def run_episode(self, model, simulator, start_time, end_time):
-        step_size = 600  # 10 minutes
-        # Run the full simulation at once
-        simulator.simulate(model, startTime=start_time, endTime=end_time, stepSize=step_size)
-        
-        # Get state from saved outputs
-        states = self.get_state_from_saved(model)
-        actions = self.get_action_from_saved(model)
-        
-        # Get state and normalize it
-        if self.state_mean is None:
-            self.state_mean = states.mean(0)
-            self.state_std = states.std(0) + 1e-8
-        else:
-            self.state_mean = 0.99 * self.state_mean + 0.01 * states.mean(0)
-            self.state_std = 0.99 * self.state_std + 0.01 * states.std(0)
-        
-        # Normalize states
-        normalized_states = (states - self.state_mean) / self.state_std
-        
-        # Calculate rewards for all timesteps at once
-        rewards = self.compute_reward_from_saved(model, '[020B][020B_space_heater]')
-        episode_reward = rewards.sum().item()  # Total episode reward
-        rewards = rewards * self.reward_scale  # Scale rewards
-        
-        with torch.no_grad():
-            if normalized_states.dim() == 1:
-                normalized_states = normalized_states.unsqueeze(0)
-            
-            action_mean, action_std = self.ppo_agent.policy_old(normalized_states)
-            action_mean = torch.clamp(action_mean, -1.0, 1.0)
-            action_std = torch.clamp(action_std, 0.1, 0.5)
-            
-            if actions.dim() == 1:
-                actions = actions.unsqueeze(0)
-                
-            dist = torch.distributions.Normal(action_mean, action_std)
-            log_prob = dist.log_prob(actions)
-            log_prob = torch.clamp(log_prob, -20.0, 2.0)
-            log_prob = log_prob.sum(dim=-1)
-        
-        # Store episode data
-        self.memory.states = normalized_states
-        self.memory.actions = actions
-        self.memory.rewards = rewards
-        self.memory.logprobs = log_prob
-        
-        model.reset()
-
-        return episode_reward
-
-    def update_policy(self):
-        # Add value checks before update
-        if torch.isnan(self.memory.states).any() or torch.isinf(self.memory.states).any():
-            print("Invalid values in states, skipping update")
-            self.memory.clear()
-            return
-        
-        if torch.isnan(self.memory.actions).any() or torch.isinf(self.memory.actions).any():
-            print("Invalid values in actions, skipping update")
-            self.memory.clear()
-            return
-        
-        # Normalize rewards
-        rewards = self.memory.rewards
-        rewards = (rewards - rewards.mean()) / (rewards.std() + 1e-8)
-        
-        memory_dict = {
-            'states': self.memory.states.detach(),
-            'actions': self.memory.actions.detach(),
-            'rewards': rewards.detach(),
-            'logprobs': self.memory.logprobs.detach()
-        }
-        
         try:
-            # Update both policy and value networks using PPO agent
-            loss_stats = self.ppo_agent.update(memory_dict)
+            # Create a new collector instance for this process
+            simulation_model = copy.deepcopy(t4b_model)
+            collector = ExperienceCollector(simulation_model, queue) 
+            # Run the episode
+            simulator = tb.Simulator()  # Create simulator instance
+            simulator.simulate(simulation_model, start_time, end_time, stepSize=600)
             
-            # Log training metrics
-            if loss_stats:
-                self.writer.add_scalar('Loss/policy', loss_stats.get('policy_loss', 0), self.training_step)
-                self.writer.add_scalar('Loss/value', loss_stats.get('value_loss', 0), self.training_step)
-                self.writer.add_scalar('Loss/total', loss_stats.get('total_loss', 0), self.training_step)
-                self.writer.add_scalar('Policy/entropy', loss_stats.get('entropy', 0), self.training_step)
-                
-            self.training_step += 1
+            # Get the episode data from the model's saved outputs
+            states = collector.get_state_from_saved(simulation_model)
+            actions = collector.get_action_from_saved(simulation_model)
+            rewards = collector.compute_reward_from_saved(simulation_model, '[020B][020B_space_heater]')
+
+            # Get logprobs for the actions (needed for PPO)
+            with torch.no_grad():
+                action_mean, action_std = simulation_model.components["neural_controller"].policy(states)
+                dist = torch.distributions.Normal(action_mean, action_std)
+                logprobs = dist.log_prob(actions).sum(dim=-1)
             
-            # Update the policy network in the model
-            self.base_model.components["neural_controller"].policy.load_state_dict(
-                self.ppo_agent.policy.state_dict()
-            )
+            """
+            #Windows only
+            # Convert tensors to numpy arrays before putting in queue
+            episode_data = {
+                'states': states.numpy(),
+                'actions': actions.numpy(),
+                'rewards': rewards.numpy(),
+                'logprobs': logprobs.numpy()
+            }
+            """
+            episode_data = {
+                'states': states,
+                'actions': actions,
+                'rewards': rewards,
+                'logprobs': logprobs
+            }
+
+            queue.put(episode_data)
+            
         except Exception as e:
-            print("Error during policy update:", str(e))
-            print("Memory content summary:")
-            for key, value in memory_dict.items():
-                print(f"{key}:", value.shape, "Range:", value.min().item(), "to", value.max().item())
-            raise  # Re-raise the exception after printing debug info
+            print(f"Error in worker process: {str(e)}")
+            queue.put(None)
+            raise e
+
+    def start_episode(self, t4b_model, start_time, end_time, queue):
+        """
+        Starts a new episode in a separate process.
         
-        self.memory.clear()
+        Args:
+            t4b_model: The Twin4Build model
+            start_time: Simulation start time
+            end_time: Simulation end time
+            queue: Multiprocessing queue to store results
+        Returns:
+            multiprocessing.Process: The created process object
+        """
+        # Create and return a new process
+        return mp.Process(
+            target=self._run_episode_worker,
+            args=(
+                t4b_model,
+                start_time,
+                end_time,
+                queue
+            )
+        )
 
     def get_state_from_saved(self, model):
         """
@@ -351,10 +205,197 @@ class PolicyTrainer:
         return rewards
 
 
+class PolicyTrainer:
+    """
+    Trains the policy using the collected experience.
+    Retrieves the experience from the memory object.
+    Updates the policy using PPO.
+    The PolicyTrainer updates the policy every num_processes episodes. -> Needs a lock to update the policy.
+    """
+    def __init__(self, model_path, input_output_schema_path):
+        self.model_path = model_path  # Store paths for worker processes
+        self.schema_path = input_output_schema_path
+        self.setup_twin4build_model(self.model_path, self.schema_path)
+        self.setup_ppo()
+        self.queue = mp.Queue()
+        self.memory = Memory()
+        self.experience_collector = ExperienceCollector(self.base_model, self.queue)
+        self.writer = SummaryWriter(f'runs/ppo_training_{datetime.datetime.now().strftime("%Y%m%d-%H%M%S")}')
+
+    def setup_twin4build_model(self, model_path, schema_path):
+        # Load the base model
+        self.base_model = tb.Model(id="training_model")
+        with open(schema_path) as f:
+            self.input_output_schema = json.load(f)
+            
+        self.input_size = sum(len(signals) for signals in self.input_output_schema["input"].values())
+        self.output_size =  5 + 2 + 1 #TODO: Make this dynamic
+        self.base_model.load(semantic_model_filename=model_path, fcn=fcn, create_signature_graphs=False, validate_model=True, verbose=False, force_config_update=True)
+        # update the policy in the base model
+        #The policy in the model must be a PolicyNetwork object, not a nn.Module object
+        self.base_model.components["neural_controller"].is_training = True
+
+    def setup_ppo(self):
+        self.ppo_agent = PPOAgent(
+            state_dim=self.input_size,
+            action_dim=self.output_size,
+            action_bound=1.0
+        )
+        self.eps_clip = 0.2
+        self.value_coef = 0.5
+        self.entropy_coef = 0.01
+        self.training_step = 0  # Add a training step counter here
+        # Add state normalization
+        self.state_mean = None
+        self.state_std = None
+        # Add action normalization
+        self.action_scale = 1.0
+        self.reward_scale = 0.01  # Scale down rewards
+
+    def update_policy(self):
+        # Add value checks before update
+        if torch.isnan(self.memory.states).any() or torch.isinf(self.memory.states).any():
+            print("Invalid values in states, skipping update")
+            self.memory.clear()
+            return
+        
+        if torch.isnan(self.memory.actions).any() or torch.isinf(self.memory.actions).any():
+            print("Invalid values in actions, skipping update")
+            self.memory.clear()
+            return
+        
+        # Normalize rewards
+        rewards = self.memory.rewards
+        rewards = (rewards - rewards.mean()) / (rewards.std() + 1e-8)
+        
+        memory_dict = {
+            'states': self.memory.states.detach(),
+            'actions': self.memory.actions.detach(),
+            'rewards': rewards.detach(),
+            'logprobs': self.memory.logprobs.detach()
+        }
+        
+        try:
+            # Update both policy and value networks using PPO agent
+            loss_stats = self.ppo_agent.update(memory_dict)
+            
+            # Log training metrics
+            if loss_stats:
+                self.writer.add_scalar('Loss/policy', loss_stats.get('policy_loss', 0), self.training_step)
+                self.writer.add_scalar('Loss/value', loss_stats.get('value_loss', 0), self.training_step)
+                self.writer.add_scalar('Loss/total', loss_stats.get('total_loss', 0), self.training_step)
+                self.writer.add_scalar('Policy/entropy', loss_stats.get('entropy', 0), self.training_step)
+                #Report average reward
+                self.writer.add_scalar('Reward/average', np.mean(rewards), self.training_step)
+                #Report average moving average of the rewards
+                self.writer.add_scalar('Reward/moving_average', np.mean(rewards[-100:]), self.training_step)
+                
+            self.training_step += 1
+            
+            # Update the policy network in the model
+            self.base_model.components["neural_controller"].policy.load_state_dict(
+                self.ppo_agent.policy.state_dict()
+            )
+        except Exception as e:
+            print("Error during policy update:", str(e))
+            print("Memory content summary:")
+            for key, value in memory_dict.items():
+                print(f"{key}:", value.shape, "Range:", value.min().item(), "to", value.max().item())
+            raise  # Re-raise the exception after printing debug info
+        
+        self.memory.clear()
+
+    def run_batch(self, num_processes, start_episode):
+        """
+        Runs a batch of episodes in parallel and collects their results
+        
+        Args:
+            batch_size (int): Number of parallel processes to run
+            start_episode (int): The starting episode number for logging
+            
+        Returns:
+            list: Collected rewards from the batch
+        """
+        processes = []
+        batch_rewards = []
+        # Start processes
+        for i in range(num_processes):
+            startTime = datetime.datetime(year=2023, month=11, day=27, hour=0, minute=0, second=0, 
+                                       tzinfo=gettz("Europe/Copenhagen"))
+            endTime = datetime.datetime(year=2023, month=12, day=7, hour=0, minute=0, second=0,
+                                     tzinfo=gettz("Europe/Copenhagen"))
+            p = self.experience_collector.start_episode(self.base_model, startTime, endTime, self.queue)
+            processes.append(p)
+            p.start()
+
+        # Wait for all processes to complete
+        for p in processes:
+            p.join()
+
+        # Collect results
+        for i in range(num_processes):
+            episode_data = self.queue.get()  # Blocking get
+            if episode_data is None:
+                print("Episode data is None, skipping")
+                continue
+            episode_reward = episode_data['rewards'].sum()
+            batch_rewards.append(episode_reward)
+            
+            # Update memory with episode data
+            self.memory.extend({
+                'states': episode_data['states'],
+                'actions': episode_data['actions'],
+                'rewards': episode_data['rewards'],
+                'logprobs': episode_data['logprobs']
+            })
+            
+            # Log metrics
+            current_episode = start_episode + i
+            #self.writer.add_scalar('Reward/episode', episode_reward, current_episode)
+            #write a moving average of the rewards
+            #self.writer.add_scalar('Reward/moving_average', np.mean(batch_rewards[-100:]), current_episode)
+            print(f"Episode {current_episode}, Reward: {episode_reward:.2f}")
+
+        return batch_rewards
+
+    def train(self, num_episodes=350, num_processes=4):
+        """
+        Runs the training loop using batches of parallel episodes.
+        After each batch, updates the policy and logs results.
+        
+        Args:
+            num_episodes (int): Total number of episodes to run
+            batch_size (int): Number of parallel processes per batch
+        """
+        best_reward = float('-inf')
+
+        
+        for batch_start in range(0, num_episodes, num_processes):
+            # Run a batch of episodes
+            current_batch_size = min(num_processes, num_episodes - batch_start)
+            batch_rewards = self.run_batch(current_batch_size, batch_start)
+
+            # Save best policy
+            batch_best = max(batch_rewards)
+            if batch_best > best_reward:
+                best_reward = batch_best
+                torch.save(self.ppo_agent.policy.state_dict(), 'best_policy.pth')
+                print(f"New best reward: {best_reward:.2f}")
+            
+            # Update policy using collected experience
+            self.update_policy()
+            
+            # Update the policy in the t4b model
+            self.base_model.components["neural_controller"].policy.load_state_dict(self.ppo_agent.policy.state_dict())
+            
+            # Clear memory after policy update
+            self.memory.clear()
+
+
 if __name__ == "__main__":
     model_path = os.path.join(uppath(os.path.abspath(__file__), 1), "fan_flow_configuration_template_DP37_full_no_cooling.xlsm")
     script_dir = os.path.dirname(os.path.abspath(__file__))
     input_output_schema_path = os.path.join(script_dir, "policy_input_output.json")
 
-    trainer = PolicyTrainer(model_path, input_output_schema_path, num_processes=2)
-    trainer.train(num_episodes=350)
+    trainer = PolicyTrainer(model_path, input_output_schema_path)
+    trainer.train(num_episodes=350, num_processes=2)
