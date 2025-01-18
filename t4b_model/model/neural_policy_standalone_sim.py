@@ -173,7 +173,7 @@ if __name__ == "__main__":
     model.load(semantic_model_filename=filename, fcn=fcn, create_signature_graphs=False, validate_model=True, verbose=False, force_config_update=True)
 
     #model.components["neural_controller"].policy.load_state_dict(torch.load(r"C:\Users\asces\OneDriveUni\Projects\Adrenalin_BOPTEST_Challenge\RL_control\best_policy.pth"))
-    model.components["neural_controller"].policy.load_state_dict(torch.load(r"C:\Users\asces\OneDriveUni\Projects\Adrenalin_BOPTEST_Challenge\RL_control\t4b_model\model\best_policy.pth"))
+    model.components["neural_controller"].policy.load_state_dict(torch.load(r"best_policy.pth", weights_only=True))
     #Run a simulation
     stepSize = 600  # Seconds
     startTime = datetime.datetime(year=2024, month=1, day=5, hour=0, minute=0, second=0,
