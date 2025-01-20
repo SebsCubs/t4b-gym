@@ -20,6 +20,7 @@ from contextlib import redirect_stdout, redirect_stderr
 import io
 from logging.handlers import RotatingFileHandler
 
+
 if __name__ == '__main__':
     uppath = lambda _path, n: os.sep.join(_path.split(os.sep)[:-n])
     file_path = os.path.join(uppath(os.path.abspath(__file__), 4), "Twin4Build")
@@ -333,6 +334,10 @@ class PolicyTrainer:
             self.experience_collector = ExperienceCollector(self.base_model)
             self.writer = SummaryWriter(f'runs/ppo_training_{datetime.datetime.now().strftime("%Y%m%d-%H%M%S")}')
 
+            # Register cleanup handler for system exit
+            import atexit
+            atexit.register(self.close)
+
         except Exception as e:
             print(f"Critical error during PolicyTrainer initialization: {str(e)}", file=sys.stderr)
             raise
@@ -548,37 +553,60 @@ class PolicyTrainer:
 
     def close(self):
         """Explicit cleanup method"""
+        # First close the pool if it exists
         if hasattr(self, 'pool') and self.pool is not None:
             try:
-                self.logger.info("Closing process pool")
+                self.logger.info("Closing process pool") if hasattr(self, 'logger') else print("Closing process pool")
+                # Terminate all processes first
+                self.pool.terminate()
+                # Then close and join
                 self.pool.close()
-                self.logger.info("Joining process pool")
                 self.pool.join()
                 self.pool = None
-                self.logger.info("Process pool cleanup completed")
             except Exception as e:
-                self.logger.error(f"Error during pool cleanup: {str(e)}")
+                print(f"Error during pool cleanup: {str(e)}")
         
-        if hasattr(self, 'queue'):
+        # Then clean up the queue
+        if hasattr(self, 'queue') and self.queue is not None:
             try:
-                self.logger.info("Cleaning up queue")
-                while not self.queue.empty():
+                print("Cleaning up queue")
+                # Drain the queue with timeout
+                max_attempts = 100
+                attempts = 0
+                while attempts < max_attempts:
                     try:
                         self.queue.get_nowait()
-                    except queue.Empty:
+                        attempts += 1
+                    except Exception:
                         break
-                self.queue.close()
-                self.queue.join_thread()
-                self.logger.info("Queue cleanup completed")
+                
+                # Close and join the queue
+                try:
+                    self.queue.close()
+                    self.queue.join_thread()  # Wait for the queue's background thread
+                    self.queue = None
+                    print("Queue closed successfully")
+                except (AttributeError, ValueError) as e:
+                    print(f"Error closing queue: {e}")
             except Exception as e:
-                self.logger.error(f"Error during queue cleanup: {str(e)}")
+                print(f"Error during queue cleanup: {str(e)}")
+        
+        # Clean up any remaining multiprocessing resources
+        try:
+            import multiprocessing.resource_tracker as resource_tracker
+            resource_tracker._resource_tracker._check_alive()  # Ensure tracker is running
+            resource_tracker._resource_tracker._stop()  # Stop the resource tracker
+        except Exception as e:
+            print(f"Error cleaning up multiprocessing resources: {str(e)}")
 
     def __del__(self):
-        """Cleanup method that calls close()"""
-        try:
-            self.close()
-        except:
-            pass  # Suppress errors during deletion
+        """Cleanup method that calls close() only if not already cleaned up"""
+        if hasattr(self, 'pool') and self.pool is not None or \
+           hasattr(self, 'queue') and self.queue is not None:
+            try:
+                self.close()
+            except:
+                pass  # Suppress all errors during deletion
 
 
 if __name__ == "__main__":
@@ -588,6 +616,6 @@ if __name__ == "__main__":
 
     trainer = PolicyTrainer(model_path, input_output_schema_path, num_processes=2)
     try:
-        trainer.train(num_episodes=350)
+        trainer.train(num_episodes=4)
     finally:
         trainer.close()  # Ensure cleanup happens
