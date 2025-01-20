@@ -169,3 +169,5 @@ runs/
 *.pth
 # Graphviz
 *.dot
+
+*.txt
