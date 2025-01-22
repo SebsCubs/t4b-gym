@@ -1,5 +1,4 @@
 import torch.multiprocessing as mp
-from multiprocessing import Pool, Queue
 import sys
 import os
 sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))) # Add the grandparent directory to the system path
@@ -11,15 +10,11 @@ import json
 import copy
 from RL_Algos.ppo_agent import PPOAgent, Memory
 from neural_policy_standalone_sim import fcn
-import twin4build.examples.utils as utils
 from torch.utils.tensorboard import SummaryWriter
 import numpy as np
-import queue  # Add this import
 import logging
-from contextlib import redirect_stdout, redirect_stderr
-import io
 from logging.handlers import RotatingFileHandler
-
+import multiprocessing.resource_tracker as resource_tracker
 
 if __name__ == '__main__':
     uppath = lambda _path, n: os.sep.join(_path.split(os.sep)[:-n])
@@ -30,18 +25,17 @@ if __name__ == '__main__':
 class ExperienceCollector:
     """
     Collects experience from the simulation environment in a multiprocessing manner.
-    Saves the experience to a memory object. buffered in a queue.
+    Saves the experience to a memory object.
     Goes inside the PolicyTrainer class.
     Instantiates the model and the memory object, it contains the RL agent policy.
     Starts the simulation in a multiprocessing manner.
-    Collects the experience from the simulation and saves it to the memory object through a queue.
     The PolicyTrainer updates the policy every num_processes episodes. -> Needs a lock to update the policy.
     """
     def __init__(self, t4b_model):
         self.t4b_model = t4b_model
 
     @staticmethod
-    def setup_logger(process_id):
+    def setup_logger(process_id, process_logs=False):
         """
         Setup a logger for the current process
         """
@@ -60,35 +54,41 @@ class ExperienceCollector:
                 logger.handlers.clear()
             
             # Create handlers with absolute paths
-            # Process-specific log file
-            process_handler = RotatingFileHandler(
-                os.path.join(log_dir, f'process_{process_id}.log'),
-                maxBytes=10*1024*1024,  # 10MB
-                backupCount=5
-            )
+            handlers = []
+            
+            # Process-specific log file (only if process_logs is True)
+            if process_logs:
+                process_handler = RotatingFileHandler(
+                    os.path.join(log_dir, f'process_{process_id}.log'),
+                    maxBytes=10*1024*1024,  # 10MB
+                    backupCount=5
+                )
+                handlers.append(process_handler)
+            
             # Main log file that combines all processes
             main_handler = RotatingFileHandler(
                 os.path.join(log_dir, 'main.log'),
                 maxBytes=50*1024*1024,  # 50MB
                 backupCount=5
             )
+            handlers.append(main_handler)
             
-            # Create formatters and add it to handlers
+            # Create formatter and add it to handlers
             log_format = logging.Formatter(
                 '[%(asctime)s][%(name)s][%(processName)s] %(levelname)s: %(message)s',
                 datefmt='%Y-%m-%d %H:%M:%S'
             )
-            process_handler.setFormatter(log_format)
-            main_handler.setFormatter(log_format)
             
-            # Add handlers to the logger
-            logger.addHandler(process_handler)
-            logger.addHandler(main_handler)
+            # Add formatters and handlers to logger
+            for handler in handlers:
+                handler.setFormatter(log_format)
+                logger.addHandler(handler)
             
             # Write a test message to verify logger setup
             logger.info(f"Logger initialized for {process_id}")
             logger.info(f"Logging to directory: {log_dir}")
-            logger.info(f"Process log file: {os.path.join(log_dir, f'process_{process_id}.log')}")
+            if process_logs:
+                logger.info(f"Process log file: {os.path.join(log_dir, f'process_{process_id}.log')}")
             
             return logger
             
@@ -129,37 +129,37 @@ class ExperienceCollector:
                 raise
 
     @staticmethod
-    def _run_episode_worker(t4b_model, start_time, end_time):
+    def _run_episode_worker(t4b_model, start_time, end_time, process_logs=False):
         """
         Static worker method that runs in each process.
-        Queue is now accessed through the global variable.
         """
         process_id = mp.current_process().name
-        script_dir = os.path.dirname(os.path.abspath(__file__))
-        debug_file = os.path.join(script_dir, "logs", f"debug_{process_id}.txt")
-        
-        with open(debug_file, 'w') as f:
-            f.write(f"Process {process_id} started at {datetime.datetime.now()}\n")
+        logger = None
         
         try:
-            logger = ExperienceCollector.setup_logger(process_id)
-            logger.info(f"Process {process_id} initialized")
+            # Only set up logger if process_logs is True
+            if process_logs:
+                logger = ExperienceCollector.setup_logger(process_id, process_logs)
+                logger.info(f"Process {process_id} initialized")
+                logger.info("Creating simulation model copy")
             
-            logger.info("Creating simulation model copy")
             simulation_model = copy.deepcopy(t4b_model)
             collector = ExperienceCollector(simulation_model)
             
-            logger.info("Starting simulation")
+            if process_logs:
+                logger.info("Starting simulation")
             simulator = tb.Simulator()
             simulator.simulate(simulation_model, start_time, end_time, stepSize=600)
-            logger.info("Simulation completed")
+            if process_logs:
+                logger.info("Simulation completed")
+                logger.info("Processing simulation data")
             
-            logger.info("Processing simulation data")
             states = collector.get_state_from_saved(simulation_model)
             actions = collector.get_action_from_saved(simulation_model)
             rewards = collector.compute_reward_from_saved(simulation_model, '[020B][020B_space_heater]')
 
-            logger.info("Computing logprobs")
+            if process_logs:
+                logger.info("Computing logprobs")
             with torch.no_grad():
                 action_mean, action_std = simulation_model.components["neural_controller"].policy(states)
                 dist = torch.distributions.Normal(action_mean, action_std)
@@ -172,14 +172,16 @@ class ExperienceCollector:
                 'logprobs': logprobs.cpu().detach().numpy()
             }
 
-            logger.info("Episode data shapes:")
-            for key, value in episode_data.items():
-                logger.info(f"- {key}: {value.shape}, range: [{value.min():.3f}, {value.max():.3f}]")
+            if process_logs:
+                logger.info("Episode data shapes:")
+                for key, value in episode_data.items():
+                    logger.info(f"- {key}: {value.shape}, range: [{value.min():.3f}, {value.max():.3f}]")
             
             return episode_data
             
         except Exception as e:
-            logger.error(f"Error in worker process:", exc_info=True)
+            if process_logs and logger:
+                logger.error(f"Error in worker process:", exc_info=True)
             return None
 
     def get_state_from_saved(self, model):
@@ -317,7 +319,6 @@ class PolicyTrainer:
             try:
                 mp.set_start_method('spawn', force=True)
                 self.ctx = mp.get_context('spawn')
-                self.queue = self.ctx.Queue()
                 self.num_processes = num_processes
                 self.pool = None  # Initialize pool as None
                 self.logger.info("Multiprocessing components initialized")
@@ -428,13 +429,33 @@ class PolicyTrainer:
     def _ensure_pool(self):
         """Ensure the process pool exists and is active"""
         try:
-            if self.pool is None or self.pool._state:  # Check if pool is None or closed
-                self.logger.info("Creating new process pool")
-                self.pool = self.ctx.Pool(processes=self.num_processes)
-                self.logger.info(f"Created process pool with {self.num_processes} processes")
+            # Check if pool needs to be created or recreated
+            if self.pool is None:
+                self.logger.info("Creating new process pool - no pool exists")
+                self.pool = self.ctx.Pool(processes=self.num_processes, maxtasksperchild=5)
+                return True
+
+            # Test if pool is still usable by checking one of its public methods
+            try:
+                self.pool.apply_async(int, (0,)).get(timeout=1)
+            except (TimeoutError, AttributeError, ValueError, ConnectionError):
+                self.logger.info("Creating new process pool - existing pool is inactive")
+                # Clean up old pool if it exists
+                try:
+                    self.pool.terminate()
+                    self.pool.close()
+                    self.pool.join()
+                except Exception as e:
+                    self.logger.warning(f"Error cleaning up old pool: {str(e)}")
+                
+                # Create new pool
+                self.pool = self.ctx.Pool(processes=self.num_processes, maxtasksperchild=5)
+
+            self.logger.info(f"Process pool is active with {self.num_processes} processes")
             return True
+
         except Exception as e:
-            self.logger.error(f"Failed to create process pool: {str(e)}")
+            self.logger.error(f"Failed to create/verify process pool: {str(e)}")
             return False
 
     def run_batch(self, num_processes, start_episode):
@@ -446,7 +467,6 @@ class PolicyTrainer:
             
         self.logger.info("Process pool is ready")
         
-        # Prepare arguments without queue
         process_args = []
         for i in range(num_processes):
             startTime = datetime.datetime(year=2023, month=11, day=27, hour=0, minute=0, second=0, 
@@ -467,7 +487,8 @@ class PolicyTrainer:
             except Exception as e:
                 self.logger.error(f"Failed to launch process {i}: {str(e)}")
                 continue
-
+        
+        
         # Collect results
         results = []
         timeout = 120
@@ -475,8 +496,6 @@ class PolicyTrainer:
             try:
                 self.logger.info(f"Waiting for result from process {i}")
                 result = async_result.get(timeout=timeout)
-                if result is not None:
-                    self.queue.put(result)  # Put result in queue from main process
                 results.append(result)
                 self.logger.info(f"Received result from process {i}")
             except Exception as e:
@@ -566,43 +585,20 @@ class PolicyTrainer:
             except Exception as e:
                 print(f"Error during pool cleanup: {str(e)}")
         
-        # Then clean up the queue
-        if hasattr(self, 'queue') and self.queue is not None:
-            try:
-                print("Cleaning up queue")
-                # Drain the queue with timeout
-                max_attempts = 100
-                attempts = 0
-                while attempts < max_attempts:
-                    try:
-                        self.queue.get_nowait()
-                        attempts += 1
-                    except Exception:
-                        break
-                
-                # Close and join the queue
-                try:
-                    self.queue.close()
-                    self.queue.join_thread()  # Wait for the queue's background thread
-                    self.queue = None
-                    print("Queue closed successfully")
-                except (AttributeError, ValueError) as e:
-                    print(f"Error closing queue: {e}")
-            except Exception as e:
-                print(f"Error during queue cleanup: {str(e)}")
-        
         # Clean up any remaining multiprocessing resources
         try:
-            import multiprocessing.resource_tracker as resource_tracker
-            resource_tracker._resource_tracker._check_alive()  # Ensure tracker is running
-            resource_tracker._resource_tracker._stop()  # Stop the resource tracker
+            if hasattr(resource_tracker._resource_tracker, '_pid'):
+                # Only attempt cleanup if resource tracker exists and has a valid PID
+                if resource_tracker._resource_tracker._pid is not None:
+                    resource_tracker._resource_tracker._check_alive()
+                    resource_tracker._resource_tracker._stop()
         except Exception as e:
             print(f"Error cleaning up multiprocessing resources: {str(e)}")
 
     def __del__(self):
         """Cleanup method that calls close() only if not already cleaned up"""
-        if hasattr(self, 'pool') and self.pool is not None or \
-           hasattr(self, 'queue') and self.queue is not None:
+        print("Deleting PolicyTrainer object")
+        if hasattr(self, 'pool') and self.pool is not None:
             try:
                 self.close()
             except:
@@ -614,8 +610,8 @@ if __name__ == "__main__":
     script_dir = os.path.dirname(os.path.abspath(__file__))
     input_output_schema_path = os.path.join(script_dir, "policy_input_output.json")
 
-    trainer = PolicyTrainer(model_path, input_output_schema_path, num_processes=2)
+    trainer = PolicyTrainer(model_path, input_output_schema_path, num_processes=4)
     try:
-        trainer.train(num_episodes=4)
+        trainer.train(num_episodes=40)
     finally:
         trainer.close()  # Ensure cleanup happens
