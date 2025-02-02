@@ -249,21 +249,19 @@ class ExperienceCollector:
         co2 = torch.tensor(model.components[space_id].savedOutput['indoorCo2Concentration'])
         room_heating_energy = torch.tensor(model.components[space_id].savedOutput['spaceHeaterPower'])
         fan_energy = torch.tensor(model.components['supply_fan'].savedOutput['Power'])
-
-        # Calculate reward components
-        temp_setpoint = 21.0
-        co2_setpoint = 900.0
+        temp_setpoint =  torch.tensor(model.components['020B_temperature_heating_setpoint'].savedOutput['scheduleValue'])
+        co2_setpoint =  torch.tensor(model.components['020B_co2_setpoint'].savedOutput['scheduleValue'])
         
-        # Temperature penalty (quadratic)
+        # Temperature penalty
         temp_error = torch.abs(temperature - temp_setpoint)
         temp_penalty = -(temp_error) * 10
         
-        # CO2 penalty (quadratic above setpoint)
-        co2_error = torch.abs(co2 - co2_setpoint)
-        co2_penalty = -(co2_error) * 0.01
+        # CO2 penalty (above setpoint)
+        co2_error = torch.clamp(co2 - co2_setpoint, min=0)
+        co2_penalty = -(co2_error) * 0.1
         
         # Energy penalty (linear)
-        energy_penalty = -room_heating_energy * 0.01 - fan_energy * 0.01
+        energy_penalty = -room_heating_energy * 0.01 - fan_energy * 0.001
         
         # Combine rewards
         rewards = temp_penalty + co2_penalty + energy_penalty
@@ -574,6 +572,10 @@ class PolicyTrainer:
             # Clear memory after policy update
             self.memory.clear()
 
+        # Save the final policy with the best reward and a timestamp
+        timestamp = datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
+        torch.save(self.ppo_agent.policy.state_dict(), f'final_policy_{timestamp}.pth')
+
     def close(self):
         """Explicit cleanup method"""
         # First close the pool if it exists
@@ -616,6 +618,6 @@ if __name__ == "__main__":
 
     trainer = PolicyTrainer(model_path, input_output_schema_path, num_processes=4)
     try:
-        trainer.train(num_episodes=300)
+        trainer.train(num_episodes=350)
     finally:
         trainer.close()  # Ensure cleanup happens

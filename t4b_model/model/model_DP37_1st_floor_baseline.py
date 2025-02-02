@@ -68,10 +68,10 @@ def get_model(id=None, fcn_=None):
 """
 def run():
     stepSize = 600  # Seconds
-    startTime = datetime.datetime(year=2024, month=1, day=5, hour=0, minute=0, second=0,
-                                  tzinfo=gettz("Europe/Copenhagen"))
-
-    endTime = datetime.datetime(year=2024, month=1, day=6, hour=0, minute=0, second=0,
+    
+    startTime = datetime.datetime(year=2024, month=1, day=3, hour=0, minute=0, second=0,
+                                tzinfo=gettz("Europe/Copenhagen"))
+    endTime = datetime.datetime(year=2024, month=1, day=4, hour=0, minute=0, second=0,
                                 tzinfo=gettz("Europe/Copenhagen"))
     model = get_model()
 
@@ -86,47 +86,61 @@ def run():
 
     # Plot the results using plot_component
     space_id = '[020B][020B_space_heater]'
-    
     #print the total energy consumption
     energy = np.array(model.components[space_id].savedOutput['spaceHeaterPower'])
-    print(f"Total energy consumption: {energy.sum()} Wh")
-
+    print(f"Space heater energy consumption: {energy.sum()} Wh")
     #Print the deviation from the setpoint
-    deviation = np.array(model.components[space_id].savedOutput['indoorTemperature']) - 21
-    print(f"Total deviation from setpoint: {deviation.sum()} °C")
-
+    setpoint = np.array(model.components["020B_temperature_heating_setpoint"].savedOutput['scheduleValue'])
+    deviation = np.array(model.components[space_id].savedOutput['indoorTemperature']) - setpoint
+    #With a timestamp of 600 seconds, and a threshold of 1 degree, calculate the number of hours the deviation is above the threshold
+    threshold = 1
+    hours_above_threshold = (deviation > threshold).sum() * stepSize / 3600
+    print(f"Number of hours the temperature deviation is above the threshold: {hours_above_threshold:.2f} hours")
+    
     # Temperature plot
-    plot.plot_component(
+    fig, axes = plot.plot_component(
         simulator,
-        components_1axis=[(space_id, 'indoorTemperature'),("020B_temperature_heating_setpoint", 'scheduleValue')],
-        ylabel_1axis='Room Temperature [°C] (Actual and Setpoint)',
-        show=True
+        components_1axis=[
+            (space_id, 'indoorTemperature'),
+            ("020B_temperature_heating_setpoint", 'scheduleValue')
+        ],
+        ylabel_1axis='Room Temperature [°C]',
+        show=False  
     )
+    lines = axes[0].get_lines()
+    axes[0].legend(lines, [
+        'Actual Temperature',
+        'Original Setpoint'
+    ])
+    plt.show()
 
-    # CO2 plot
-    plot.plot_component(
+        # CO2 plot
+    fig, axes = plot.plot_component(
         simulator,
         components_1axis=[(space_id, 'indoorCo2Concentration'),("020B_co2_setpoint", 'scheduleValue')],
         ylabel_1axis='CO2 Concentration [ppm] (Actual and Setpoint)',
-        show=True
+        show=False
     )
+    lines = axes[0].get_lines()
+    axes[0].legend(lines, [
+        'Actual CO2 Concentration',
+        'Original Setpoint'
+    ])
+    plt.show()  
 
-    # power plot
-    plot.plot_component(
-        simulator,
-        components_1axis=[(space_id, 'spaceHeaterPower')],
-        ylabel_1axis='Space Heater Power [W] (Actual)',
-        show=True
-    )
-
-        # 020B occupancy plot
-    plot.plot_component(
+    
+    # 020B occupancy plot
+    fig, axes = plot.plot_component(
         simulator,
         components_1axis=[("020B_occupancy_profile", 'scheduleValue')],
         ylabel_1axis='Occupancy 020B (Actual)',
-        show=True
+        show=False
     )
-
+    lines = axes[0].get_lines()
+    axes[0].legend(lines, [
+        'Actual Occupancy'
+    ])
+    plt.show()
 
 if __name__ == "__main__":
     run()
