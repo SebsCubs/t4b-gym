@@ -156,7 +156,7 @@ class ExperienceCollector:
             
             states = collector.get_state_from_saved(simulation_model)
             actions = collector.get_action_from_saved(simulation_model)
-            rewards = collector.compute_reward_from_saved(simulation_model, '[020B][020B_space_heater]')
+            rewards = collector.compute_reward_from_saved(simulation_model, '[035A][035A_space_heater]')
 
             if process_logs:
                 logger.info("Computing logprobs")
@@ -249,8 +249,8 @@ class ExperienceCollector:
         co2 = torch.tensor(model.components[space_id].savedOutput['indoorCo2Concentration'])
         room_heating_energy = torch.tensor(model.components[space_id].savedOutput['spaceHeaterPower'])
         fan_energy = torch.tensor(model.components['supply_fan'].savedOutput['Power'])
-        temp_setpoint =  torch.tensor(model.components['020B_temperature_heating_setpoint'].savedOutput['scheduleValue'])
-        co2_setpoint =  torch.tensor(model.components['020B_co2_setpoint'].savedOutput['scheduleValue'])
+        temp_setpoint =  torch.tensor(model.components['035A_temperature_heating_setpoint'].savedOutput['scheduleValue'])
+        co2_setpoint =  torch.tensor(model.components['035A_co2_setpoint'].savedOutput['scheduleValue'])
         
         # Temperature penalty
         temp_error = torch.abs(temperature - temp_setpoint)

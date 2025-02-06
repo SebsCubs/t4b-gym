@@ -170,10 +170,11 @@ if __name__ == "__main__":
     model = tb.Model(id="neural_policy_1stfloor", saveSimulationResult=True)
 
     filename = os.path.join(uppath(os.path.abspath(__file__), 1), "fan_flow_configuration_template_DP37_full_no_cooling.xlsm")
-
     model.load(semantic_model_filename=filename, fcn=fcn, create_signature_graphs=False, validate_model=True, verbose=False, force_config_update=True)
 
-    model.components["neural_controller"].policy.load_state_dict(torch.load(r"final_policy_20250130-115455.pth", weights_only=True))
+    policy_path = os.path.join(uppath(os.path.abspath(__file__), 1), "final_policy_20250203-153545.pth")
+    model.components["neural_controller"].policy.load_state_dict(torch.load(policy_path, weights_only=True))
+
     #Run a simulation
     stepSize = 600  # Seconds
     startTime = datetime.datetime(year=2024, month=1, day=3, hour=0, minute=0, second=0,
@@ -186,14 +187,14 @@ if __name__ == "__main__":
     print("Simulation completed successfully!")
 
     # Plot the results using plot_component
-    space_id = '[020B][020B_space_heater]'
+    space_id = '[035A][035A_space_heater]'
     
     #print the total energy consumption
     energy = np.array(model.components[space_id].savedOutput['spaceHeaterPower'])
     print(f"Space heater energy consumption: {energy.sum()} Wh")
 
     #Print the deviation from the setpoint
-    setpoint = np.array(model.components["020B_temperature_heating_setpoint"].savedOutput['scheduleValue'])
+    setpoint = np.array(model.components["035A_temperature_heating_setpoint"].savedOutput['scheduleValue'])
     deviation = np.array(model.components[space_id].savedOutput['indoorTemperature']) - setpoint
     #With a timestamp of 600 seconds, and a threshold of 1 degree, calculate the number of hours the deviation is above the threshold
     threshold = 1
@@ -206,8 +207,8 @@ if __name__ == "__main__":
         simulator,
         components_1axis=[
             (space_id, 'indoorTemperature'),
-            ("020B_temperature_heating_setpoint", 'scheduleValue'),
-            ("neural_controller", '020B_temperature_heating_setpoint_020B_temperature_controller_input_signal')
+            ("035A_temperature_heating_setpoint", 'scheduleValue'),
+            ("neural_controller", '035A_temperature_heating_setpoint_035A_temperature_heating_controller_input_signal')
         ],
         ylabel_1axis='Room Temperature [°C]',
         show=False  
@@ -224,7 +225,7 @@ if __name__ == "__main__":
     # CO2 plot
     fig, axes = plot.plot_component(
         simulator,
-        components_1axis=[(space_id, 'indoorCo2Concentration'),("020B_co2_setpoint", 'scheduleValue'),("neural_controller", '020B_co2_setpoint_[020B_co2_controller][020B_damper_heating_controller]_input_signal')],
+        components_1axis=[(space_id, 'indoorCo2Concentration'),("035A_co2_setpoint", 'scheduleValue'),("neural_controller", '035A_co2_setpoint_[035A_co2_controller][035A_damper_heating_controller]_input_signal')],
         ylabel_1axis='CO2 Concentration [ppm] (Actual and Setpoint)',
         show=False
     )
@@ -237,11 +238,11 @@ if __name__ == "__main__":
     plt.show()  
 
     
-    # 020B occupancy plot
+    # 035A occupancy plot
     fig, axes = plot.plot_component(
         simulator,
-        components_1axis=[("020B_occupancy_profile", 'scheduleValue')],
-        ylabel_1axis='Occupancy 020B (Actual)',
+        components_1axis=[("035A_occupancy_profile", 'scheduleValue')],
+        ylabel_1axis='Occupancy 035A (Actual)',
         show=False
     )
     lines = axes[0].get_lines()
