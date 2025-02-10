@@ -85,12 +85,12 @@ def run():
     print("Simulation completed successfully!")
 
     # Plot the results using plot_component
-    space_id = '[035A][035A_space_heater]'
+    space_id = '[012A][012A_space_heater]'
     #print the total energy consumption
     energy = np.array(model.components[space_id].savedOutput['spaceHeaterPower'])
     print(f"Space heater energy consumption: {energy.sum()} Wh")
     #Print the deviation from the setpoint
-    setpoint = np.array(model.components["035A_temperature_heating_setpoint"].savedOutput['scheduleValue'])
+    setpoint = np.array(model.components["012A_temperature_heating_setpoint"].savedOutput['scheduleValue'])
     deviation = np.array(model.components[space_id].savedOutput['indoorTemperature']) - setpoint
     #With a timestamp of 600 seconds, and a threshold of 1 degree, calculate the number of hours the deviation is above the threshold
     threshold = 1
@@ -102,7 +102,7 @@ def run():
         simulator,
         components_1axis=[
             (space_id, 'indoorTemperature'),
-            ("035A_temperature_heating_setpoint", 'scheduleValue')
+            ("012A_temperature_heating_setpoint", 'scheduleValue')
         ],
         ylabel_1axis='Room Temperature [°C]',
         show=False  
@@ -114,10 +114,12 @@ def run():
     ])
     plt.show()
 
+
+    """
         # CO2 plot
     fig, axes = plot.plot_component(
         simulator,
-        components_1axis=[(space_id, 'indoorCo2Concentration'),("035A_co2_setpoint", 'scheduleValue')],
+        components_1axis=[(space_id, 'indoorCo2Concentration'),("012A_co2_setpoint", 'scheduleValue')],
         ylabel_1axis='CO2 Concentration [ppm] (Actual and Setpoint)',
         show=False
     )
@@ -127,18 +129,31 @@ def run():
         'Original Setpoint'
     ])
     plt.show()  
-
+    """
     
-    # 035A occupancy plot
+    # 012A occupancy plot
     fig, axes = plot.plot_component(
         simulator,
-        components_1axis=[("035A_occupancy_profile", 'scheduleValue')],
-        ylabel_1axis='Occupancy 035A (Actual)',
+        components_1axis=[("012A_occupancy_profile", 'scheduleValue')],
+        ylabel_1axis='Occupancy 012A (Actual)',
         show=False
     )
     lines = axes[0].get_lines()
     axes[0].legend(lines, [
         'Actual Occupancy'
+    ])
+    plt.show()
+
+        # 012A space heater power plot
+    fig, axes = plot.plot_component(
+        simulator,
+        components_1axis=[(space_id, 'spaceHeaterPower')],
+        ylabel_1axis='Space Heater Power [W]',
+        show=False
+    )
+    lines = axes[0].get_lines()
+    axes[0].legend(lines, [
+        'Space Heater Power'
     ])
     plt.show()
 

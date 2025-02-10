@@ -156,7 +156,7 @@ class ExperienceCollector:
             
             states = collector.get_state_from_saved(simulation_model)
             actions = collector.get_action_from_saved(simulation_model)
-            rewards = collector.compute_reward_from_saved(simulation_model, '[035A][035A_space_heater]')
+            rewards = collector.compute_reward_from_saved(simulation_model, '[012A][012A_space_heater]')
 
             if process_logs:
                 logger.info("Computing logprobs")
@@ -246,29 +246,29 @@ class ExperienceCollector:
         """
         # Get all timesteps at once
         temperature = torch.tensor(model.components[space_id].savedOutput['indoorTemperature'])
-        co2 = torch.tensor(model.components[space_id].savedOutput['indoorCo2Concentration'])
+        #co2 = torch.tensor(model.components[space_id].savedOutput['indoorCo2Concentration'])
         room_heating_energy = torch.tensor(model.components[space_id].savedOutput['spaceHeaterPower'])
         fan_energy = torch.tensor(model.components['supply_fan'].savedOutput['Power'])
-        temp_setpoint =  torch.tensor(model.components['035A_temperature_heating_setpoint'].savedOutput['scheduleValue'])
-        co2_setpoint =  torch.tensor(model.components['035A_co2_setpoint'].savedOutput['scheduleValue'])
+        temp_setpoint =  torch.tensor(model.components['012A_temperature_heating_setpoint'].savedOutput['scheduleValue'])
+        #co2_setpoint =  torch.tensor(model.components['012A_co2_setpoint'].savedOutput['scheduleValue'])
         
         # Temperature penalty
         temp_error = torch.abs(temperature - temp_setpoint)
-        temp_penalty = -(temp_error) * 10
+        temp_penalty = -(temp_error) * 100
         
         # CO2 penalty (above setpoint)
-        co2_error = torch.clamp(co2 - co2_setpoint, min=0)
-        co2_penalty = -(co2_error) * 0.1
+        #co2_error = torch.clamp(co2 - co2_setpoint, min=0)
+        #co2_penalty = -(co2_error) * 0.1
         
         # Energy penalty (linear)
         energy_penalty = -room_heating_energy * 0.01 - fan_energy * 0.001
         
         # Combine rewards
-        rewards = temp_penalty + co2_penalty + energy_penalty
+        rewards = temp_penalty + energy_penalty
         
         # Add debugging info for first and last timestep
-        print(f"First timestep - Temp: {temperature[0]:.2f}, CO2: {co2[0]:.2f}, Energy: {room_heating_energy[0]:.2f}, Reward: {rewards[0]:.2f}")
-        print(f"Last timestep - Temp: {temperature[-1]:.2f}, CO2: {co2[-1]:.2f}, Energy: {room_heating_energy[-1]:.2f}, Reward: {rewards[-1]:.2f}")
+        print(f"First timestep - Temp: {temperature[0]:.2f}, Energy: {room_heating_energy[0]:.2f}, Reward: {rewards[0]:.2f}")
+        print(f"Last timestep - Temp: {temperature[-1]:.2f}, Energy: {room_heating_energy[-1]:.2f}, Reward: {rewards[-1]:.2f}")
         
         return rewards
 
@@ -348,7 +348,7 @@ class PolicyTrainer:
             self.input_output_schema = json.load(f)
             
         self.input_size = sum(len(signals) for signals in self.input_output_schema["input"].values())
-        self.output_size =  5 + 2 + 1 #TODO: Make this dynamic
+        self.output_size =  5 + 2  #TODO: Make this dynamic
         self.base_model.load(semantic_model_filename=model_path, fcn=fcn, create_signature_graphs=False, validate_model=True, verbose=False, force_config_update=True)
         # update the policy in the base model
         #The policy in the model must be a PolicyNetwork object, not a nn.Module object
