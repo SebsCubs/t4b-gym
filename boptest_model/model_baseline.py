@@ -43,15 +43,15 @@ def fcn(self):
     return_flow_junction = tb.ReturnFlowJunctionSystem(id="return_flow_junction",
                                                         saveSimulationResult=True)
     """
-
+    tb.BuildingSpace0AdjBoundaryOutdoorFMUSystem
     pass
     
 
 def get_model(id=None, fcn_=None):
     if fcn_ is None:
         fcn_ = fcn
-    model = tb.Model(id="lbnl_coil_model", saveSimulationResult=True)
-    filename = os.path.join(uppath(os.path.abspath(__file__), 1), "configuration_template_LBNL.xlsm")
+    model = tb.Model(id="two_rooms_only_template", saveSimulationResult=True)
+    filename = os.path.join(uppath(os.path.abspath(__file__), 1), "two_rooms_only_template.xlsm")
     model.load(semantic_model_filename=filename, fcn=fcn_, create_signature_graphs=False, validate_model=True, verbose=True, force_config_update=True)
     if id is not None:
         model.id = id
