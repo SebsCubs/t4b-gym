@@ -35,23 +35,23 @@
                 "description": "Supply air temperature after cooling & heating coil"
             }
         },
-        "[012A][012A_space_heater]": {
+        "[015A][015A_space_heater]": {
             "indoorTemperature": {
                 "min": 0,
                 "max": 40,
-                "description": "Room 012A indoor temperature"
+                "description": "Room 015A indoor temperature"
             },
             "indoorCo2Concentration": {
                 "min": 0,
                 "max": 4000,
-                "description": "Room 012A indoor CO2 concentration"
+                "description": "Room 015A indoor CO2 concentration"
             }
         },
-        "012A_temperature_heating_setpoint": {
+        "015A_temperature_heating_setpoint": {
             "scheduleValue": {
                 "min": 0,
                 "max": 40,
-                "description": "Room 012A heating setpoint"
+                "description": "Room 015A heating setpoint"
             }
         }
     }

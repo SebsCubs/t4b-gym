@@ -21,6 +21,11 @@ from twin4build.utils.rsetattr import rsetattr
 import matplotlib.pyplot as plt
 sys.setrecursionlimit(2000)  # You can adjust this number as needed
 
+
+
+rooms_ids = ["029A","031A","033A","035A","020A","015A","020B","011A","013A","012A","007A"]
+
+
 def fcn(self):
     '''
         The fcn() function adds connections between components in a system model,
@@ -73,6 +78,8 @@ def run():
                                 tzinfo=gettz("Europe/Copenhagen"))
     endTime = datetime.datetime(year=2024, month=1, day=4, hour=0, minute=0, second=0,
                                 tzinfo=gettz("Europe/Copenhagen"))
+
+    
     model = get_model()
 
     simulator = tb.Simulator()
@@ -83,6 +90,54 @@ def run():
                         stepSize=stepSize)
 
     print("Simulation completed successfully!")
+
+
+    
+
+
+    for room_id in rooms_ids:
+        space_id = f'[{room_id}][{room_id}_space_heater]'
+        space_id_heating_setpoint = f'{room_id}_temperature_heating_setpoint'
+        #print the total energy consumption
+        energy = np.array(model.components[space_id].savedOutput['spaceHeaterPower'])
+        print(f"Space heater energy consumption for room {room_id}: {energy.sum()} Wh")
+        #Print the deviation from the setpoint
+        setpoint = np.array(model.components[space_id_heating_setpoint].savedOutput['scheduleValue'])
+        deviation = np.array(model.components[space_id].savedOutput['indoorTemperature']) - setpoint
+
+        # Temperature plot for room {room_id}
+        fig, axes = plot.plot_component(
+            simulator,
+            components_1axis=[
+                (space_id, 'indoorTemperature'),
+                (space_id_heating_setpoint, 'scheduleValue'),
+            ],
+            ylabel_1axis='Room Temperature [°C]',
+            show=False  
+        )
+        lines = axes[0].get_lines()
+        axes[0].legend(lines, [
+            'Actual Temperature',
+            'Original Setpoint'
+        ])
+        plt.title(f'Room Temperature - Room {room_id}')
+        plt.show()
+
+        # Space heater power plot for room {room_id}
+        fig, axes = plot.plot_component(
+        simulator,
+        components_1axis=[(space_id, 'spaceHeaterPower')],
+        ylabel_1axis='Space Heater Power [W]',
+        show=False
+        )
+        lines = axes[0].get_lines()
+        axes[0].legend(lines, [
+            'Space Heater Power'
+        ])
+        plt.title(f'Space Heater Power - Room {room_id}')
+        plt.show()
+
+    """
 
     # Plot the results using plot_component
     space_id = '[012A][012A_space_heater]'
@@ -96,26 +151,7 @@ def run():
     threshold = 1
     hours_above_threshold = (deviation > threshold).sum() * stepSize / 3600
     print(f"Number of hours the temperature deviation is above the threshold: {hours_above_threshold:.2f} hours")
-    
-    # Temperature plot
-    fig, axes = plot.plot_component(
-        simulator,
-        components_1axis=[
-            (space_id, 'indoorTemperature'),
-            ("012A_temperature_heating_setpoint", 'scheduleValue')
-        ],
-        ylabel_1axis='Room Temperature [°C]',
-        show=False  
-    )
-    lines = axes[0].get_lines()
-    axes[0].legend(lines, [
-        'Actual Temperature',
-        'Original Setpoint'
-    ])
-    plt.show()
 
-
-    """
         # CO2 plot
     fig, axes = plot.plot_component(
         simulator,
@@ -129,7 +165,7 @@ def run():
         'Original Setpoint'
     ])
     plt.show()  
-    """
+   
     
     # 012A occupancy plot
     fig, axes = plot.plot_component(
@@ -143,7 +179,7 @@ def run():
         'Actual Occupancy'
     ])
     plt.show()
-
+   
         # 012A space heater power plot
     fig, axes = plot.plot_component(
         simulator,
@@ -156,6 +192,7 @@ def run():
         'Space Heater Power'
     ])
     plt.show()
-
+ 
+    """
 if __name__ == "__main__":
     run()

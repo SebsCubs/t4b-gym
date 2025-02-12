@@ -253,8 +253,8 @@ class ExperienceCollector:
         #co2_setpoint =  torch.tensor(model.components['012A_co2_setpoint'].savedOutput['scheduleValue'])
         
         # Temperature penalty
-        temp_error = torch.abs(temperature - temp_setpoint)
-        temp_penalty = -(temp_error) * 100
+        temp_error = (temperature - temp_setpoint)**2
+        temp_penalty = -(temp_error) * 10
         
         # CO2 penalty (above setpoint)
         #co2_error = torch.clamp(co2 - co2_setpoint, min=0)
@@ -473,7 +473,7 @@ class PolicyTrainer:
         for i in range(num_processes):
             startTime = datetime.datetime(year=2023, month=11, day=27, hour=0, minute=0, second=0, 
                                        tzinfo=gettz("Europe/Copenhagen"))
-            endTime = datetime.datetime(year=2023, month=12, day=7, hour=0, minute=0, second=0,
+            endTime = datetime.datetime(year=2023, month=12, day=27, hour=0, minute=0, second=0,
                                      tzinfo=gettz("Europe/Copenhagen"))
             process_args.append((self.base_model, startTime, endTime))
             self.logger.info(f"Prepared args for process {i}")

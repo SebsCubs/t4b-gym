@@ -28,14 +28,31 @@ def fcn(self):
         The test() function sets simulation parameters and runs a simulation of the system
         model using the Simulator() class. It then generates several plots of the simulation results using functions from the plot module.
     '''
+
+    """
+    Components to add:
+    -  AHU fan
+    -  AHU heating coil
+    -  AHU cooling coil
+    -  AHU Dampers
+    -  Flow junctions
+ 
+    supply_flow_junction = tb.SupplyFlowJunctionSystem(id="supply_flow_junction",
+                                                        saveSimulationResult=True)
+
+    return_flow_junction = tb.ReturnFlowJunctionSystem(id="return_flow_junction",
+                                                        saveSimulationResult=True)
+    """
+
     pass
+    
 
 def get_model(id=None, fcn_=None):
     if fcn_ is None:
         fcn_ = fcn
-    model = tb.Model(id="simple_air_mutizone", saveSimulationResult=True)
-    filename = os.path.join(uppath(os.path.abspath(__file__), 1), "one_room_example_model.xlsm")
-    model.load(semantic_model_filename=filename, fcn=fcn_, create_signature_graphs=False, validate_model=True, verbose=False, force_config_update=True)
+    model = tb.Model(id="lbnl_coil_model", saveSimulationResult=True)
+    filename = os.path.join(uppath(os.path.abspath(__file__), 1), "configuration_template_LBNL.xlsm")
+    model.load(semantic_model_filename=filename, fcn=fcn_, create_signature_graphs=False, validate_model=True, verbose=True, force_config_update=True)
     if id is not None:
         model.id = id
     return model
