@@ -50,13 +50,12 @@ def fcn(self):
 def get_model(id=None, fcn_=None):
     if fcn_ is None:
         fcn_ = fcn
-    model = tb.Model(id="two_rooms_only_template", saveSimulationResult=True)
-    filename = os.path.join(uppath(os.path.abspath(__file__), 1), "two_rooms_only_template.xlsm")
+    model = tb.Model(id="three_rooms_only_template", saveSimulationResult=True)
+    filename = os.path.join(uppath(os.path.abspath(__file__), 1), "three_rooms_only_template.xlsm")
     model.load(semantic_model_filename=filename, fcn=fcn_, create_signature_graphs=False, validate_model=True, verbose=True, force_config_update=True)
     if id is not None:
         model.id = id
     return model
-
 
 def run():
     stepSize = 600  # Seconds
