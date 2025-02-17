@@ -162,7 +162,7 @@ def get_model(id=None, fcn_=None):
         fcn_ = fcn
     model = tb.Model(id="five_rooms_only_template", saveSimulationResult=True)
     
-    filename = os.path.join(uppath(os.path.abspath(__file__), 1), "five_rooms_only_template.xlsm")
+    filename = os.path.join(uppath(os.path.abspath(__file__), 1), r"semantic_models\five_rooms_only_template.xlsm")
     model.load(semantic_model_filename=filename, fcn=fcn_, create_signature_graphs=False, validate_model=True, verbose=True, force_config_update=True)
     if id is not None:
         model.id = id
