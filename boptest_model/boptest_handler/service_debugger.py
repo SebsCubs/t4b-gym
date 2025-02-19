@@ -2,7 +2,7 @@ import requests
 import json
 
 class BoptestDebugger:
-    def __init__(self, base_url="http://localhost:80"):
+    def __init__(self, base_url="http://127.0.0.1:80"):
         """Initialize the debugger with the base URL of the BOPTEST server."""
         self.base_url = base_url.rstrip('/')
         self.test_id = None
@@ -68,7 +68,7 @@ def main():
     debugger = BoptestDebugger()
     
     try:
-        test_id = "b9e7cd85-2422-4134-bcca-06ffa9b11052"
+        test_id = "7f03aa07-d61f-4aa6-873c-5980ee47b627"
         debugger.stop_test(test_id)
         
     except Exception as e:
