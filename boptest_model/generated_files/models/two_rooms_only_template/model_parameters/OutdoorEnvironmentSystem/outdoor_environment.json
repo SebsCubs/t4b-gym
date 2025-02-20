@@ -1,0 +1,12 @@
+{
+    "parameters": {
+        "a": null,
+        "b": null,
+        "apply_correction": null
+    },
+    "readings": {
+        "filename": null,
+        "datecolumn": null,
+        "valuecolumn": null
+    }
+}

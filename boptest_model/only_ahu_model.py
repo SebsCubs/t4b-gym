@@ -19,7 +19,7 @@ import matplotlib.pyplot as plt
 sys.setrecursionlimit(2000)  # You can adjust this number as needed
 
 
-def custom_map_function(self):
+def do_step(self):
     input_signal = self.input["inputSignal"].get()
     #heating valve position is 0-1, if the input signal is positiv, the valve is open with the same value but clamped at 1
     if input_signal > 0:
@@ -95,7 +95,7 @@ def fcn(self):
     self.add_connection(c3_control_map, supply_cooling_coil, "coolingValvePosition", "valvePosition")
     
     # Replace the do_step method with your custom function
-    c3_control_map.do_step = custom_map_function.__get__(c3_control_map, tb.ControlSignalMapSystem)
+    c3_control_map.do_step = do_step.__get__(c3_control_map, tb.ControlSignalMapSystem)
 
     
 
@@ -109,23 +109,61 @@ def get_model(id=None, fcn_=None):
     return model
 
 def run():
-    stepSize = 600  # Seconds
-    
-    startTime = datetime.datetime(year=2024, month=1, day=3, hour=0, minute=0, second=0,
+    stepSize = 600  # Seconds can go down to 30
+
+    startTime = datetime.datetime(year=2024, month=1, day=1, hour=0, minute=0, second=0,
                                 tzinfo=gettz("Europe/Copenhagen"))
-    endTime = datetime.datetime(year=2024, month=1, day=4, hour=0, minute=0, second=0,
+    endTime = datetime.datetime(year=2024, month=2, day=12, hour=0, minute=0, second=0,
                                 tzinfo=gettz("Europe/Copenhagen"))
     model = get_model()
 
-    simulator = tb.Simulator()
+    supply_fan = model.components["supply_fan"]
+    supply_heating_coil = model.components["[supply_heating_coil][heating_pump][heating_valve]"]
+    supply_cooling_coil = model.components["[supply_cooling_coil][cooling_pump][cooling_valve]"]
+    pi_controller = model.components["supply_air_temp_controller"]
 
-    simulator.simulate(model = model,
-                       startTime=startTime,
+    
+    targetParameters = {"private": {"c1": {"components": [supply_fan], "x0": 0, "lb": -10, "ub": 10}, 
+                                    "c2": {"components": [supply_fan], "x0": 1, "lb": -10, "ub": 10}, 
+                                    "c3": {"components": [supply_fan], "x0": 3, "lb": -10, "ub": 10}, 
+                                    "c4": {"components": [supply_fan], "x0": 0, "lb": -10, "ub": 10}, 
+                                    "nominalPowerRate.hasValue": {"components": [supply_fan], "x0": 500, "lb": 100, "ub": 10000}, 
+                                    "tau1": {"components": [supply_heating_coil, supply_cooling_coil], "x0": 18.41226242542397, "lb": 1, "ub": 50}, 
+                                    "tau2": {"components": [supply_heating_coil, supply_cooling_coil], "x0": 10.64284456709903, "lb": 1, "ub": 50}, 
+                                    "tau_m": {"components": [supply_heating_coil, supply_cooling_coil], "x0": 13.976768318598277, "lb": 1, "ub": 50}, 
+                                    "nominalUa.hasValue": {"components": [supply_heating_coil, supply_cooling_coil], "x0": 2568.0665571292134, "lb": 0, "ub": 10000}, 
+                                    "flowCoefficient.hasValue": {"components": [supply_heating_coil, supply_cooling_coil], "x0": 1, "lb": 0, "ub": 10}, 
+                                    "KvCheckValve": {"components": [supply_heating_coil, supply_cooling_coil], "x0": 1, "lb": 0, "ub": 100}, 
+                                    "dp1_nominal": {"components": [supply_heating_coil, supply_cooling_coil], "x0": 100, "lb": 0, "ub": 100000}, 
+                                    "dpSystem": {"components": [supply_heating_coil, supply_cooling_coil], "x0": 100, "lb": 0, "ub": 100000}, 
+                                    "dpFixedSystem": {"components": [supply_heating_coil, supply_cooling_coil], "x0": 100, "lb": 0, "ub": 100000}, 
+                                    "kp": {"components": [pi_controller], "x0": 1, "lb": -10, "ub": 10}, 
+                                    "Ti": {"components": [pi_controller], "x0": 1, "lb": -10, "ub": 10}, 
+                                    }}
+    
+    percentile = 2
+
+    targetMeasuringDevices = {model.components["vent_supply_air_temp_sensor"]: {"standardDeviation": 0.1/percentile, "scale_factor": 20},
+                             model.components["vent_power_sensor"]: {"standardDeviation": 10/percentile, "scale_factor": 500},
+                             model.components["return_heating_coil_water_temp_sensor"]: {"standardDeviation": 0.1/percentile, "scale_factor": 20},
+                             model.components["return_cooling_coil_water_temp_sensor"]: {"standardDeviation": 0.1/percentile, "scale_factor": 20},
+                             model.components["vent_supply_damper_position_sensor"]: {"standardDeviation": 0.01/percentile, "scale_factor": 1},
+                             model.components["vent_return_damper_position_sensor"]: {"standardDeviation": 0.01/percentile, "scale_factor": 1},
+                             }
+
+    options = {"ftol": 1e-10,
+            "xtol": 1e-12,
+            "verbose": 2}
+    estimator = tb.Estimator(model)
+    estimator.estimate(targetParameters=targetParameters,
+                        targetMeasuringDevices=targetMeasuringDevices,
+                        startTime=startTime,
                         endTime=endTime,
-                        stepSize=stepSize)
-
-    print("Simulation completed successfully!")
-
+                        stepSize=stepSize,
+                        method="LS", #Use Least Squares instead
+                        options=options
+                        )
+    model.load_estimation_result(estimator.result_savedir_pickle)
 
 if __name__ == "__main__":
     run()
