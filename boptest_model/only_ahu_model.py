@@ -33,10 +33,12 @@ def fcn(self):
     vent_mixing_damper_position_sensor = tb.SensorSystem(id="vent_mixing_damper_position_sensor", saveSimulationResult=True)
     vent_return_damper_position_sensor = tb.SensorSystem(id="vent_return_damper_position_sensor", saveSimulationResult=True)
     vent_outdoor_air_temp_sensor = tb.SensorSystem(id="vent_outdoor_air_temp_sensor", saveSimulationResult=True)
-    
+    vent_power_sensor = tb.SensorSystem(id="vent_power_sensor", saveSimulationResult=True)
+
     # Add AHU fan
     supply_fan = tb.FanSystem(id="supply_fan", saveSimulationResult=True)
     self.add_connection(vent_airflow_sensor, supply_fan, "airFlowRateIn", "airFlowRate")
+    self.add_connection(supply_fan, vent_power_sensor, "Power", "measuredPower")
 
     # Add AHU heating coil
     supply_heating_coil = tb.CoilPumpValveFMUSystem(id="[supply_heating_coil][heating_pump][heating_valve]", saveSimulationResult=True)
