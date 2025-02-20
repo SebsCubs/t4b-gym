@@ -68,20 +68,38 @@ The parameters to estimate are:
 
 ### Estimation of the parameters
 
+#### Only AHU model
+
 To perform and estimation of the parameters, the input and output of the AHU model is provided. 
 
 #### Input
 
-- Supply air temperature measurement for AHU
-- Supply air flowrate measurement for AHU
-- Wet bulb temperature measurement
-- Supply air temperature setpoint for AHU
-- Outside air damper position setpoint for AHU
-- Return air damper position setpoint for AHU
+- Supply air temperature measurement for AHU (hvac_reaAhu_TSup_y)(vent_supply_air_temp_sensor)
+- Supply air flowrate measurement for AHU (hvac_reaAhu_V_flow_sup_y)(vent_airflow_sensor)
+- Wet bulb temperature measurement (weaSta_reaWeaTWetBul_y)(vent_outdoor_air_temp_sensor)
+- Supply air temperature setpoint for AHU (hvac_oveAhu_TSupSet_u)(supply_air_temp_setpoint)
+- Fan power measurement for AHU (hvac_reaAhu_PFanSup_y)(vent_power_sensor)
+- Heating supply water temperature measurement (hvac_reaAhu_THeaCoiSup_y)(supply_heating_coil_water_temp_sensor)
+- Heating return water temperature measurement (hvac_reaAhu_THeaCoiRet_y)(return_heating_coil_water_temp_sensor)
+- Cooling supply water temperature measurement (hvac_reaAhu_TCooCoiSup_y)(supply_cooling_coil_water_temp_sensor)
+- Cooling return water temperature measurement (hvac_reaAhu_TCooCoiRet_y)(return_cooling_coil_water_temp_sensor)
+- Outside air damper position setpoint for AHU (hvac_oveAhu_yOA_u)(vent_supply_damper_position_sensor)
+- Return air damper position setpoint for AHU (hvac_oveAhu_yRet_u)(vent_return_damper_position_sensor)
 
-#### Output
+Providing all inputs will allow the model to estimate the parameters.
 
-- Electrical power measurement of supply fan for AHU
+With parameters estimated, the model can be used to predict:
+- Supply air temperature measurement for AHU (hvac_reaAhu_TSup_y)(vent_supply_air_temp_sensor)
+- Fan power measurement for AHU (hvac_reaAhu_PFanSup_y)(vent_power_sensor)
+- Heating and cooling coil power measurement (supply_heating_coil_power_sensor, supply_cooling_coil_power_sensor)
+
+Providing these inputs:
+
+- Supply air flowrate measurement for AHU (hvac_reaAhu_V_flow_sup_y)(vent_airflow_sensor)
+- Wet bulb temperature measurement (weaSta_reaWeaTWetBul_y)(vent_outdoor_air_temp_sensor)
+- Supply air temperature setpoint for AHU (hvac_oveAhu_TSupSet_u)(supply_air_temp_setpoint)
+
+
 
 
 

@@ -12,7 +12,7 @@ import os
 sys.path.insert(0, '/'.join((os.path.dirname(os.path.abspath(__file__))).split('/')[:-2]))
 from interface import control_test_with_points
 
-def run(plot=False):
+def run(scenario = 'typical_heat_day', plot=False):
     """Run test case.
     Parameters
     ----------
@@ -36,13 +36,24 @@ def run(plot=False):
     # RUN THE CONTROL TEST
     # --------------------
     control_module = 'controllers.baseline'
-    scenario = {'time_period': 'mix_day', 'electricity_price': 'dynamic'}
+    scenario = {'time_period': scenario, 'electricity_price': 'dynamic'}
     step = 600
     # ---------------------------------------
 
     # RUN THE CONTROL TEST
     # --------------------
-    points = ['hvac_reaAhu_TSup_y', 'hvac_reaAhu_V_flow_sup_y', 'weaSta_reaWeaTWetBul_y', 'hvac_oveAhu_TSupSet_u', 'hvac_oveAhu_yOA_u', 'hvac_oveAhu_yRet_u', 'hvac_reaAhu_PFanSup_y']
+    points = ['hvac_reaAhu_TSup_y', 
+              'hvac_reaAhu_V_flow_sup_y', 
+              'weaSta_reaWeaTWetBul_y', 
+              'hvac_oveAhu_TSupSet_u', 
+              'hvac_reaAhu_PFanSup_y', 
+              'hvac_reaAhu_THeaCoiSup_y', 
+              'hvac_reaAhu_THeaCoiRet_y',
+              "hvac_reaAhu_TCooCoiSup_y",
+              "hvac_reaAhu_TCooCoiRet_y",
+              "hvac_oveAhu_yOA_u",
+              "hvac_oveAhu_yRet_u"
+              ]
 
     kpi, df_res, custom_kpi_result, forecasts = control_test_with_points('multizone_office_simple_air',
                                                              control_module,
@@ -102,7 +113,10 @@ def run(plot=False):
 
 
 if __name__ == "__main__":
-    kpi, df_res, custom_kpi_result = run(plot=False)
+    scenarios = ['typical_heat_day', 'typical_cool_day', 'mix_day']
+    for scenario in scenarios:
+        print(f"\nRunning scenario: {scenario}")
+        kpi, df_res, custom_kpi_result = run(scenario=scenario, plot=False)
 
 
 

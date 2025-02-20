@@ -1,5 +1,4 @@
 import os
-
 os.environ['KMP_DUPLICATE_LIB_OK'] = 'True'  # Mac specific?
 import datetime
 import pandas as pd
@@ -19,6 +18,23 @@ from twin4build.utils.rsetattr import rsetattr
 import matplotlib.pyplot as plt
 sys.setrecursionlimit(2000)  # You can adjust this number as needed
 
+
+def custom_map_function(self):
+    input_signal = self.input["inputSignal"].get()
+    #heating valve position is 0-1, if the input signal is positiv, the valve is open with the same value but clamped at 1
+    if input_signal > 0:
+        self.output["heatingValvePosition"].set(min(input_signal, 1))
+        self.output["coolingValvePosition"].set(0)
+    else:
+        self.output["heatingValvePosition"].set(0)
+        self.output["coolingValvePosition"].set(min(-input_signal, 1))
+    #Damper position is the absolute value of the input signal, clamped at 1
+    damper_position = min(abs(input_signal), 1)
+    self.output["supplyDamperPosition"].set(damper_position)
+    #Return damper position is 1 - supply damper position
+    self.output["returnDamperPosition"].set(1 - damper_position)
+
+
 def fcn(self):
     '''
         The fcn() function adds connections between components in a system model,
@@ -30,10 +46,13 @@ def fcn(self):
     vent_supply_air_temp_sensor = tb.SensorSystem(id="vent_supply_air_temp_sensor", saveSimulationResult=True)
     vent_airflow_sensor = tb.SensorSystem(id="vent_airflow_sensor", saveSimulationResult=True)
     vent_supply_damper_position_sensor = tb.SensorSystem(id="vent_supply_damper_position_sensor", saveSimulationResult=True)
-    vent_mixing_damper_position_sensor = tb.SensorSystem(id="vent_mixing_damper_position_sensor", saveSimulationResult=True)
     vent_return_damper_position_sensor = tb.SensorSystem(id="vent_return_damper_position_sensor", saveSimulationResult=True)
     vent_outdoor_air_temp_sensor = tb.SensorSystem(id="vent_outdoor_air_temp_sensor", saveSimulationResult=True)
     vent_power_sensor = tb.SensorSystem(id="vent_power_sensor", saveSimulationResult=True)
+    supply_heating_coil_water_temp_sensor = tb.SensorSystem(id="supply_heating_coil_water_temp_sensor", saveSimulationResult=True)
+    return_heating_coil_water_temp_sensor = tb.SensorSystem(id="return_heating_coil_water_temp_sensor", saveSimulationResult=True)
+    supply_cooling_coil_water_temp_sensor = tb.SensorSystem(id="supply_cooling_coil_water_temp_sensor", saveSimulationResult=True)
+    return_cooling_coil_water_temp_sensor = tb.SensorSystem(id="return_cooling_coil_water_temp_sensor", saveSimulationResult=True)
 
     # Add AHU fan
     supply_fan = tb.FanSystem(id="supply_fan", saveSimulationResult=True)
@@ -44,32 +63,40 @@ def fcn(self):
     supply_heating_coil = tb.CoilPumpValveFMUSystem(id="[supply_heating_coil][heating_pump][heating_valve]", saveSimulationResult=True)
     self.add_connection(vent_outdoor_air_temp_sensor, supply_heating_coil, "supplyAirTemperature", "inletAirTemperature")
     self.add_connection(vent_airflow_sensor, supply_heating_coil, "airFlowRateIn", "airFlowRate")
-    
+
+    self.add_connection(supply_heating_coil_water_temp_sensor, supply_heating_coil, "supplyWaterTemperature", "supplyWaterTemperature")
+    self.add_connection(supply_heating_coil, return_heating_coil_water_temp_sensor, "outletWaterTemperature", "inletWaterTemperature")
+
     # Add AHU cooling coil
     supply_cooling_coil = tb.CoilPumpValveFMUSystem(id="[supply_cooling_coil][cooling_pump][cooling_valve]", saveSimulationResult=True)
     self.add_connection(supply_heating_coil, supply_cooling_coil, "outletAirTemperature", "inletAirTemperature")
     self.add_connection(vent_airflow_sensor, supply_cooling_coil, "airFlowRateIn", "airFlowRate")
+
     self.add_connection(supply_cooling_coil, vent_supply_air_temp_sensor, "outletAirTemperature", "supplyAirTemperature")
+    self.add_connection(supply_cooling_coil_water_temp_sensor, supply_cooling_coil, "supplyWaterTemperature", "supplyWaterTemperature")
+    self.add_connection(supply_cooling_coil, return_cooling_coil_water_temp_sensor, "outletWaterTemperature", "inletWaterTemperature")
 
     # Add main dampers
     main_supply_damper = tb.DamperSystem(id="main_supply_damper", saveSimulationResult=True)
-    self.add_connection(main_supply_damper, vent_supply_damper_position_sensor, "damperPosition", "damperPosition")
-    mixing_damper = tb.DamperSystem(id="mixing_damper", saveSimulationResult=True)
-    self.add_connection(mixing_damper, vent_mixing_damper_position_sensor, "damperPosition", "damperPosition")
+    #self.add_connection(main_supply_damper, vent_supply_damper_position_sensor, "damperPosition", "damperPosition")
     main_return_damper = tb.DamperSystem(id="main_return_damper", saveSimulationResult=True)
-    self.add_connection(main_return_damper, vent_return_damper_position_sensor, "damperPosition", "damperPosition")
+    #self.add_connection(main_return_damper, vent_return_damper_position_sensor, "damperPosition", "damperPosition")
     supply_air_temp_setpoint = tb.ScheduleSystem(id="supply_air_temp_setpoint", saveSimulationResult=True)
     supply_air_temp_controller = tb.PIControllerFMUSystem(id="supply_air_temp_controller", isReverse=False, saveSimulationResult=True)
 
     self.add_connection(supply_air_temp_setpoint, supply_air_temp_controller, "scheduleValue", "setpointValue")
     self.add_connection(vent_supply_air_temp_sensor, supply_air_temp_controller, "supplyAirTemperature", "actualValue")
-    self.add_connection(supply_air_temp_controller, main_supply_damper, "inputSignal", "damperPosition")
-    self.add_connection(supply_air_temp_controller, mixing_damper, "inputSignal", "damperPosition")
-    self.add_connection(supply_air_temp_controller, main_return_damper, "inputSignal", "damperPosition")
-    self.add_connection(supply_air_temp_controller, supply_heating_coil, "inputSignal", "valvePosition")
-    self.add_connection(supply_air_temp_controller, supply_cooling_coil, "inputSignal", "valvePosition")
      
+    c3_control_map = tb.ControlSignalMapSystem(id="c3_control_map", saveSimulationResult=True)
+    self.add_connection(supply_air_temp_controller, c3_control_map, "inputSignal", "actualValue")
+    self.add_connection(c3_control_map, vent_supply_damper_position_sensor, "supplyDamperPosition", "damperPosition")
+    self.add_connection(c3_control_map, vent_return_damper_position_sensor, "returnDamperPosition", "damperPosition")
+    self.add_connection(c3_control_map, supply_heating_coil, "heatingValvePosition", "valvePosition")
+    self.add_connection(c3_control_map, supply_cooling_coil, "coolingValvePosition", "valvePosition")
     
+    # Replace the do_step method with your custom function
+    c3_control_map.do_step = custom_map_function.__get__(c3_control_map, tb.ControlSignalMapSystem)
+
     
 
 def get_model(id=None, fcn_=None):
