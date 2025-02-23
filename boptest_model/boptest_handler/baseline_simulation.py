@@ -12,7 +12,7 @@ import os
 sys.path.insert(0, '/'.join((os.path.dirname(os.path.abspath(__file__))).split('/')[:-2]))
 from interface import control_test_with_points
 
-def run(scenario = 'typical_heat_day', plot=False):
+def run(scenario = 'typical_heat_day', plot=False, url='http://127.0.0.1:80'):
     """Run test case.
     Parameters
     ----------
@@ -52,14 +52,17 @@ def run(scenario = 'typical_heat_day', plot=False):
               "hvac_reaAhu_TCooCoiSup_y",
               "hvac_reaAhu_TCooCoiRet_y",
               "hvac_oveAhu_yOA_u",
-              "hvac_oveAhu_yRet_u"
+              "hvac_oveAhu_yRet_u",
+              "hvac_oveAhu_yHea_u",
+              "hvac_oveAhu_yCoo_u"
               ]
 
     kpi, df_res, custom_kpi_result, forecasts = control_test_with_points('multizone_office_simple_air',
                                                              control_module,
                                                              scenario=scenario,
                                                              step=step,
-                                                             points=points)
+                                                             points=points,
+                                                             url=url)
 
     # POST-PROCESS RESULTS
     # --------------------
@@ -116,7 +119,7 @@ if __name__ == "__main__":
     scenarios = ['typical_heat_day', 'typical_cool_day', 'mix_day']
     for scenario in scenarios:
         print(f"\nRunning scenario: {scenario}")
-        kpi, df_res, custom_kpi_result = run(scenario=scenario, plot=False)
+        kpi, df_res, custom_kpi_result = run(scenario=scenario, plot=False, url='http://192.168.8.65:80')
 
 
 

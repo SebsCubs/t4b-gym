@@ -85,6 +85,8 @@ To perform and estimation of the parameters, the input and output of the AHU mod
 - Cooling return water temperature measurement (hvac_reaAhu_TCooCoiRet_y)(return_cooling_coil_water_temp_sensor)
 - Outside air damper position setpoint for AHU (hvac_oveAhu_yOA_u)(vent_supply_damper_position_sensor)
 - Return air damper position setpoint for AHU (hvac_oveAhu_yRet_u)(vent_return_damper_position_sensor)
+- Heating valve position measurement (hvac_oveAhu_yHea_u)(heating_valve_position_sensor)
+- Cooling valve position measurement (hvac_oveAhu_yCoo_u)(cooling_valve_position_sensor)
 
 Providing all inputs will allow the model to estimate the parameters.
 

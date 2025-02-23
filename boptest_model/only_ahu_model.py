@@ -54,6 +54,8 @@ def fcn(self):
     return_heating_coil_water_temp_sensor = tb.SensorSystem(id="return_heating_coil_water_temp_sensor", saveSimulationResult=True)
     supply_cooling_coil_water_temp_sensor = tb.SensorSystem(id="supply_cooling_coil_water_temp_sensor", saveSimulationResult=True)
     return_cooling_coil_water_temp_sensor = tb.SensorSystem(id="return_cooling_coil_water_temp_sensor", saveSimulationResult=True)
+    heating_valve_position_sensor = tb.SensorSystem(id="heating_valve_position_sensor", saveSimulationResult=True)
+    cooling_valve_position_sensor = tb.SensorSystem(id="cooling_valve_position_sensor", saveSimulationResult=True)
 
     # Add AHU fan
     supply_fan = tb.FanSystem(id="supply_fan", saveSimulationResult=True)
@@ -92,16 +94,18 @@ def fcn(self):
     self.add_connection(supply_air_temp_controller, c3_control_map, "inputSignal", "actualValue")
     self.add_connection(c3_control_map, vent_supply_damper_position_sensor, "supplyDamperPosition", "damperPosition")
     self.add_connection(c3_control_map, vent_return_damper_position_sensor, "returnDamperPosition", "damperPosition")
-    self.add_connection(c3_control_map, supply_heating_coil, "heatingValvePosition", "valvePosition")
-    self.add_connection(c3_control_map, supply_cooling_coil, "coolingValvePosition", "valvePosition")
-    
+    self.add_connection(c3_control_map, heating_valve_position_sensor, "heatingValvePosition", "valvePosition")
+    self.add_connection(c3_control_map, cooling_valve_position_sensor, "coolingValvePosition", "valvePosition")
+    self.add_connection(heating_valve_position_sensor, supply_heating_coil, "valvePosition", "valvePosition")
+    self.add_connection(cooling_valve_position_sensor, supply_cooling_coil, "valvePosition", "valvePosition")
+
     # Replace the do_step method with your custom function
     c3_control_map.do_step = do_step.__get__(c3_control_map, tb.ControlSignalMapSystem)
 
-def get_model(id=None, fcn_=None):
+def get_model(id="default_model_id", fcn_=None):
     if fcn_ is None:
         fcn_ = fcn
-    model = tb.Model(id="only_ahu_model", saveSimulationResult=True)
+    model = tb.Model(id=id, saveSimulationResult=True)
     model.load(fcn=fcn_, create_signature_graphs=False, validate_model=True, verbose=True, force_config_update=True)
     if id is not None:
         model.id = id
@@ -114,7 +118,7 @@ def estimate_parameters(verbose=False):
                                 tzinfo=gettz("Europe/Copenhagen"))
     endTime = datetime.datetime(year=2024, month=2, day=12, hour=0, minute=0, second=0,
                                 tzinfo=gettz("Europe/Copenhagen"))
-    model = get_model()
+    model = get_model(id="only_ahu_model")
 
     supply_fan = model.components["supply_fan"]
     supply_heating_coil = model.components["[supply_heating_coil][heating_pump][heating_valve]"]
@@ -148,11 +152,13 @@ def estimate_parameters(verbose=False):
                              model.components["return_cooling_coil_water_temp_sensor"]: {"standardDeviation": 0.1/percentile, "scale_factor": 20},
                              model.components["vent_supply_damper_position_sensor"]: {"standardDeviation": 0.01/percentile, "scale_factor": 1},
                              model.components["vent_return_damper_position_sensor"]: {"standardDeviation": 0.01/percentile, "scale_factor": 1},
+                             model.components["heating_valve_position_sensor"]: {"standardDeviation": 0.01/percentile, "scale_factor": 1},
+                             model.components["cooling_valve_position_sensor"]: {"standardDeviation": 0.01/percentile, "scale_factor": 1},
                              }
 
     
     options = {
-            "n_cores": 2,
+            "n_cores": 4,
             "ftol": 1e-10,
             "xtol": 1e-10,
             "gtol": 1e-10,
@@ -206,8 +212,6 @@ def estimate_parameters(verbose=False):
         print(f"kp: {pi_controller.kp}")
         print(f"Ti: {pi_controller.Ti}")
 
-
-
 def run():
     stepSize = 600  # Seconds can go down to 30
 
@@ -215,10 +219,10 @@ def run():
                                 tzinfo=gettz("Europe/Copenhagen"))
     endTime = datetime.datetime(year=2024, month=2, day=12, hour=0, minute=0, second=0,
                                 tzinfo=gettz("Europe/Copenhagen"))
-    model = get_model()
+    model = get_model(id="only_ahu_model")
 
     
-    model.load_estimation_result(r"C:\Users\asces\OneDriveUni\Projects\RL_control\boptest_model\generated_files\models\only_ahu_model\model_parameters\estimation_results\LS_result\20250220_163426_ls.pickle")
+    model.load_estimation_result(r"C:\Users\asces\OneDriveUni\Projects\RL_control\boptest_model\generated_files\models\only_ahu_model\model_parameters\estimation_results\LS_result\20250223_113234_ls.pickle")
 
     simulator = tb.Simulator()
 
@@ -249,9 +253,27 @@ def run():
     plt.title(f'Duct Temperature')
     plt.show()
 
+    # heating valve position plot
+    fig, axes = plot.plot_component(
+        simulator,
+        components_1axis=[
+            ("c3_control_map", 'heatingValvePosition'),
+            (setpoint, 'scheduleValue'),
+        ],
+        ylabel_1axis='Heating Valve Position',
+        show=False  
+    )
+    lines = axes[0].get_lines()
+    axes[0].legend(lines, [
+        'Actual Temperature',
+        'Original Setpoint'
+    ])
+    plt.title(f'Heating Valve Position')
+    plt.show()
+
 def print_parameters():
     model = get_model()
-    model.load_estimation_result(r"C:\Users\asces\OneDriveUni\Projects\RL_control\boptest_model\generated_files\models\only_ahu_model\model_parameters\estimation_results\LS_result\20250220_163426_ls.pickle")
+    model.load_estimation_result(r"C:\Users\asces\OneDriveUni\Projects\RL_control\boptest_model\generated_files\models\only_ahu_model\model_parameters\estimation_results\LS_result\20250223_113234_ls.pickle")
     
     # Get components
     supply_fan = model.components["supply_fan"]
@@ -299,4 +321,4 @@ def print_parameters():
 
 
 if __name__ == "__main__":
-    estimate_parameters()
+    estimate_parameters(verbose=True)
