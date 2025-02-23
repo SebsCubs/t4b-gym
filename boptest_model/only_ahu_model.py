@@ -19,8 +19,8 @@ import matplotlib.pyplot as plt
 sys.setrecursionlimit(2000)  # You can adjust this number as needed
 
 
-def do_step(self):
-    input_signal = self.input["inputSignal"].get()
+def do_step(self, secondTime=None, dateTime=None, stepSize=None):
+    input_signal = self.input["actualValue"].get()[0]
     #heating valve position is 0-1, if the input signal is positiv, the valve is open with the same value but clamped at 1
     if input_signal > 0:
         self.output["heatingValvePosition"].set(min(input_signal, 1))
@@ -33,6 +33,7 @@ def do_step(self):
     self.output["supplyDamperPosition"].set(damper_position)
     #Return damper position is 1 - supply damper position
     self.output["returnDamperPosition"].set(1 - damper_position)
+
 
 
 def fcn(self):
@@ -97,8 +98,6 @@ def fcn(self):
     # Replace the do_step method with your custom function
     c3_control_map.do_step = do_step.__get__(c3_control_map, tb.ControlSignalMapSystem)
 
-    
-
 def get_model(id=None, fcn_=None):
     if fcn_ is None:
         fcn_ = fcn
@@ -108,7 +107,7 @@ def get_model(id=None, fcn_=None):
         model.id = id
     return model
 
-def run():
+def estimate_parameters(verbose=False):
     stepSize = 600  # Seconds can go down to 30
 
     startTime = datetime.datetime(year=2024, month=1, day=1, hour=0, minute=0, second=0,
@@ -151,8 +150,12 @@ def run():
                              model.components["vent_return_damper_position_sensor"]: {"standardDeviation": 0.01/percentile, "scale_factor": 1},
                              }
 
-    options = {"ftol": 1e-10,
-            "xtol": 1e-12,
+    
+    options = {
+            "n_cores": 2,
+            "ftol": 1e-10,
+            "xtol": 1e-10,
+            "gtol": 1e-10,
             "verbose": 2}
     estimator = tb.Estimator(model)
     estimator.estimate(targetParameters=targetParameters,
@@ -161,9 +164,139 @@ def run():
                         endTime=endTime,
                         stepSize=stepSize,
                         method="LS", #Use Least Squares instead
-                        options=options
+                        options=options,
+                        verbose=True
                         )
     model.load_estimation_result(estimator.result_savedir_pickle)
+    if verbose:
+        # Print fan parameters
+        print("\nSupply Fan Parameters:")
+        print(f"c1: {supply_fan.c1}")
+        print(f"c2: {supply_fan.c2}")
+        print(f"c3: {supply_fan.c3}")
+        print(f"c4: {supply_fan.c4}")
+        print(f"nominalPowerRate: {supply_fan.nominalPowerRate.hasValue}")
+        
+        # Print heating coil parameters
+        print("\nHeating Coil Parameters:")
+        print(f"tau1: {supply_heating_coil.tau1}")
+        print(f"tau2: {supply_heating_coil.tau2}")
+        print(f"tau_m: {supply_heating_coil.tau_m}")
+        print(f"nominalUa: {supply_heating_coil.nominalUa.hasValue}")
+        print(f"flowCoefficient: {supply_heating_coil.flowCoefficient.hasValue}")
+        print(f"KvCheckValve: {supply_heating_coil.KvCheckValve}")
+        print(f"dp1_nominal: {supply_heating_coil.dp1_nominal}")
+        print(f"dpSystem: {supply_heating_coil.dpSystem}")
+        print(f"dpFixedSystem: {supply_heating_coil.dpFixedSystem}")
+        
+        # Print cooling coil parameters
+        print("\nCooling Coil Parameters:")
+        print(f"tau1: {supply_cooling_coil.tau1}")
+        print(f"tau2: {supply_cooling_coil.tau2}")
+        print(f"tau_m: {supply_cooling_coil.tau_m}")
+        print(f"nominalUa: {supply_cooling_coil.nominalUa.hasValue}")
+        print(f"flowCoefficient: {supply_cooling_coil.flowCoefficient.hasValue}")
+        print(f"KvCheckValve: {supply_cooling_coil.KvCheckValve}")
+        print(f"dp1_nominal: {supply_cooling_coil.dp1_nominal}")
+        print(f"dpSystem: {supply_cooling_coil.dpSystem}")
+        print(f"dpFixedSystem: {supply_cooling_coil.dpFixedSystem}")
+        
+        # Print PI controller parameters
+        print("\nPI Controller Parameters:")
+        print(f"kp: {pi_controller.kp}")
+        print(f"Ti: {pi_controller.Ti}")
+
+
+
+def run():
+    stepSize = 600  # Seconds can go down to 30
+
+    startTime = datetime.datetime(year=2024, month=1, day=1, hour=0, minute=0, second=0,
+                                tzinfo=gettz("Europe/Copenhagen"))
+    endTime = datetime.datetime(year=2024, month=2, day=12, hour=0, minute=0, second=0,
+                                tzinfo=gettz("Europe/Copenhagen"))
+    model = get_model()
+
+    
+    model.load_estimation_result(r"C:\Users\asces\OneDriveUni\Projects\RL_control\boptest_model\generated_files\models\only_ahu_model\model_parameters\estimation_results\LS_result\20250220_163426_ls.pickle")
+
+    simulator = tb.Simulator()
+
+    simulator.simulate(model = model,
+                       startTime=startTime,
+                        endTime=endTime,
+                        stepSize=stepSize)
+    
+    print("Simulation completed successfully!")
+
+    temp_sensor = "vent_supply_air_temp_sensor"
+    setpoint = "supply_air_temp_setpoint"
+    # Temperature plot for room {room_id}
+    fig, axes = plot.plot_component(
+        simulator,
+        components_1axis=[
+            (temp_sensor, 'supplyAirTemperature'),
+            (setpoint, 'scheduleValue'),
+        ],
+        ylabel_1axis='Duct Temperature [°C]',
+        show=False  
+    )
+    lines = axes[0].get_lines()
+    axes[0].legend(lines, [
+        'Actual Temperature',
+        'Original Setpoint'
+    ])
+    plt.title(f'Duct Temperature')
+    plt.show()
+
+def print_parameters():
+    model = get_model()
+    model.load_estimation_result(r"C:\Users\asces\OneDriveUni\Projects\RL_control\boptest_model\generated_files\models\only_ahu_model\model_parameters\estimation_results\LS_result\20250220_163426_ls.pickle")
+    
+    # Get components
+    supply_fan = model.components["supply_fan"]
+    supply_heating_coil = model.components["[supply_heating_coil][heating_pump][heating_valve]"]
+    supply_cooling_coil = model.components["[supply_cooling_coil][cooling_pump][cooling_valve]"]
+    pi_controller = model.components["supply_air_temp_controller"]
+    
+    # Print fan parameters
+    print("\nSupply Fan Parameters:")
+    print(f"c1: {supply_fan.c1}")
+    print(f"c2: {supply_fan.c2}")
+    print(f"c3: {supply_fan.c3}")
+    print(f"c4: {supply_fan.c4}")
+    print(f"nominalPowerRate: {supply_fan.nominalPowerRate.hasValue}")
+    
+    # Print heating coil parameters
+    print("\nHeating Coil Parameters:")
+    print(f"tau1: {supply_heating_coil.tau1}")
+    print(f"tau2: {supply_heating_coil.tau2}")
+    print(f"tau_m: {supply_heating_coil.tau_m}")
+    print(f"nominalUa: {supply_heating_coil.nominalUa.hasValue}")
+    print(f"flowCoefficient: {supply_heating_coil.flowCoefficient.hasValue}")
+    print(f"KvCheckValve: {supply_heating_coil.KvCheckValve}")
+    print(f"dp1_nominal: {supply_heating_coil.dp1_nominal}")
+    print(f"dpSystem: {supply_heating_coil.dpSystem}")
+    print(f"dpFixedSystem: {supply_heating_coil.dpFixedSystem}")
+    
+    # Print cooling coil parameters
+    print("\nCooling Coil Parameters:")
+    print(f"tau1: {supply_cooling_coil.tau1}")
+    print(f"tau2: {supply_cooling_coil.tau2}")
+    print(f"tau_m: {supply_cooling_coil.tau_m}")
+    print(f"nominalUa: {supply_cooling_coil.nominalUa.hasValue}")
+    print(f"flowCoefficient: {supply_cooling_coil.flowCoefficient.hasValue}")
+    print(f"KvCheckValve: {supply_cooling_coil.KvCheckValve}")
+    print(f"dp1_nominal: {supply_cooling_coil.dp1_nominal}")
+    print(f"dpSystem: {supply_cooling_coil.dpSystem}")
+    print(f"dpFixedSystem: {supply_cooling_coil.dpFixedSystem}")
+    
+    # Print PI controller parameters
+    print("\nPI Controller Parameters:")
+    print(f"kp: {pi_controller.kp}")
+    print(f"Ti: {pi_controller.Ti}")
+
+
 
 if __name__ == "__main__":
-    run()
+    estimate_parameters()

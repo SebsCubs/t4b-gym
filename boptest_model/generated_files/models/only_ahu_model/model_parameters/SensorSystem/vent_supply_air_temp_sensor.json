@@ -1,7 +1,7 @@
 {
     "parameters": {},
     "readings": {
-        "filename": "/home/sebscubs/repos/RL_control/boptest_model/boptest_handler/data/merged_data/hvac_reaAhu_TSup_y_processed.csv",
+        "filename": "C:/Users/asces/OneDriveUni/Projects/RL_control/boptest_model/boptest_handler/data/merged_data/hvac_reaAhu_TSup_y_processed.csv",
         "datecolumn": 0,
         "valuecolumn": 1
     }
