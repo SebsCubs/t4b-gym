@@ -23,11 +23,11 @@ def do_step(self, secondTime=None, dateTime=None, stepSize=None):
     input_signal = self.input["actualValue"].get()[0]
     #heating valve position is 0-1, if the input signal is positiv, the valve is open with the same value but clamped at 1
     if input_signal > 0:
-        self.output["heatingValvePosition"].set(min(input_signal, 1))
+        self.output["heatingValvePosition"].set(input_signal)
         self.output["coolingValvePosition"].set(0)
     else:
         self.output["heatingValvePosition"].set(0)
-        self.output["coolingValvePosition"].set(min(-input_signal, 1))
+        self.output["coolingValvePosition"].set(-input_signal)
     #Damper position is the absolute value of the input signal, clamped at 1
     damper_position = min(abs(input_signal), 1)
     self.output["supplyDamperPosition"].set(damper_position)
@@ -43,6 +43,7 @@ def fcn(self):
         The test() function sets simulation parameters and runs a simulation of the system
         model using the Simulator() class. It then generates several plots of the simulation results using functions from the plot module.
     '''
+
 
     vent_supply_air_temp_sensor = tb.SensorSystem(id="vent_supply_air_temp_sensor", saveSimulationResult=True)
     vent_airflow_sensor = tb.SensorSystem(id="vent_airflow_sensor", saveSimulationResult=True)
@@ -146,7 +147,8 @@ def estimate_parameters(verbose=False):
     
     percentile = 2
 
-    targetMeasuringDevices = {model.components["vent_supply_air_temp_sensor"]: {"standardDeviation": 0.1/percentile, "scale_factor": 20},
+    targetMeasuringDevices = {
+                             model.components["vent_supply_air_temp_sensor"]: {"standardDeviation": 0.1/percentile, "scale_factor": 20},
                              model.components["vent_power_sensor"]: {"standardDeviation": 10/percentile, "scale_factor": 500},
                              model.components["return_heating_coil_water_temp_sensor"]: {"standardDeviation": 0.1/percentile, "scale_factor": 20},
                              model.components["return_cooling_coil_water_temp_sensor"]: {"standardDeviation": 0.1/percentile, "scale_factor": 20},
@@ -219,10 +221,45 @@ def run():
                                 tzinfo=gettz("Europe/Copenhagen"))
     endTime = datetime.datetime(year=2024, month=2, day=12, hour=0, minute=0, second=0,
                                 tzinfo=gettz("Europe/Copenhagen"))
-    model = get_model(id="only_ahu_model")
+    model = get_model(id="only_ahu_model_simulation")
 
     
-    model.load_estimation_result(r"C:\Users\asces\OneDriveUni\Projects\RL_control\boptest_model\generated_files\models\only_ahu_model\model_parameters\estimation_results\LS_result\20250223_113234_ls.pickle")
+    model.load_estimation_result(r"C:\Users\asces\OneDriveUni\Projects\RL_control\boptest_model\generated_files\models\only_ahu_model\model_parameters\estimation_results\LS_result\20250223_135626_ls.pickle")
+
+    #manually set the parameters (Results from a separated estimation run)   
+    #cooling coil
+    model.components["[supply_cooling_coil][cooling_pump][cooling_valve]"].tau1 = 49.39465697421163
+    model.components["[supply_cooling_coil][cooling_pump][cooling_valve]"].tau2 = 1.1676395950305254
+    model.components["[supply_cooling_coil][cooling_pump][cooling_valve]"].tau_m = 48.17339133578628
+    model.components["[supply_cooling_coil][cooling_pump][cooling_valve]"].nominalUa.hasValue = 73.69112724402704
+    model.components["[supply_cooling_coil][cooling_pump][cooling_valve]"].flowCoefficient.hasValue = 0.032072612239670506
+    model.components["[supply_cooling_coil][cooling_pump][cooling_valve]"].KvCheckValve = 99.5458255415985
+    model.components["[supply_cooling_coil][cooling_pump][cooling_valve]"].dp1_nominal = 70893.15948128352
+    model.components["[supply_cooling_coil][cooling_pump][cooling_valve]"].dpSystem = 82.06653583541767
+    model.components["[supply_cooling_coil][cooling_pump][cooling_valve]"].dpFixedSystem = 100.0
+
+    #heating coil
+    model.components["[supply_heating_coil][heating_pump][heating_valve]"].tau1 = 49.998770349864984
+    model.components["[supply_heating_coil][heating_pump][heating_valve]"].tau2 = 23.964919814260686
+    model.components["[supply_heating_coil][heating_pump][heating_valve]"].tau_m = 5.532516038988021
+    model.components["[supply_heating_coil][heating_pump][heating_valve]"].nominalUa.hasValue = 3.767244386318299
+    model.components["[supply_heating_coil][heating_pump][heating_valve]"].flowCoefficient.hasValue = 9.998311070496746
+    model.components["[supply_heating_coil][heating_pump][heating_valve]"].KvCheckValve = 17.89149143114084
+    model.components["[supply_heating_coil][heating_pump][heating_valve]"].dp1_nominal = 78666.09721253553
+    model.components["[supply_heating_coil][heating_pump][heating_valve]"].dpSystem = 0.9825373942428656
+    model.components["[supply_heating_coil][heating_pump][heating_valve]"].dpFixedSystem = 12.220524922258539
+
+    #supply air temp controller
+    model.components["supply_air_temp_controller"].kp = 0.5581222706493494
+    model.components["supply_air_temp_controller"].Ti = 1.4652282593887478
+
+    #supply fan
+    model.components["supply_fan"].c1 = 0.00269700912233709
+    model.components["supply_fan"].c2 = -0.410980726296541
+    model.components["supply_fan"].c3 = 2.583094720314152
+    model.components["supply_fan"].c4 = 5.78095427575681
+    model.components["supply_fan"].nominalPowerRate.hasValue = 1877.0754697394216
+
 
     simulator = tb.Simulator()
 
@@ -234,6 +271,7 @@ def run():
     print("Simulation completed successfully!")
 
     temp_sensor = "vent_supply_air_temp_sensor"
+    supply_cooling_coil = "[supply_cooling_coil][cooling_pump][cooling_valve]"
     setpoint = "supply_air_temp_setpoint"
     # Temperature plot for room {room_id}
     fig, axes = plot.plot_component(
@@ -241,6 +279,7 @@ def run():
         components_1axis=[
             (temp_sensor, 'supplyAirTemperature'),
             (setpoint, 'scheduleValue'),
+            (supply_cooling_coil, 'outletAirTemperature'),
         ],
         ylabel_1axis='Duct Temperature [°C]',
         show=False  
@@ -248,10 +287,11 @@ def run():
     lines = axes[0].get_lines()
     axes[0].legend(lines, [
         'Actual Temperature',
-        'Original Setpoint'
+        'Original Setpoint',
+        'Cooling Coil Outlet Temperature'
     ])
     plt.title(f'Duct Temperature')
-    plt.show()
+    #plt.show()
 
     # heating valve position plot
     fig, axes = plot.plot_component(
@@ -269,7 +309,77 @@ def run():
         'Original Setpoint'
     ])
     plt.title(f'Heating Valve Position')
+    #plt.show()
+
+    #load the original valve position data
+    heating_valve_position_data = pd.read_csv(r"C:\Users\asces\OneDriveUni\Projects\RL_control\boptest_model\boptest_handler\data\merged_data\hvac_oveAhu_yHea_u_processed.csv")
+    cooling_valve_position_data = pd.read_csv(r"C:\Users\asces\OneDriveUni\Projects\RL_control\boptest_model\boptest_handler\data\merged_data\hvac_oveAhu_yCoo_u_processed.csv")
+
+    # Convert the first column to datetime and set it as the index
+    heating_valve_position_data[heating_valve_position_data.columns[0]] = pd.to_datetime(heating_valve_position_data[heating_valve_position_data.columns[0]])
+    cooling_valve_position_data[cooling_valve_position_data.columns[0]] = pd.to_datetime(cooling_valve_position_data[cooling_valve_position_data.columns[0]])
+    
+    heating_valve_position_data.set_index(heating_valve_position_data.columns[0], inplace=True)
+    cooling_valve_position_data.set_index(cooling_valve_position_data.columns[0], inplace=True)
+
+    #Resample first, then extract the second column
+    heating_valve_position_data = heating_valve_position_data.resample("600s").mean()[:-1]
+    cooling_valve_position_data = cooling_valve_position_data.resample("600s").mean()[:-1]
+    #rename the data columns to valvePosition
+    heating_valve_position_data.columns = ["valvePosition"]
+    cooling_valve_position_data.columns = ["valvePosition"]
+    
+    #Extract the valve position data from the simulator
+    heating_valve_position_data_estimated = model.components["heating_valve_position_sensor"].savedOutput["valvePosition"]
+    cooling_valve_position_data_estimated = model.components["cooling_valve_position_sensor"].savedOutput["valvePosition"]
+
+    #Add a column to the original data with the estimated data
+    heating_valve_position_data["estimated"] = heating_valve_position_data_estimated
+    cooling_valve_position_data["estimated"] = cooling_valve_position_data_estimated
+
+    #Also extract the output of the PI controller
+    supply_air_temp_controller_output = model.components["supply_air_temp_controller"].savedOutput["inputSignal"]
+    supply_air_temp_controller_input = model.components["supply_air_temp_controller"].savedOutput["actualValue"]
+    simulation_time = simulator.dateTimeSteps       
+
+
+    #plot the supply_air_temp_controller_output
+    fig = plt.figure(figsize=(12, 4))
+    plt.plot(simulation_time, supply_air_temp_controller_output, label="Supply Air Temp Controller Output")
+    plt.plot(simulation_time, supply_air_temp_controller_input, label="Supply Air Temp Controller Input")
+    plt.title("Supply Air Temp Controller Output and Input")
+    plt.xlabel("Time Steps")
+    plt.ylabel("Input Signal")
+    plt.legend()
+    plt.grid(True)
+    #plt.show()
+
+
+    # Create one figure with two subplots
+    fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(12, 8))
+    
+    # Heating valve position subplot
+    ax1.plot(heating_valve_position_data["estimated"], label="Estimated Heating Valve Position")
+    ax1.plot(heating_valve_position_data["valvePosition"], label="Original Heating Valve Position")
+    ax1.set_title("Heating Valve Position Comparison")
+    ax1.set_xlabel("Time Steps")
+    ax1.set_ylabel("Valve Position (0-1)")
+    ax1.legend()
+    ax1.grid(True)
+
+    # Cooling valve position subplot
+    ax2.plot(cooling_valve_position_data["estimated"], label="Estimated Cooling Valve Position")
+    ax2.plot(cooling_valve_position_data["valvePosition"], label="Original Cooling Valve Position")
+    ax2.set_title("Cooling Valve Position Comparison")
+    ax2.set_xlabel("Time Steps")
+    ax2.set_ylabel("Valve Position (0-1)")
+    ax2.legend()
+    ax2.grid(True)
+
+    # Adjust layout to prevent overlap
+    plt.tight_layout()
     plt.show()
+
 
 def print_parameters():
     model = get_model()
@@ -321,4 +431,4 @@ def print_parameters():
 
 
 if __name__ == "__main__":
-    estimate_parameters(verbose=True)
+    run()

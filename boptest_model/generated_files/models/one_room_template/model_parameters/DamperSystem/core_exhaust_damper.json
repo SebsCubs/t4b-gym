@@ -1,6 +1,0 @@
-{
-    "parameters": {
-        "a": 5,
-        "nominalAirFlowRate.hasValue": NaN
-    }
-}
