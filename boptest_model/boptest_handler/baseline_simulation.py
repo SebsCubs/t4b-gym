@@ -35,7 +35,7 @@ def run(scenario = 'typical_heat_day', plot=False, url='http://127.0.0.1:80'):
 
     # RUN THE CONTROL TEST
     # --------------------
-    control_module = 'controllers.baseline'
+    control_module = 'controllers.baseline_controller'
     scenario = {'time_period': scenario, 'electricity_price': 'dynamic'}
     step = 600
     # ---------------------------------------
@@ -57,17 +57,30 @@ def run(scenario = 'typical_heat_day', plot=False, url='http://127.0.0.1:80'):
               "hvac_oveAhu_yCoo_u"
               ]
 
+    # Run the control test with the points
+    points = ["hvac_oveAhu_yFan_u", 
+              "hvac_oveAhu_dpSet_u" , 
+              "hvac_oveAhu_TSupSet_u",
+              "hvac_oveAhu_yOA_u",
+              "hvac_oveAhu_yRet_u",
+              "hvac_oveAhu_yHea_u",
+              "hvac_oveAhu_yCoo_u",
+              "hvac_oveAhu_yPumHea_u",
+              "hvac_oveAhu_yPumCoo_u"
+              ] #fan speed setpoint, duct pressure setpoint, supply air temperature setpoint
+
     kpi, df_res, custom_kpi_result, forecasts = control_test_with_points('multizone_office_simple_air',
                                                              control_module,
                                                              scenario=scenario,
                                                              step=step,
                                                              points=points,
+                                                             use_forecast=False,
                                                              url=url)
 
     # POST-PROCESS RESULTS
     # --------------------
     time = df_res.index.values / 3600  # convert s --> hr
-    zone_temperature = df_res['hvac_reaAhu_TSup_y'].values - 273.15  # convert K --> C
+    #zone_temperature = df_res['hvac_reaAhu_TSup_y'].values - 273.15  # convert K --> C
     # Plot results
     if plot:
         try:
@@ -76,25 +89,25 @@ def run(scenario = 'typical_heat_day', plot=False, url='http://127.0.0.1:80'):
             
             # Plot supply air temperature
             plt.figure(1)
-            plt.title('Supply Air Temperature')
-            plt.plot(time, zone_temperature, label='Supply Air Temp')
-            plt.ylabel('Temperature [C]')
+            plt.title('Fan speed setpoint')
+            plt.plot(time, df_res['hvac_oveAhu_yFan_u'].values, label='Fan speed')
+            plt.ylabel('Speed [0-1]')
             plt.xlabel('Time [hr]')
             plt.legend()
             
             # Plot outside air damper position
             plt.figure(2) 
-            plt.title('Outside Air Damper Position')
-            plt.plot(time, df_res['hvac_oveAhu_yOA_u'].values, label='OA Damper')
-            plt.ylabel('Position [0-1]')
+            plt.title('Supply duct pressure setpoint')
+            plt.plot(time, df_res['hvac_oveAhu_dpSet_u'].values, label='Supply duct pressure')
+            plt.ylabel('Pressure [Pa]')
             plt.xlabel('Time [hr]')
             plt.legend()
             
             # Plot return air damper position
             plt.figure(3)
-            plt.title('Return Air Damper Position')
-            plt.plot(time, df_res['hvac_oveAhu_yRet_u'].values, label='Return Damper')
-            plt.ylabel('Position [0-1]')
+            plt.title('Supply air temperature setpoint')
+            plt.plot(time, df_res['hvac_oveAhu_TSupSet_u'].values, label='Supply air temperature')
+            plt.ylabel('Temperature [K]')
             plt.xlabel('Time [hr]')
             plt.legend()
             
