@@ -35,9 +35,9 @@ def run(scenario = 'typical_heat_day', plot=False, url='http://127.0.0.1:80'):
 
     # RUN THE CONTROL TEST
     # --------------------
-    control_module = 'controllers.baseline_controller'
+    control_module = 'controllers.baseline'
     scenario = {'time_period': scenario, 'electricity_price': 'dynamic'}
-    step = 600
+    step = 30
     # ---------------------------------------
 
     # RUN THE CONTROL TEST
@@ -54,10 +54,12 @@ def run(scenario = 'typical_heat_day', plot=False, url='http://127.0.0.1:80'):
               "hvac_oveAhu_yOA_u",
               "hvac_oveAhu_yRet_u",
               "hvac_oveAhu_yHea_u",
-              "hvac_oveAhu_yCoo_u"
+              "hvac_oveAhu_yCoo_u",
+              "hvac_reaZonCor_TZon_y",
               ]
-
-    # Run the control test with the points
+    
+    """    
+    # Control testing points
     points = ["hvac_oveAhu_yFan_u", 
               "hvac_oveAhu_dpSet_u" , 
               "hvac_oveAhu_TSupSet_u",
@@ -68,6 +70,7 @@ def run(scenario = 'typical_heat_day', plot=False, url='http://127.0.0.1:80'):
               "hvac_oveAhu_yPumHea_u",
               "hvac_oveAhu_yPumCoo_u"
               ] #fan speed setpoint, duct pressure setpoint, supply air temperature setpoint
+    """
 
     kpi, df_res, custom_kpi_result, forecasts = control_test_with_points('multizone_office_simple_air',
                                                              control_module,
@@ -129,7 +132,7 @@ def run(scenario = 'typical_heat_day', plot=False, url='http://127.0.0.1:80'):
 
 
 if __name__ == "__main__":
-    scenarios = ['typical_heat_day', 'typical_cool_day', 'mix_day']
+    scenarios = ['typical_heat_day']
     for scenario in scenarios:
         print(f"\nRunning scenario: {scenario}")
         kpi, df_res, custom_kpi_result = run(scenario=scenario, plot=False, url='http://192.168.8.65:80')

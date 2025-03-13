@@ -57,35 +57,32 @@ def compute_control(y, forecasts=None):
     hvac_oveAhu_dpSet_u = 50 + (occupied * 350)
     
     # hvac_oveAhu_yFan_u
-    """
+    
     k_p_hvac_oveAhu_yFan_u = 0.005
     k_i_hvac_oveAhu_yFan_u = 0.0005
     hvac_oveAhu_yFan_u = 0.5 + (k_p_hvac_oveAhu_yFan_u * (hvac_oveAhu_dpSet_u - y['hvac_reaAhu_dp_sup_y'])) + (k_i_hvac_oveAhu_yFan_u * (hvac_oveAhu_dpSet_u - y['hvac_reaAhu_dp_sup_y']))  
     hvac_oveAhu_yFan_u = min(max(hvac_oveAhu_yFan_u, 0), 1)
-    """
+    
 
-    hvac_oveAhu_yFan_u = 0 + (1 * occupied) 
+    #hvac_oveAhu_yFan_u = 0 + (1 * occupied) 
     # hvac_oveAhu_yOA_u
     hvac_oveAhu_yOA_u = 0 + (1 * occupied)  
     # hvac_oveAhu_yRet_u
     hvac_oveAhu_yRet_u = 1 - occupied
 
     # hvac_oveAhu_yCoo_u and hvac_oveAhu_yHea_u
-    deadband = 1.5  # 1.5°C deadband
+    k_p = 0.01
+    k_i = 0.001
     error = hvac_oveAhu_TSupSet_u - y['hvac_reaAhu_TSup_y']
     
-    if error > deadband:
-        # Need heating - temperature is too low
-        hvac_oveAhu_yHea_u = 1.0
-        hvac_oveAhu_yCoo_u = 0.0
-    elif error < -deadband:
-        # Need cooling - temperature is too high
-        hvac_oveAhu_yCoo_u = 1.0
-        hvac_oveAhu_yHea_u = 0.0
+    if y['hvac_reaAhu_TSup_y'] < hvac_oveAhu_TSupSet_u:
+        # Need heating
+        hvac_oveAhu_yHea_u = min(max(0.5 + (k_p * error) + (k_i * error), 0), 1)
+        hvac_oveAhu_yCoo_u = 0
     else:
-        # Within deadband - maintain current state to avoid oscillation
-        hvac_oveAhu_yCoo_u = 0.0
-        hvac_oveAhu_yHea_u = 0.0
+        # Need cooling 
+        hvac_oveAhu_yCoo_u = min(max(0.5 - (k_p * error) - (k_i * error), 0), 1)
+        hvac_oveAhu_yHea_u = 0
     
     # hvac_oveAhu_yPumCoo_u
     hvac_oveAhu_yPumCoo_u = 1 if hvac_oveAhu_yCoo_u > 0.1 else 0
@@ -112,7 +109,6 @@ def compute_control(y, forecasts=None):
         'hvac_oveAhu_yPumCoo_u': hvac_oveAhu_yPumCoo_u,
         'hvac_oveAhu_yPumCoo_activate': 1,
         'hvac_oveAhu_yPumHea_u': hvac_oveAhu_yPumHea_u,
-        'hvac_oveAhu_yPumHea_activate': 1,
     }
 
     return u
@@ -151,6 +147,7 @@ def initialize():
         'hvac_oveAhu_yPumCoo_u': 0,
         'hvac_oveAhu_yPumCoo_activate': 1,
         'hvac_oveAhu_yPumHea_u': 0,
+        'hvac_oveAhu_yPumHea_activate': 1,
     }
 
     return u

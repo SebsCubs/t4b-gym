@@ -110,7 +110,7 @@ def plot_timeseries_data(data_dict, scenario, resample_interval='600S', figsize=
         df = pd.read_csv(f'{scenario}/{file_id}.csv')
         df.set_index('time', inplace=True)
         plot_df[display_name] = df[file_id]
-        print(plot_df)
+
     
     # Convert time to datetime (starting from January 1st, 2006)
     #The current index is the time in seconds since the beggining of the year, we need to convert it to a datetime object   
@@ -147,8 +147,32 @@ def plot_timeseries_data(data_dict, scenario, resample_interval='600S', figsize=
 ahu_data = {
     'AHU differential pressure setpoint': 'hvac_oveAhu_dpSet_u',
     'AHU temp setpoint': 'hvac_oveAhu_TSupSet_u',
-    'AHU FAN speed': 'hvac_oveAhu_yFan_u'
+    'AHU FAN speed': 'hvac_oveAhu_yFan_u',
+    'AHU OA damper': 'hvac_oveAhu_yOA_u',
+    'AHU Ret damper': 'hvac_oveAhu_yRet_u',
+    'AHU Heater': 'hvac_oveAhu_yHea_u',
+    'AHU Cooler': 'hvac_oveAhu_yCoo_u',
+    'AHU Heater activate': 'hvac_oveAhu_yPumCoo_u',
+    'AHU Cooler activate': 'hvac_oveAhu_yPumHea_u'
 }
+
+ahu_data = {
+    'AHU Supply Air Temperature': 'hvac_reaAhu_TSup_y',
+    'AHU Supply Air Flow': 'hvac_reaAhu_V_flow_sup_y',
+    'Weather Station Wet Bulb Temperature': 'weaSta_reaWeaTWetBul_y',
+    'AHU Supply Air Temperature Setpoint': 'hvac_oveAhu_TSupSet_u',
+    'AHU Supply Fan Power': 'hvac_reaAhu_PFanSup_y',
+    'AHU Heating Coil Supply Temperature': 'hvac_reaAhu_THeaCoiSup_y',
+    'AHU Heating Coil Return Temperature': 'hvac_reaAhu_THeaCoiRet_y',
+    'AHU Cooling Coil Supply Temperature': 'hvac_reaAhu_TCooCoiSup_y',
+    'AHU Cooling Coil Return Temperature': 'hvac_reaAhu_TCooCoiRet_y',
+    'AHU Outside Air Damper Position': 'hvac_oveAhu_yOA_u',
+    'AHU Return Air Damper Position': 'hvac_oveAhu_yRet_u',
+    'AHU Heating Valve Position': 'hvac_oveAhu_yHea_u',
+    'AHU Cooling Valve Position': 'hvac_oveAhu_yCoo_u',
+    'Zone Temperature': 'hvac_reaZonCor_TZon_y'
+}
+
 plot_timeseries_data(ahu_data, 'typical_heat_day')
 
 
