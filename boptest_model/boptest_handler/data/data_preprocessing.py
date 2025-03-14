@@ -92,5 +92,70 @@ def process_csv_files():
         output_path = os.path.join(merged_data_dir, f"{base_name}_processed.csv")
         save_dataframe(df, output_path)
 
+def split_heating_and_cooling_setpoints(verbose=True):
+    """Split the heating and cooling setpoints into separate files."""
+    script_dir = get_script_directory()
+    supply_temp_setpoint_dir = os.path.join(script_dir, "merged_data\hvac_oveAhu_TSupSet_u_processed.csv")
+    outdoor_temp_dir = os.path.join(script_dir, "merged_data\weaSta_reaWeaTWetBul_y_processed.csv")
+    
+    # Read the supply temperature setpoint and outdoor temperature dataframes
+    if verbose:
+        print("Reading supply temperature setpoint and outdoor temperature data...")
+    supply_temp_setpoint_df = pd.read_csv(supply_temp_setpoint_dir)
+    outdoor_temp_df = pd.read_csv(outdoor_temp_dir)
+
+    if verbose:
+        print("Processing setpoints and splitting into heating and cooling...")
+    
+    # Create copies of the supply temp dataframe for heating and cooling
+    heating_df = supply_temp_setpoint_df.copy()
+    cooling_df = supply_temp_setpoint_df.copy()
+    
+    # Create a boolean mask for heating conditions (comparison in Kelvin)
+    heating_mask = supply_temp_setpoint_df['hvac_oveAhu_TSupSet_u'] > outdoor_temp_df['weaSta_reaWeaTWetBul_y']
+    
+    # Set default values in Kelvin (12°C -> 285.15K, 26°C -> 299.15K)
+    heating_df.loc[~heating_mask, 'hvac_oveAhu_TSupSet_u'] = 285.15  # 12°C in Kelvin
+    cooling_df.loc[heating_mask, 'hvac_oveAhu_TSupSet_u'] = 299.15   # 26°C in Kelvin
+    
+    if verbose:
+        heating_count = heating_mask.sum()
+        cooling_count = (~heating_mask).sum()
+        total_rows = len(supply_temp_setpoint_df)
+        print(f"Processing complete. Found {heating_count} heating and {cooling_count} cooling setpoints.")
+        print(f"Total rows processed: {total_rows}")
+        print("Saving files...")
+
+    # Save the heating and cooling dataframes
+    heating_df.to_csv(os.path.join(script_dir, "merged_data\heating_setpoints.csv"), index=False)
+    cooling_df.to_csv(os.path.join(script_dir, "merged_data\cooling_setpoints.csv"), index=False)
+
+    if verbose:
+        print("Files saved successfully!")
+
+def clean_negative_values(df, column_name):
+    """Clean negative values in a specific column of a dataframe."""
+    df.loc[df[column_name] < 0, column_name] = 0
+    return df
+
+def clean_fan_power():
+    """Clean negative values in the 'power' column of a dataframe."""
+    script_dir = get_script_directory() 
+    fan_power_dir = os.path.join(script_dir, "merged_data\hvac_reaAhu_PFanSup_y_processed.csv")
+    df = pd.read_csv(fan_power_dir)
+    df = clean_negative_values(df, 'hvac_reaAhu_PFanSup_y')
+    df.to_csv(os.path.join(script_dir, "merged_data\hvac_reaAhu_PFanSup_y_processed.csv"), index=False)
+
+def clean_airflow_rate():
+    """Clean negative values in the 'airflow_rate' column of a dataframe."""
+    script_dir = get_script_directory()
+    airflow_rate_dir = os.path.join(script_dir, "merged_data\hvac_reaAhu_V_flow_sup_y_processed.csv")
+    df = pd.read_csv(airflow_rate_dir)
+    df = clean_negative_values(df, 'hvac_reaAhu_V_flow_sup_y')
+    df.to_csv(os.path.join(script_dir, "merged_data\hvac_reaAhu_V_flow_sup_y_processed.csv"), index=False)
+
 if __name__ == "__main__":
     process_csv_files()
+    split_heating_and_cooling_setpoints()
+    clean_fan_power
+    clean_airflow_rate()

@@ -1,8 +1,0 @@
-{
-    "parameters": {},
-    "readings": {
-        "filename": "C:/Users/asces/OneDriveUni/Projects/RL_control/boptest_model/boptest_handler/data/merged_data/hvac_reaAhu_TCooCoiRet_y_processed.csv",
-        "datecolumn": 0,
-        "valuecolumn": 1
-    }
-}

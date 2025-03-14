@@ -37,25 +37,21 @@ def run(scenario = 'typical_heat_day', plot=False, url='http://127.0.0.1:80'):
     # --------------------
     control_module = 'controllers.baseline'
     scenario = {'time_period': scenario, 'electricity_price': 'dynamic'}
-    step = 30
+    step = 600
     # ---------------------------------------
 
     # RUN THE CONTROL TEST
     # --------------------
-    points = ['hvac_reaAhu_TSup_y', 
-              'hvac_reaAhu_V_flow_sup_y', 
-              'weaSta_reaWeaTWetBul_y', 
-              'hvac_oveAhu_TSupSet_u', 
-              'hvac_reaAhu_PFanSup_y', 
-              'hvac_reaAhu_THeaCoiSup_y', 
-              'hvac_reaAhu_THeaCoiRet_y',
-              "hvac_reaAhu_TCooCoiSup_y",
-              "hvac_reaAhu_TCooCoiRet_y",
-              "hvac_oveAhu_yOA_u",
-              "hvac_oveAhu_yRet_u",
-              "hvac_oveAhu_yHea_u",
-              "hvac_oveAhu_yCoo_u",
-              "hvac_reaZonCor_TZon_y",
+    points = ['hvac_reaAhu_TSup_y',         #vent_supply_air_temp_sensor
+              'hvac_reaAhu_V_flow_sup_y',   #vent_airflow_sensor
+              'weaSta_reaWeaTWetBul_y',     #vent_outdoor_air_temp_sensor
+              'hvac_reaAhu_PFanSup_y',      #vent_power_sensor
+              "hvac_reaAhu_TRet_y",         #vent_return_air_temp_sensor
+              "hvac_reaAhu_TMix_y",        #vent_mixed_air_temp_sensor
+              "hvac_reaAhu_V_flow_ret_y",   #vent_return_airflow_sensor
+              "hvac_oveAhu_yOA_u",          #vent_supply_damper_setpoint, vent_return_damper_setpoint
+              "hvac_oveAhu_yRet_u",         #vent_mixing_damper_setpoint
+              'hvac_oveAhu_TSupSet_u',      #vent_supply_air_temp_setpoint
               ]
     
     """    
@@ -132,10 +128,10 @@ def run(scenario = 'typical_heat_day', plot=False, url='http://127.0.0.1:80'):
 
 
 if __name__ == "__main__":
-    scenarios = ['typical_heat_day']
+    scenarios = ['typical_heat_day', 'typical_cool_day', 'mix_day']
     for scenario in scenarios:
         print(f"\nRunning scenario: {scenario}")
-        kpi, df_res, custom_kpi_result = run(scenario=scenario, plot=False, url='http://192.168.8.65:80')
+        kpi, df_res, custom_kpi_result = run(scenario=scenario, plot=False, url='http://127.0.0.1:80')
 
 
 
