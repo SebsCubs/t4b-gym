@@ -41,22 +41,7 @@ def fcn(self):
     return_flow_junction = tb.ReturnFlowJunctionSystem(id="return_flow_junction",
                                                         saveSimulationResult=True)
     """ 
-    
-    # Add AHU fan
-    supply_fan = tb.FanSystem(id="supply_fan", saveSimulationResult=True)
-    self.add_connection(self.components["supply_flow_junction"], supply_fan, "airFlowRateIn", "airFlowRate")
 
-    # Add AHU heating coil
-
-
-    supply_heating_coil = tb.CoilPumpValveFMUSystem(id="[supply_heating_coil][heating_pump][heating_valve]", saveSimulationResult=True)
-    self.add_connection(supply_heating_coil, self.components["vent_supply_air_temp_sensor"], "outletAirTemperature", "supplyAirTemperature")
-    self.add_connection(self.components["supply_flow_junction"], supply_heating_coil, "airFlowRateIn", "airFlowRate")
-    
-    # Add AHU cooling coil
-    supply_cooling_coil = tb.CoilPumpValveFMUSystem(id="[supply_cooling_coil][cooling_pump][cooling_valve]", saveSimulationResult=True)
-    self.add_connection(supply_cooling_coil, supply_heating_coil, "outletAirTemperature", "inletAirTemperature")
-    self.add_connection(self.components["supply_flow_junction"], supply_cooling_coil, "airFlowRateIn", "airFlowRate")
 
     # Add core heating coil
     core_reheating_coil = tb.CoilHeatingSystem(id="core_reheating_coil", saveSimulationResult=True)
@@ -135,22 +120,6 @@ def fcn(self):
     west_supply_airflow_sensor = tb.SensorSystem(id="west_supply_airflow_sensor", saveSimulationResult=True)
     self.add_connection(self.components["west_supply_damper"], west_supply_airflow_sensor, "airFlowRate", "west_supplyAirflow")
 
-    #Add main dampers
-    main_supply_damper = tb.DamperSystem(id="main_supply_damper", saveSimulationResult=True)
-    mixing_damper = tb.DamperSystem(id="mixing_damper", saveSimulationResult=True)
-    main_return_damper = tb.DamperSystem(id="main_return_damper", saveSimulationResult=True)
-
-    #Add supply temperature setpoint
-    supply_air_temp_setpoint = tb.ScheduleSystem(id="supply_air_temp_setpoint", saveSimulationResult=True)
-    #Add controller for supply temperature setpoint
-    supply_air_temp_controller = tb.PIControllerFMUSystem(id="supply_air_temp_controller", isReverse=False, saveSimulationResult=True)
-    self.add_connection(supply_air_temp_setpoint, supply_air_temp_controller, "scheduleValue", "setpointValue")
-    self.add_connection(self.components["vent_supply_air_temp_sensor"], supply_air_temp_controller, "supplyAirTemperature", "actualValue")
-    self.add_connection(supply_air_temp_controller, main_supply_damper, "inputSignal", "damperPosition")
-    self.add_connection(supply_air_temp_controller, mixing_damper, "inputSignal", "damperPosition")
-    self.add_connection(supply_air_temp_controller, main_return_damper, "inputSignal", "damperPosition")
-    self.add_connection(supply_air_temp_controller, supply_heating_coil, "inputSignal", "valvePosition")
-    self.add_connection(supply_air_temp_controller, supply_cooling_coil, "inputSignal", "valvePosition")
     
        
     

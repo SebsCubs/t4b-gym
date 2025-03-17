@@ -21,6 +21,7 @@ def fcn(self):
         The test() function sets simulation parameters and runs a simulation of the system
         model using the Simulator() class. It then generates several plots of the simulation results using functions from the plot module.
     '''
+    space = tb.BuildingSpace0AdjBoundaryOutdoorFMUSystem(id="[north_room][north_space_heater]", saveSimulationResult=True)
     pass
     
    
