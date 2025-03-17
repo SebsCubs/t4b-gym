@@ -13,6 +13,7 @@ import twin4build as tb
 import twin4build.utils.plot.plot as plot
 from twin4build.utils.uppath import uppath
 import matplotlib.pyplot as plt
+import pandas as pd
 
 
 def fcn(self):
@@ -80,7 +81,6 @@ def fcn(self):
     self.add_connection(return_flow_junction_for_supply, vent_mixed_air_temp_sensor, "airTemperatureOut", "mixedAirTemperature")
 
     
-
 
 def get_model(id="default_model_id", fcn_=None):
     if fcn_ is None:
@@ -173,6 +173,57 @@ def estimate_parameters(verbose=False):
 
     return model
 
+
+def plot_csv_vs_simulation(csv_path, component_id, simulator, variable_name):
+    """
+    Creates a plot comparing CSV data with simulation results for a specific component.
+    
+    Args:
+        csv_path (str): Path to the CSV file containing the data
+        component_id (str): ID of the component to compare
+        simulator (tb.Simulator): Twin4Build simulator object
+        variable_name (str): Name of the variable to plot from the component
+    """
+    # Read CSV data
+    df = pd.read_csv(csv_path)
+    
+    # Create datetime index starting from simulation start time
+    start_time = simulator.startTime
+    time_delta = pd.Timedelta(seconds=30)  # Assuming 30-second intervals in CSV
+    dates = [start_time + time_delta * i for i in range(len(df))]
+    
+    # Set datetime index and drop original time column if it exists
+    df.index = dates
+    if 'time' in df.columns:
+        df = df.drop('time', axis=1)
+    
+    # Resample data to match simulation stepSize
+    step_size_seconds = simulator.stepSize
+    resampled_df = df.resample(f'{step_size_seconds}S').mean()
+    
+    # Get simulation data
+    sim_component = simulator.model.components[component_id]
+    sim_data = sim_component.savedOutput[variable_name]
+    sim_times = simulator.dateTimeSteps
+    
+    # Create plot
+    plt.figure(figsize=(12, 6))
+    plt.plot(sim_times, sim_data, label='Simulation', linewidth=2)
+    plt.plot(resampled_df.index, resampled_df.iloc[:, 0], label='Measured', linestyle='--')
+    
+    plt.title(f'{component_id} - {variable_name} Comparison')
+    plt.xlabel('Time')
+    plt.ylabel(variable_name)
+    plt.legend()
+    plt.grid(True)
+    plt.xticks(rotation=45)
+    plt.tight_layout()
+
+    #plt.show()
+    
+    return plt.gcf()
+
+
 def run():
     stepSize = 600  # Seconds can go down to 30
 
@@ -182,7 +233,7 @@ def run():
                                 tzinfo=gettz("Europe/Copenhagen"))
     model = get_model(id="only_ahu_model_simulation")
     
-    model.load_estimation_result(r"C:\Users\asces\OneDriveUni\Projects\RL_control\boptest_model\generated_files\models\only_ahu_model\model_parameters\estimation_results\LS_result\20250314_153712_ls.pickle")
+    model.load_estimation_result(r"C:\Users\asces\OneDriveUni\Projects\RL_control\boptest_model\generated_files\models\only_ahu_model\model_parameters\estimation_results\LS_result\20250314_163600_ls.pickle")
 
     simulator = tb.Simulator()
 
@@ -193,50 +244,49 @@ def run():
     
     print("Simulation completed successfully!")
 
-    temp_sensor = "vent_supply_air_temp_sensor"
-    supply_cooling_coil = "supply_cooling_coil"
-    setpoint = "cooling_coil_temperature_setpoint"
-    # Temperature plot
-    fig, axes = plot.plot_component(
-        simulator,
-        components_1axis=[
-            (temp_sensor, 'supplyAirTemperature'),
-            (setpoint, 'scheduleValue'),
-            (supply_cooling_coil, 'outletAirTemperature'),
-        ],
-        ylabel_1axis='Duct Temperature [°C]',
-        show=False  
-    )
-    lines = axes[0].get_lines()
-    axes[0].legend(lines, [
-        'Actual Temperature',
-        'Original Setpoint',
-        'Cooling Coil Outlet Temperature'
-    ])
-    plt.title(f'Duct Temperature')
-    plt.show()
+    heating_coil = "supply_heating_coil"
+    heating_coil_setpoint = "heating_coil_temperature_setpoint"
+    cooling_coil = "supply_cooling_coil"
+    cooling_coil_setpoint = "cooling_coil_temperature_setpoint"
+    fan = "supply_fan"
 
-    #Fan power plot
-    supply_fan = "supply_fan"
-    original_power = "vent_power_sensor"
-    #Fan power plot
-    fig, axes = plot.plot_component(
-        simulator,
-        components_1axis=[
-            (supply_fan, 'Power'),
-            (original_power, 'power'),
-        ],
-        ylabel_1axis='Fan Power [W]',
-        show=False
+    heating_plot = plot_csv_vs_simulation(
+        csv_path=r"C:\Users\asces\OneDriveUni\Projects\RL_control\boptest_model\boptest_handler\data\typical_heat_day\hvac_reaAhu_TSup_y.csv",
+        component_id=heating_coil,
+        simulator=simulator,
+        variable_name="outletAirTemperature"
     )
-    lines = axes[0].get_lines()
-    axes[0].legend(lines, [
-        'Estimated Power',
-        'Original Power'
-    ])
-    plt.title(f'Fan Power')
+
+    heating_coil_setpoint_plot = plot_csv_vs_simulation(
+        csv_path=r"C:\Users\asces\OneDriveUni\Projects\RL_control\boptest_model\boptest_handler\data\typical_heat_day\hvac_reaAhu_TSup_y.csv",
+        component_id=heating_coil_setpoint,
+        simulator=simulator,
+        variable_name="scheduleValue"
+    )
+    
+    cooling_plot = plot_csv_vs_simulation(
+        csv_path=r"C:\Users\asces\OneDriveUni\Projects\RL_control\boptest_model\boptest_handler\data\typical_heat_day\hvac_reaAhu_TSup_y.csv",
+        component_id=cooling_coil,
+        simulator=simulator,
+        variable_name="outletAirTemperature"
+    )
+
+    cooling_coil_setpoint_plot = plot_csv_vs_simulation(
+        csv_path=r"C:\Users\asces\OneDriveUni\Projects\RL_control\boptest_model\boptest_handler\data\typical_heat_day\hvac_reaAhu_TSup_y.csv",
+        component_id=cooling_coil_setpoint,
+        simulator=simulator,
+        variable_name="scheduleValue"
+    )
+
+    fan_plot = plot_csv_vs_simulation(
+        csv_path=r"C:\Users\asces\OneDriveUni\Projects\RL_control\boptest_model\boptest_handler\data\typical_heat_day\hvac_reaAhu_PFanSup_y.csv",
+        component_id=fan,
+        simulator=simulator,
+        variable_name="Power"
+    )
+
     plt.show()
 
 if __name__ == "__main__":
-    estimate_parameters(verbose=True)
-    #run()
+    #estimate_parameters(verbose=True)
+    run()
