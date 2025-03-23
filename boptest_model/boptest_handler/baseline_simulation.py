@@ -12,7 +12,7 @@ import os
 sys.path.insert(0, '/'.join((os.path.dirname(os.path.abspath(__file__))).split('/')[:-2]))
 from interface import control_test_with_points
 
-def run(scenario = 'typical_heat_day', plot=False, url='http://127.0.0.1:80'):
+def run(scenario = 'typical_heat_day',points=None, plot=False, url='http://127.0.0.1:80', save_forecasts=False):
     """Run test case.
     Parameters
     ----------
@@ -36,12 +36,19 @@ def run(scenario = 'typical_heat_day', plot=False, url='http://127.0.0.1:80'):
     # RUN THE CONTROL TEST
     # --------------------
     control_module = 'controllers.baseline'
+    forecast_points = ['Occupancy[cor]',
+                        'Occupancy[nor]',
+                        'Occupancy[sou]',
+                        'Occupancy[eas]',
+                        'Occupancy[wes]'] #from the controller definition
+
     scenario = {'time_period': scenario, 'electricity_price': 'dynamic'}
     step = 600
     # ---------------------------------------
 
     # RUN THE CONTROL TEST
     # --------------------
+    """   
     points = ['hvac_reaAhu_TSup_y',         #vent_supply_air_temp_sensor
               'hvac_reaAhu_V_flow_sup_y',   #vent_airflow_sensor
               'weaSta_reaWeaTWetBul_y',     #vent_outdoor_air_temp_sensor
@@ -54,7 +61,7 @@ def run(scenario = 'typical_heat_day', plot=False, url='http://127.0.0.1:80'):
               'hvac_oveAhu_TSupSet_u',      #vent_supply_air_temp_setpoint
               ]
     
-    """    
+     
     # Control testing points
     points = ["hvac_oveAhu_yFan_u", 
               "hvac_oveAhu_dpSet_u" , 
@@ -114,7 +121,6 @@ def run(scenario = 'typical_heat_day', plot=False, url='http://127.0.0.1:80'):
         except ImportError:
             print("Cannot import numpy or matplotlib for plot generation")
 
-    
     # Save the results to a csv file for each point with two columns: time and value
     # Create directory for results if it doesn't exist
     results_dir = os.path.join('data', scenario['time_period'])
@@ -124,14 +130,93 @@ def run(scenario = 'typical_heat_day', plot=False, url='http://127.0.0.1:80'):
     for point in points:
         df_res[[point]].to_csv(os.path.join(results_dir, f'{point}.csv'), index=True)
     
+    if save_forecasts:
+        forecasts_dir = os.path.join('data', scenario['time_period'], 'forecasts')
+        if not os.path.exists(forecasts_dir):
+            os.makedirs(forecasts_dir)
+        for point in forecast_points:
+            forecasts[[point]].to_csv(os.path.join(forecasts_dir, f'{point}.csv'), index=True)
+    
     return kpi, df_res, custom_kpi_result
 
 
 if __name__ == "__main__":
     scenarios = ['typical_heat_day', 'typical_cool_day', 'mix_day']
+    
+    # Define zones and measurement types
+    zones = ['Cor', 'Nor', 'Sou', 'Eas', 'Wes']
+    measurements = [
+        {
+            'name': 'Supply air temperature',
+            'prefix': 'hvac_reaZon',
+            'suffix': 'TSup_y'
+        },
+        {
+            'name': 'Supply air flow rate',
+            'prefix': 'hvac_reaZon',
+            'suffix': 'V_flow_y'
+        },
+        {
+            'name': 'CO2 concentration',
+            'prefix': 'hvac_reaZon',
+            'suffix': 'CO2Zon_y'
+        },
+        {
+            'name': 'Indoor air temperature',
+            'prefix': 'hvac_reaZon',
+            'suffix': 'TZon_y'
+        },
+        {
+            'name': 'Supply damper position',
+            'prefix': 'hvac_oveZonAct',
+            'suffix': 'yDam_u'
+        },
+        {
+            'name': 'Heating setpoint',
+            'prefix': 'hvac_oveZonSup',
+            'suffix': 'TZonHeaSet_u'
+        },
+        {
+            'name': 'Cooling setpoint',
+            'prefix': 'hvac_oveZonSup',
+            'suffix': 'TZonCooSet_u'
+        }
+    ]
+
+    # For each measurement type
+    #for measurement in measurements:
+    measurement =         {
+        'name': 'Cooling setpoint',
+        'prefix': 'hvac_oveZonSup',
+        'suffix': 'TZonCooSet_u'
+    }
+    points = [f"{measurement['prefix']}{zone}_{measurement['suffix']}" for zone in zones]
+    print(f"\nProcessing {measurement['name']} measurements...")
+    print(f"Points to process: {points}")
+    
+    # For each scenario
     for scenario in scenarios:
-        print(f"\nRunning scenario: {scenario}")
-        kpi, df_res, custom_kpi_result = run(scenario=scenario, plot=False, url='http://127.0.0.1:80')
+        max_retries = 3
+        retry_count = 0
+        
+        while retry_count < max_retries:
+            try:
+                print(f"\nRunning scenario: {scenario}")
+                kpi, df_res, custom_kpi_result = run(
+                    scenario=scenario, 
+                    points=points, 
+                    plot=False, 
+                    url='http://192.168.8.65:80',
+                    save_forecasts=True
+                )
+                print(f"Successfully completed {scenario} for {measurement['name']}")
+                break
+            except Exception as e:
+                retry_count += 1
+                print(f"Error in {scenario} for {measurement['name']}: {str(e)}")
+                print(f"Attempt {retry_count} of {max_retries}")
+                if retry_count == max_retries:
+                    print(f"Failed to process {scenario} for {measurement['name']} after {max_retries} attempts")
 
 
 

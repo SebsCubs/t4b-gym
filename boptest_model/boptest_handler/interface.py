@@ -271,7 +271,7 @@ def control_test(testcase_name, control_module='', start_time=0, warmup_period=0
 
     return kpi, df_res, custom_kpi_result, forecasts
 
-def control_test_with_points(testcase_name, control_module='', start_time=0, warmup_period=0, length=24*3600, scenario=None, step=300, customized_kpi_config=None, use_forecast=False, points=None, url='http://127.0.0.1:80'):
+def control_test_with_points(testcase_name, control_module='', start_time=0, warmup_period=0, length=24*3600, scenario=None, step=300, customized_kpi_config=None, use_forecast=False, points=None, url='http://127.0.0.1:80', verbose=False):
     """
     Main interface that executes communication between testcase (controller) and the restufl API communicating with
         the model (FMU) running in docker.
@@ -336,6 +336,7 @@ def control_test_with_points(testcase_name, control_module='', start_time=0, war
 
     # GET TEST INFORMATION
     # -------------------------------------------------------------------------
+  
     print('\nTEST CASE INFORMATION\n---------------------')
     # Select test case
     testid = requests.post("{0}/testcases/{1}/select".format(url, testcase_name)).json()["testid"]
@@ -345,10 +346,10 @@ def control_test_with_points(testcase_name, control_module='', start_time=0, war
     print('Name:\t\t\t\t{0}'.format(name))
     # Retrieve a list of inputs (controllable points) for the model from REST API
     inputs = check_response(requests.get('{0}/inputs/{1}'.format(url,testid)))
-    print('Control Inputs:\t\t\t{0}'.format(inputs))
+    #print('Control Inputs:\t\t\t{0}'.format(inputs))
     # Retrieve a list of measurements (outputs) for the model from REST API
     measurements = check_response(requests.get('{0}/measurements/{1}'.format(url,testid)))
-    print('Measurements:\t\t\t{0}'.format(measurements))
+    #print('Measurements:\t\t\t{0}'.format(measurements))
 
     # IF ANY CUSTOM KPI CALCULATION, DEFINE STRUCTURES
     # ------------------------------------------------

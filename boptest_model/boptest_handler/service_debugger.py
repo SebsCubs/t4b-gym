@@ -65,10 +65,10 @@ class BoptestDebugger:
 
 def main():
     # Example usage
-    debugger = BoptestDebugger(base_url="http://127.0.0.1:80")
+    debugger = BoptestDebugger(base_url="http://192.168.8.65:80")
     
     try:
-        test_id = "aea1d873-527f-4437-a9b0-66beffdc1125"
+        test_id = "4d609532-6e56-41ff-90d7-01da23498b49"
         debugger.stop_test(test_id)
         
     except Exception as e:

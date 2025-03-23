@@ -149,14 +149,14 @@ def run():
 def parameter_estimation(verbose=False):
     """
     Checklist for the parameter estimation:
-    - Pre process the data to be in the same time period as the available outdoor environment data
-    - Define the target parameters
-    - Define the target measuring devices
-    - Define the list of required data points from the BOPTEST model
-    - Acquire and pre process the data from the BOPTEST model
-    - Run the parameter estimation
-    - Load the estimation result
-    - Plot the results
+    [] Pre process the data to be in the same time period as the available outdoor environment data
+    [x] Define the target parameters
+    [x] Define the target measuring devices
+    [x] Define the list of required data points from the BOPTEST model
+    [] Acquire and pre process the data from the BOPTEST model
+    [] Run the parameter estimation
+    [] Load the estimation result
+    [] Plot the results
     """
     stepSize = 600  # Seconds can go down to 30
     #TODO: Pre process the data to be in the same time period as the available outdoor environment data
@@ -279,13 +279,14 @@ def parameter_estimation(verbose=False):
     [x]Return air flow rate (hvac_reaAhu_V_flow_ret_y) from return junction
     [x]Outdoor air temperature (weaSta_reaWeaTWetBul_y) Figure how to synchronize with the outdoor environment data
     Per room data points:
-    []Supply air temperature (core_supply_air_temp_sensor, north_supply_air_temp_sensor, south_supply_air_temp_sensor, east_supply_air_temp_sensor, west_supply_air_temp_sensor)
-    []Supply air flow rate (core_supply_airflow_sensor, north_supply_airflow_sensor, south_supply_airflow_sensor, east_supply_airflow_sensor, west_supply_airflow_sensor)
-    []CO2 concentration (core_co2_sensor, north_co2_sensor, south_co2_sensor, east_co2_sensor, west_co2_sensor)
-    []Indoor air temperature (core_indoor_air_temp_sensor, north_indoor_air_temp_sensor, south_indoor_air_temp_sensor, east_indoor_air_temp_sensor, west_indoor_air_temp_sensor)
-    []Heating setpoint (core_temperature_heating_setpoint, north_temperature_heating_setpoint, south_temperature_heating_setpoint, east_temperature_heating_setpoint, west_temperature_heating_setpoint)
-    []Cooling setpoint (core_temperature_cooling_setpoint, north_temperature_cooling_setpoint, south_temperature_cooling_setpoint, east_temperature_cooling_setpoint, west_temperature_cooling_setpoint)
-    []Occupancy (core_occupancy_profile, north_occupancy_profile, south_occupancy_profile, east_occupancy_profile, west_occupancy_profile)
+    [x]Supply air temperature (hvac_reaZonCor_TSup_y, hvac_reaZonNor_TSup_y, hvac_reaZonSou_TSup_y, hvac_reaZonEas_TSup_y, hvac_reaZonWes_TSup_y)
+    [x]Supply air flow rate (hvac_reaZonCor_V_flow_y, hvac_reaZonNor_V_flow_y, hvac_reaZonSou_V_flow_y, hvac_reaZonEas_V_flow_y, hvac_reaZonWes_V_flow_y)
+    [x]CO2 concentration (hvac_reaZonCor_CO2Zon_y, hvac_reaZonNor_CO2Zon_y, hvac_reaZonSou_CO2Zon_y, hvac_reaZonEas_CO2Zon_y, hvac_reaZonWes_CO2Zon_y)
+    [x]Indoor air temperature (hvac_reaZonCor_TZon_y, hvac_reaZonNor_TZon_y, hvac_reaZonSou_TZon_y, hvac_reaZonEas_TZon_y, hvac_reaZonWes_TZon_y)
+    [x]Supply damper position (hvac_oveZonActCor_yDam_u, hvac_oveZonActNor_yDam_u, hvac_oveZonActSou_yDam_u, hvac_oveZonActEas_yDam_u, hvac_oveZonActWes_yDam_u)
+    [x]Heating setpoint (hvac_oveZonSupCor_TZonHeaSet_u, hvac_oveZonSupNor_TZonHeaSet_u, hvac_oveZonSupSou_TZonHeaSet_u, hvac_oveZonSupEas_TZonHeaSet_u, hvac_oveZonSupWes_TZonHeaSet_u)
+    [x]Cooling setpoint (hvac_oveZonSupCor_TZonCooSet_u, hvac_oveZonSupNor_TZonCooSet_u, hvac_oveZonSupSou_TZonCooSet_u, hvac_oveZonSupEas_TZonCooSet_u, hvac_oveZonSupWes_TZonCooSet_u)
+    [](Forecast values) Occupancy (Occupancy[cor], Occupancy[nor], Occupancy[sou], Occupancy[eas], Occupancy[wes]) 
 
     Model outputs (measuring devices):
     - Indoor air temperature (core_indoor_air_temp_sensor, north_indoor_air_temp_sensor, south_indoor_air_temp_sensor, east_indoor_air_temp_sensor, west_indoor_air_temp_sensor)
