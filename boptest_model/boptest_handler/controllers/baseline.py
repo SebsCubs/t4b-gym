@@ -95,7 +95,6 @@ def update_forecasts(forecast_data, forecasts):
         Updated DataFrame of forcast values used over time.
 
     """
-
     forecast_config = get_forecast_parameters()['point_names']
 
     if forecasts is None:

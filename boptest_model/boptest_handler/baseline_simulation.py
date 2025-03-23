@@ -80,7 +80,7 @@ def run(scenario = 'typical_heat_day',points=None, plot=False, url='http://127.0
                                                              scenario=scenario,
                                                              step=step,
                                                              points=points,
-                                                             use_forecast=False,
+                                                             use_forecast=save_forecasts,
                                                              url=url)
 
     # POST-PROCESS RESULTS
