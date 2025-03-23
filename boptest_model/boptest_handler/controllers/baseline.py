@@ -100,6 +100,7 @@ def update_forecasts(forecast_data, forecasts):
     if forecasts is None:
         forecasts = pd.DataFrame(columns=forecast_config)
     for i in forecast_config:
+        #Takes the first value of the forecast data only
         t = forecast_data['time'][0]
         forecasts.loc[t,i] = forecast_data[i][0]
 

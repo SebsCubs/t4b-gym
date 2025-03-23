@@ -68,7 +68,7 @@ def main():
     debugger = BoptestDebugger(base_url="http://192.168.8.65:80")
     
     try:
-        test_id = "4d609532-6e56-41ff-90d7-01da23498b49"
+        test_id = "73c99e74-3cc4-413c-98b1-79bce2e13744"
         debugger.stop_test(test_id)
         
     except Exception as e:

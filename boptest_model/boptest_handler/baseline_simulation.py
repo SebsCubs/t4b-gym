@@ -11,6 +11,7 @@ import sys
 import os
 sys.path.insert(0, '/'.join((os.path.dirname(os.path.abspath(__file__))).split('/')[:-2]))
 from interface import control_test_with_points
+import pandas as pd
 
 def run(scenario = 'typical_heat_day',points=None, plot=False, url='http://127.0.0.1:80', save_forecasts=False):
     """Run test case.
@@ -135,6 +136,7 @@ def run(scenario = 'typical_heat_day',points=None, plot=False, url='http://127.0
         if not os.path.exists(forecasts_dir):
             os.makedirs(forecasts_dir)
         for point in forecast_points:
+            # Save forecast data directly, similar to df_res points
             forecasts[[point]].to_csv(os.path.join(forecasts_dir, f'{point}.csv'), index=True)
     
     return kpi, df_res, custom_kpi_result
@@ -196,27 +198,15 @@ if __name__ == "__main__":
     
     # For each scenario
     for scenario in scenarios:
-        max_retries = 3
-        retry_count = 0
-        
-        while retry_count < max_retries:
-            try:
-                print(f"\nRunning scenario: {scenario}")
-                kpi, df_res, custom_kpi_result = run(
-                    scenario=scenario, 
-                    points=points, 
-                    plot=False, 
-                    url='http://192.168.8.65:80',
-                    save_forecasts=True
-                )
-                print(f"Successfully completed {scenario} for {measurement['name']}")
-                break
-            except Exception as e:
-                retry_count += 1
-                print(f"Error in {scenario} for {measurement['name']}: {str(e)}")
-                print(f"Attempt {retry_count} of {max_retries}")
-                if retry_count == max_retries:
-                    print(f"Failed to process {scenario} for {measurement['name']} after {max_retries} attempts")
+        print(f"\nRunning scenario: {scenario}")
+        kpi, df_res, custom_kpi_result = run(
+            scenario=scenario, 
+            points=points, 
+            plot=False, 
+            url='http://192.168.8.65:80',
+            save_forecasts=True
+        )
+        print(f"Successfully completed {scenario} for {measurement['name']}")
 
 
 
