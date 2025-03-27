@@ -3,8 +3,6 @@ This script runs a simple simulation of the boptest test case: multizone_office_
 It assumes the boptest service is running in the localhost:80 port.
 """
 
-
-
 # GENERAL PACKAGE IMPORT
 # ----------------------
 import sys
@@ -144,7 +142,7 @@ def run(scenario = 'typical_heat_day',points=None, plot=False, url='http://127.0
 
 if __name__ == "__main__":
     scenarios = ['typical_heat_day', 'typical_cool_day', 'mix_day']
-    
+    """
     # Define zones and measurement types
     zones = ['Cor', 'Nor', 'Sou', 'Eas', 'Wes']
     measurements = [
@@ -195,7 +193,11 @@ if __name__ == "__main__":
     points = [f"{measurement['prefix']}{zone}_{measurement['suffix']}" for zone in zones]
     print(f"\nProcessing {measurement['name']} measurements...")
     print(f"Points to process: {points}")
+    """
+    points = ["weaSta_reaWeaHGloHor_y"] # Global horizontal solar radiation
+    #url='http://192.168.8.65:80'
     
+    url='http://127.0.0.1:80'
     # For each scenario
     for scenario in scenarios:
         print(f"\nRunning scenario: {scenario}")
@@ -203,10 +205,10 @@ if __name__ == "__main__":
             scenario=scenario, 
             points=points, 
             plot=False, 
-            url='http://192.168.8.65:80',
-            save_forecasts=True
+            url=url,
+            save_forecasts=False
         )
-        print(f"Successfully completed {scenario} for {measurement['name']}")
+        print(f"Successfully completed {scenario}")
 
 
 

@@ -141,38 +141,84 @@ def plot_timeseries_data(data_dict, scenario, resample_interval='600S', figsize=
         
         plt.show()
 
-# Example usage:
-
-# For AHU information
-ahu_data = {
-    'AHU differential pressure setpoint': 'hvac_oveAhu_dpSet_u',
-    'AHU temp setpoint': 'hvac_oveAhu_TSupSet_u',
-    'AHU FAN speed': 'hvac_oveAhu_yFan_u',
-    'AHU OA damper': 'hvac_oveAhu_yOA_u',
-    'AHU Ret damper': 'hvac_oveAhu_yRet_u',
-    'AHU Heater': 'hvac_oveAhu_yHea_u',
-    'AHU Cooler': 'hvac_oveAhu_yCoo_u',
-    'AHU Heater activate': 'hvac_oveAhu_yPumCoo_u',
-    'AHU Cooler activate': 'hvac_oveAhu_yPumHea_u'
-}
-
-ahu_data = {
-    'AHU Supply Air Temperature': 'hvac_reaAhu_TSup_y',
-    'AHU Supply Air Flow': 'hvac_reaAhu_V_flow_sup_y',
-    'Weather Station Wet Bulb Temperature': 'weaSta_reaWeaTWetBul_y',
-    'AHU Supply Air Temperature Setpoint': 'hvac_oveAhu_TSupSet_u',
-    'AHU Supply Fan Power': 'hvac_reaAhu_PFanSup_y',
-    'AHU Heating Coil Supply Temperature': 'hvac_reaAhu_THeaCoiSup_y',
-    'AHU Heating Coil Return Temperature': 'hvac_reaAhu_THeaCoiRet_y',
-    'AHU Cooling Coil Supply Temperature': 'hvac_reaAhu_TCooCoiSup_y',
-    'AHU Cooling Coil Return Temperature': 'hvac_reaAhu_TCooCoiRet_y',
-    'AHU Outside Air Damper Position': 'hvac_oveAhu_yOA_u',
-    'AHU Return Air Damper Position': 'hvac_oveAhu_yRet_u',
-    'AHU Heating Valve Position': 'hvac_oveAhu_yHea_u',
-    'AHU Cooling Valve Position': 'hvac_oveAhu_yCoo_u',
-    'Zone Temperature': 'hvac_reaZonCor_TZon_y'
-}
-
-plot_timeseries_data(ahu_data, 'typical_heat_day')
 
 
+def plot_merged_data(list_of_files, list_of_labels):
+    """
+    Plot multiple time series from CSV files in the same plot
+    
+    Args:
+        list_of_files (list): List of paths to CSV files to plot
+        list_of_labels (list): List of labels for the legend
+    """
+    # Initialize a figure
+    plt.figure(figsize=(12, 6))
+    
+    # Loop through the list of files
+    for i, file in enumerate(list_of_files):
+        # Read the CSV file
+        df = pd.read_csv(file)
+        df["timestamp"] = pd.to_datetime(df["timestamp"])
+        df.set_index("timestamp", inplace=True)
+        
+        # Get the actual data column name (should be the only other column besides timestamp)
+        data_column = df.columns[0]
+        
+        # Plot the data
+        plt.plot(df.index, df[data_column], label=list_of_labels[i])
+    
+    # Add a legend
+    plt.legend()
+    plt.xlabel('Time')
+    plt.ylabel('Value')
+    plt.title('Merged Data')
+    plt.grid(True)
+    plt.xticks(rotation=45)
+    plt.tight_layout()
+    
+    # Show the plot
+    plt.show()
+
+if __name__ == "__main__":
+
+    """
+    # For AHU information
+    ahu_data = {
+        'AHU differential pressure setpoint': 'hvac_oveAhu_dpSet_u',
+        'AHU temp setpoint': 'hvac_oveAhu_TSupSet_u',
+        'AHU FAN speed': 'hvac_oveAhu_yFan_u',
+        'AHU OA damper': 'hvac_oveAhu_yOA_u',
+        'AHU Ret damper': 'hvac_oveAhu_yRet_u',
+        'AHU Heater': 'hvac_oveAhu_yHea_u',
+        'AHU Cooler': 'hvac_oveAhu_yCoo_u',
+        'AHU Heater activate': 'hvac_oveAhu_yPumCoo_u',
+        'AHU Cooler activate': 'hvac_oveAhu_yPumHea_u'
+    }
+
+    ahu_data = {
+        'AHU Supply Air Temperature': 'hvac_reaAhu_TSup_y',
+        'AHU Supply Air Flow': 'hvac_reaAhu_V_flow_sup_y',
+        'Weather Station Wet Bulb Temperature': 'weaSta_reaWeaTWetBul_y',
+        'AHU Supply Air Temperature Setpoint': 'hvac_oveAhu_TSupSet_u',
+        'AHU Supply Fan Power': 'hvac_reaAhu_PFanSup_y',
+        'AHU Heating Coil Supply Temperature': 'hvac_reaAhu_THeaCoiSup_y',
+        'AHU Heating Coil Return Temperature': 'hvac_reaAhu_THeaCoiRet_y',
+        'AHU Cooling Coil Supply Temperature': 'hvac_reaAhu_TCooCoiSup_y',
+        'AHU Cooling Coil Return Temperature': 'hvac_reaAhu_TCooCoiRet_y',
+        'AHU Outside Air Damper Position': 'hvac_oveAhu_yOA_u',
+        'AHU Return Air Damper Position': 'hvac_oveAhu_yRet_u',
+        'AHU Heating Valve Position': 'hvac_oveAhu_yHea_u',
+        'AHU Cooling Valve Position': 'hvac_oveAhu_yCoo_u',
+        'Zone Temperature': 'hvac_reaZonCor_TZon_y'
+    }
+
+    plot_timeseries_data(ahu_data, 'typical_heat_day')
+    """
+    # Plot the merged data
+    list_of_files = ["C:/Users/asces/OneDriveUni/Projects/RL_control/boptest_model/boptest_handler/data/merged_data/hvac_reaZonCor_TZon_y_processed.csv",
+                     "C:/Users/asces/OneDriveUni/Projects/RL_control/boptest_model/boptest_handler/data/merged_data/hvac_oveZonSupCor_TZonHeaSet_u_processed.csv",
+                     "C:/Users/asces/OneDriveUni/Projects/RL_control/boptest_model/boptest_handler/data/merged_data/hvac_oveZonSupCor_TZonCooSet_u_processed.csv",
+                     "C:/Users/asces/OneDriveUni/Projects/RL_control/boptest_model/boptest_handler/data/merged_data/hvac_reaZonCor_TSup_y_processed.csv",
+                     ]
+    list_of_labels = ["Zone Temperature", "Heating Setpoint", "Cooling Setpoint", "Zone Supply Air Temperature"]
+    plot_merged_data(list_of_files, list_of_labels)

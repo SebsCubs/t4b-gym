@@ -1,6 +1,7 @@
 import pandas as pd
 import os
 from datetime import datetime, timedelta
+import numpy as np
 
 def get_script_directory():
     """Get the directory where the script is located."""
@@ -154,8 +155,220 @@ def clean_airflow_rate():
     df = clean_negative_values(df, 'hvac_reaAhu_V_flow_sup_y')
     df.to_csv(os.path.join(script_dir, "merged_data\hvac_reaAhu_V_flow_sup_y_processed.csv"), index=False)
 
-if __name__ == "__main__":
+def process_occupancy_data(csv_file_path, save_csv=True):
+    """
+    Process occupancy data from a merged CSV file to create 30s intervals from 600s data.
+    
+    Args:
+        csv_file_path (str): Path to the CSV file containing merged occupancy data
+        
+    Returns:
+        pd.DataFrame: Processed occupancy data with 30s intervals
+    """
+    # Read the original CSV file
+    df = pd.read_csv(csv_file_path)
+    
+    # Get the occupancy values only (excluding timestamp column)
+    occupancy_values = df.iloc[:, 1:].values
+    
+    # Calculate how many 30s intervals we need for each 600s value (600/30 = 20)
+    intervals_per_value = 20
+    
+    # Create expanded array by repeating each value 20 times
+    expanded_values = np.repeat(occupancy_values, intervals_per_value, axis=0)
+    
+    # Add one more set of values (600s worth of 30s intervals) at the start
+    first_values = occupancy_values[0]
+    padding = np.tile(first_values, (intervals_per_value, 1))
+    
+    # Combine the padding with expanded values
+    final_values = np.vstack([padding, expanded_values])
+    
+    # Create new timestamp array with 30s intervals
+    start_time = pd.Timestamp('2024-01-01 00:00:00')
+    total_intervals = final_values.shape[0]
+    timestamps = [start_time + pd.Timedelta(seconds=30*i) for i in range(total_intervals)]
+    
+    # Create new DataFrame with processed data
+    result_df = pd.DataFrame(final_values, columns=df.columns[1:])
+    result_df.insert(0, 'datetime', timestamps)
+    
+    if save_csv:
+        #Saved in the same directory as the original file with the same name but with _30s_processed added
+        output_path = os.path.splitext(csv_file_path)[0] + '_30s_processed.csv'
+        result_df.to_csv(output_path, index=False)
+        print(f"Processed occupancy data saved to {output_path}")
+    
+    return result_df
+
+def process_all_occupancy_data():
+    """Process all occupancy data files."""
+    script_dir = get_script_directory()
+    occupancy_files = ["Occupancy[cor]_processed.csv", 
+                       "Occupancy[eas]_processed.csv", 
+                       "Occupancy[nor]_processed.csv", 
+                       "Occupancy[sou]_processed.csv", 
+                       "Occupancy[wes]_processed.csv"]
+    for file in occupancy_files:
+        print(f"Processing occupancy data for {file}...")
+        csv_file_path = os.path.join(script_dir, "merged_data", file)
+        process_occupancy_data(csv_file_path, save_csv=True)
+    print("All occupancy data processed successfully!")
+
+def process_raw_occupancy_data(csv_file_path, save_csv=True):
+    """
+    Process raw occupancy data with integer timestamps to create 30s intervals 
+    covering 2 weeks plus 600s before the start.
+    
+    Args:
+        csv_file_path (str): Path to the CSV file containing raw occupancy data
+        save_csv (bool): Whether to save the processed data to CSV
+        
+    Returns:
+        pd.DataFrame: Processed occupancy data with 30s intervals
+    """
+    # Read the original CSV file
+    df = pd.read_csv(csv_file_path)
+    
+    # Get the occupancy values (excluding timestamp column)
+    occupancy_values = df.iloc[:, 1:].values
+    
+    # Get the initial timestamp
+    initial_timestamp = df.iloc[0, 0]
+    
+    # Calculate how many 30s intervals we need for each 600s value
+    intervals_per_value = 20  # 600/30 = 20
+    
+    # Create expanded array by repeating each value 20 times
+    expanded_values = np.repeat(occupancy_values, intervals_per_value, axis=0)
+    
+    # Add padding at start using first values
+    first_values = occupancy_values[0]
+    padding = np.tile(first_values, (intervals_per_value, 1))
+    
+    # Combine padding with expanded values
+    final_values = np.vstack([padding, expanded_values])
+    
+    # Create timestamp array covering (start-600) to (start+2weeks)
+    start_time = initial_timestamp - 600
+    end_time = start_time + 1209600  # 2 weeks = 1,209,600 seconds
+    timestamps = np.arange(start_time, end_time + 30, 30) 
+    
+    # Ensure we have enough values to cover the full time range
+    num_timestamps = len(timestamps)
+    if final_values.shape[0] < num_timestamps:
+        # Calculate how many times to repeat the pattern
+        repeats_needed = (num_timestamps - final_values.shape[0]) // final_values.shape[0] + 1
+        final_values = np.tile(final_values, (repeats_needed, 1))[:num_timestamps]
+    else:
+        # Trim excess values
+        final_values = final_values[:num_timestamps]
+    
+    #Convert the integers to floats
+    final_values = final_values.astype(float)
+
+    # Create new DataFrame
+    result_df = pd.DataFrame(final_values, columns=df.columns[1:])
+    result_df.insert(0, 'timestamp', timestamps)
+    
+    if save_csv:
+        # Save in the same directory with '_30s_processed.csv' suffix
+        output_path = os.path.splitext(csv_file_path)[0] + '_30s.csv'
+        result_df.to_csv(output_path, index=False)
+        print(f"Processed raw occupancy data saved to {output_path}")
+    
+    return result_df
+
+def process_all_raw_occupancy_data():
+    """Process all raw occupancy data files."""
+    script_dir = get_script_directory()
+    mix_day_dir = os.path.join(script_dir, "mix_day/forecasts")
+    typical_cool_day_dir = os.path.join(script_dir, "typical_cool_day/forecasts")
+    typical_heat_day_dir = os.path.join(script_dir, "typical_heat_day/forecasts")   
+    file_names = ["Occupancy[cor].csv", "Occupancy[eas].csv", "Occupancy[nor].csv", "Occupancy[sou].csv", "Occupancy[wes].csv"]
+    for file_name in file_names:
+        process_raw_occupancy_data(os.path.join(mix_day_dir, file_name), save_csv=True)
+        process_raw_occupancy_data(os.path.join(typical_cool_day_dir, file_name), save_csv=True)
+        process_raw_occupancy_data(os.path.join(typical_heat_day_dir, file_name), save_csv=True)
+    print("All raw occupancy data processed successfully!")
+
+def create_outdoor_env_data():
+    """Create outdoor environment data."""
+    script_dir = get_script_directory()
+    outdoorTemperature = os.path.join(script_dir, "merged_data\weaSta_reaWeaTWetBul_y_processed.csv")
+    globalIrradiation = os.path.join(script_dir, "merged_data\weaSta_reaWeaHGloHor_y_processed.csv")
+
+    outdoorTemperature_df = pd.read_csv(outdoorTemperature)
+
+    # Convert outdoorTemperature to Celsius
+    outdoorTemperature_df['weaSta_reaWeaTWetBul_y'] = (outdoorTemperature_df['weaSta_reaWeaTWetBul_y'] - 273.15)
+
+    globalIrradiation_df = pd.read_csv(globalIrradiation)
+
+    # Create a new DataFrame with the merged data
+    merged_df = pd.DataFrame({
+        'timestamp': outdoorTemperature_df['timestamp'],
+        'outdoorTemperature': outdoorTemperature_df['weaSta_reaWeaTWetBul_y'],
+        'globalIrradiation': globalIrradiation_df['weaSta_reaWeaHGloHor_y']
+    })
+
+
+    merged_df.to_csv(os.path.join(script_dir, "merged_data\outdoor_env_data.csv"), index=False)
+    print("Outdoor environment data created successfully!")
+
+def transform_temp_to_celsius(csv_file_path):
+    """Read CSV file and transform temperature data from Kelvin to Celsius."""
+    df = pd.read_csv(csv_file_path)
+    #Temperature data is always the second column
+
+    #Assert that the temperature data is in Kelvin by checking the average value is above 220
+    assert df.iloc[:, 1].mean() > 220, "Temperature data is not in Kelvin"
+    
+    df.iloc[:, 1] = df.iloc[:, 1] - 273.15
+    df.to_csv(csv_file_path, index=False)
+
+def transform_temp_to_celsius_all():
+    """Read all CSV files and transform temperature data from Kelvin to Celsius."""
+    script_dir = get_script_directory()
+    temp_files = ["weaSta_reaWeaTWetBul_y_processed.csv", 
+                  "hvac_oveAhu_TSupSet_u_processed.csv",
+                  "hvac_oveZonSupCor_TZonCooSet_u_processed.csv",
+                  "hvac_oveZonSupCor_TZonHeaSet_u_processed.csv",
+                  "hvac_oveZonSupEas_TZonCooSet_u_processed.csv",
+                  "hvac_oveZonSupEas_TZonHeaSet_u_processed.csv",
+                  "hvac_oveZonSupNor_TZonCooSet_u_processed.csv",
+                  "hvac_oveZonSupNor_TZonHeaSet_u_processed.csv",
+                  "hvac_oveZonSupSou_TZonCooSet_u_processed.csv",
+                  "hvac_oveZonSupSou_TZonHeaSet_u_processed.csv",
+                  "hvac_oveZonSupWes_TZonCooSet_u_processed.csv",
+                  "hvac_oveZonSupWes_TZonHeaSet_u_processed.csv",
+                  "hvac_reaAhu_TCooCoiRet_y_processed.csv",
+                  "hvac_reaAhu_TCooCoiSup_y_processed.csv",
+                  "hvac_reaAhu_THeaCoiRet_y_processed.csv",
+                  "hvac_reaAhu_THeaCoiSup_y_processed.csv",
+                  "hvac_reaZonCor_TSup_y_processed.csv",
+                  "hvac_reaZonCor_TZon_y_processed.csv",
+                  "hvac_reaZonEas_TSup_y_processed.csv",
+                  "hvac_reaZonEas_TZon_y_processed.csv",
+                  "hvac_reaZonNor_TSup_y_processed.csv",
+                  "hvac_reaZonNor_TZon_y_processed.csv",
+                  "hvac_reaZonSou_TSup_y_processed.csv",
+                  "hvac_reaZonSou_TZon_y_processed.csv",
+                  "hvac_reaZonWes_TSup_y_processed.csv",
+                  "hvac_reaZonWes_TZon_y_processed.csv",
+                  "hvac_reaAhu_TSup_y_processed.csv",
+                  "hvac_reaAhu_TRet_y_processed.csv",
+                  ]
+    for file in temp_files:
+        print(f"Transforming temperature data for {file}...")
+        transform_temp_to_celsius(os.path.join(script_dir, "merged_data", file))
+    print("All temperature data transformed successfully!")
+
+def regenerate_all_data():
     process_csv_files()
-    split_heating_and_cooling_setpoints()
-    clean_fan_power
-    clean_airflow_rate()
+    process_all_occupancy_data()
+    create_outdoor_env_data()
+    transform_temp_to_celsius_all()
+
+if __name__ == "__main__":
+    regenerate_all_data()
