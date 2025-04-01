@@ -16,7 +16,150 @@ import numpy as np
 import cProfile, io, pstats
 from twin4build.utils.rsetattr import rsetattr
 import matplotlib.pyplot as plt
-sys.setrecursionlimit(2000)  # You can adjust this number as needed
+
+model_output_points = [
+    {
+        'component_id': 'vent_supply_airflow_sensor',
+        'output_value': 'supplyAirflow',
+        'csv_path': 'C:/Users/asces/OneDriveUni/Projects/RL_control/boptest_model/boptest_handler/data/merged_data/hvac_reaAhu_V_flow_sup_y_processed.csv'
+    },
+    {
+        'component_id': 'vent_return_airflow_sensor',
+        'output_value': 'returnAirflow',
+        'csv_path': 'C:/Users/asces/OneDriveUni/Projects/RL_control/boptest_model/boptest_handler/data/merged_data/hvac_reaAhu_V_flow_ret_y_processed.csv'
+    },
+    {
+        'component_id': 'vent_return_air_temp_sensor',
+        'output_value': 'returnAirTemperature',
+        'csv_path': 'C:/Users/asces/OneDriveUni/Projects/RL_control/boptest_model/boptest_handler/data/merged_data/hvac_reaAhu_TRet_y_processed.csv'
+    },
+    {
+        'component_id': 'core_indoor_temp_sensor',
+        'output_value': 'measuredValue',
+        'csv_path': 'C:/Users/asces/OneDriveUni/Projects/RL_control/boptest_model/boptest_handler/data/merged_data/hvac_reaZonCor_TZon_y_processed.csv'
+    },
+    {
+        'component_id': 'core_supply_airflow_sensor',
+        'output_value': 'core_supplyAirflow',
+        'csv_path': 'C:/Users/asces/OneDriveUni/Projects/RL_control/boptest_model/boptest_handler/data/merged_data/hvac_reaZonCor_V_flow_y_processed.csv'
+    },
+    {
+        'component_id': 'core_co2_sensor',
+        'output_value': 'core_indoorCo2Concentration',
+        'csv_path': 'C:/Users/asces/OneDriveUni/Projects/RL_control/boptest_model/boptest_handler/data/merged_data/hvac_reaZonCor_CO2Zon_y_processed.csv'
+    },
+    {
+        'component_id': 'core_supply_damper_position',
+        'output_value': 'core_supplyDamperPosition',
+        'csv_path': 'C:/Users/asces/OneDriveUni/Projects/RL_control/boptest_model/boptest_handler/data/merged_data/hvac_oveZonActCor_yDam_u_processed.csv'
+    },
+    {
+        'component_id': 'core_supply_air_temp_sensor',
+        'output_value': 'core_supplyAirTemperature',
+        'csv_path': 'C:/Users/asces/OneDriveUni/Projects/RL_control/boptest_model/boptest_handler/data/merged_data/hvac_reaZonCor_TSup_y_processed.csv'
+    },
+    {
+        'component_id': 'north_indoor_temp_sensor',
+        'output_value': 'measuredValue',
+        'csv_path': 'C:/Users/asces/OneDriveUni/Projects/RL_control/boptest_model/boptest_handler/data/merged_data/hvac_reaZonNor_TZon_y_processed.csv'
+    },
+    {
+        'component_id': 'north_supply_airflow_sensor',
+        'output_value': 'north_supplyAirflow',
+        'csv_path': 'C:/Users/asces/OneDriveUni/Projects/RL_control/boptest_model/boptest_handler/data/merged_data/hvac_reaZonNor_V_flow_y_processed.csv'
+    },
+    {
+        'component_id': 'north_co2_sensor',
+        'output_value': 'north_indoorCo2Concentration',
+        'csv_path': 'C:/Users/asces/OneDriveUni/Projects/RL_control/boptest_model/boptest_handler/data/merged_data/hvac_reaZonNor_CO2Zon_y_processed.csv'
+    },
+    {
+        'component_id': 'north_supply_damper_position',
+        'output_value': 'north_supplyDamperPosition',
+        'csv_path': 'C:/Users/asces/OneDriveUni/Projects/RL_control/boptest_model/boptest_handler/data/merged_data/hvac_oveZonActNor_yDam_u_processed.csv'
+    },
+    {
+        'component_id': 'north_supply_air_temp_sensor',
+        'output_value': 'north_supplyAirTemperature',
+        'csv_path': 'C:/Users/asces/OneDriveUni/Projects/RL_control/boptest_model/boptest_handler/data/merged_data/hvac_reaZonNor_TSup_y_processed.csv'
+    },
+    {
+        'component_id': 'south_indoor_temp_sensor',
+        'output_value': 'measuredValue',
+        'csv_path': 'C:/Users/asces/OneDriveUni/Projects/RL_control/boptest_model/boptest_handler/data/merged_data/hvac_reaZonSou_TZon_y_processed.csv'
+    },
+    {
+        'component_id': 'south_supply_airflow_sensor',
+        'output_value': 'south_supplyAirflow',
+        'csv_path': 'C:/Users/asces/OneDriveUni/Projects/RL_control/boptest_model/boptest_handler/data/merged_data/hvac_reaZonSou_V_flow_y_processed.csv'
+    },
+    {
+        'component_id': 'south_co2_sensor',
+        'output_value': 'south_indoorCo2Concentration',
+        'csv_path': 'C:/Users/asces/OneDriveUni/Projects/RL_control/boptest_model/boptest_handler/data/merged_data/hvac_reaZonSou_CO2Zon_y_processed.csv'
+    },
+    {
+        'component_id': 'south_supply_damper_position',
+        'output_value': 'south_supplyDamperPosition',
+        'csv_path': 'C:/Users/asces/OneDriveUni/Projects/RL_control/boptest_model/boptest_handler/data/merged_data/hvac_oveZonActSou_yDam_u_processed.csv'
+    },
+    {
+        'component_id': 'south_supply_air_temp_sensor',
+        'output_value': 'south_supplyAirTemperature',
+        'csv_path': 'C:/Users/asces/OneDriveUni/Projects/RL_control/boptest_model/boptest_handler/data/merged_data/hvac_reaZonSou_TSup_y_processed.csv'
+    },
+    {
+        'component_id': 'east_indoor_temp_sensor',
+        'output_value': 'measuredValue',
+        'csv_path': 'C:/Users/asces/OneDriveUni/Projects/RL_control/boptest_model/boptest_handler/data/merged_data/hvac_reaZonEas_TZon_y_processed.csv'
+    },
+    {
+        'component_id': 'east_supply_airflow_sensor',
+        'output_value': 'east_supplyAirflow',
+        'csv_path': 'C:/Users/asces/OneDriveUni/Projects/RL_control/boptest_model/boptest_handler/data/merged_data/hvac_reaZonEas_V_flow_y_processed.csv'
+    },
+    {
+        'component_id': 'east_co2_sensor',
+        'output_value': 'east_indoorCo2Concentration',
+        'csv_path': 'C:/Users/asces/OneDriveUni/Projects/RL_control/boptest_model/boptest_handler/data/merged_data/hvac_reaZonEas_CO2Zon_y_processed.csv'
+    },
+    {
+        'component_id': 'east_supply_damper_position',
+        'output_value': 'east_supplyDamperPosition',
+        'csv_path': 'C:/Users/asces/OneDriveUni/Projects/RL_control/boptest_model/boptest_handler/data/merged_data/hvac_oveZonActEas_yDam_u_processed.csv'
+    },
+    {
+        'component_id': 'east_supply_air_temp_sensor',
+        'output_value': 'east_supplyAirTemperature',
+        'csv_path': 'C:/Users/asces/OneDriveUni/Projects/RL_control/boptest_model/boptest_handler/data/merged_data/hvac_reaZonEas_TSup_y_processed.csv'
+    },
+    {
+        'component_id': 'west_indoor_temp_sensor',
+        'output_value': 'measuredValue',
+        'csv_path': 'C:/Users/asces/OneDriveUni/Projects/RL_control/boptest_model/boptest_handler/data/merged_data/hvac_reaZonWes_TZon_y_processed.csv'
+    },
+    {
+        'component_id': 'west_supply_airflow_sensor',
+        'output_value': 'west_supplyAirflow',
+        'csv_path': 'C:/Users/asces/OneDriveUni/Projects/RL_control/boptest_model/boptest_handler/data/merged_data/hvac_reaZonWes_V_flow_y_processed.csv'
+    },
+    {
+        'component_id': 'west_co2_sensor',
+        'output_value': 'west_indoorCo2Concentration',
+        'csv_path': 'C:/Users/asces/OneDriveUni/Projects/RL_control/boptest_model/boptest_handler/data/merged_data/hvac_reaZonWes_CO2Zon_y_processed.csv'
+    },
+    {
+        'component_id': 'west_supply_damper_position',
+        'output_value': 'west_supplyDamperPosition',
+        'csv_path': 'C:/Users/asces/OneDriveUni/Projects/RL_control/boptest_model/boptest_handler/data/merged_data/hvac_oveZonActWes_yDam_u_processed.csv'
+    },
+    {
+        'component_id': 'west_supply_air_temp_sensor',
+        'output_value': 'west_supplyAirTemperature',
+        'csv_path': 'C:/Users/asces/OneDriveUni/Projects/RL_control/boptest_model/boptest_handler/data/merged_data/hvac_reaZonWes_TSup_y_processed.csv'
+    }
+]
+
 
 def fcn(self):
     '''
@@ -30,7 +173,7 @@ def fcn(self):
     core_temperature_cooling_setpoint = tb.ScheduleSystem(id="core_temperature_cooling_setpoint", saveSimulationResult=True)
 
     #Add core temp controller
-    core_temperature_heating_controller = tb.VAVReheatControllerSystem(id="core_temperature_heating_controller", saveSimulationResult=True)
+    core_temperature_heating_controller = tb.VAVReheatControllerSystem(id="core_temperature_heating_controller", rat_v_flo_min=0, saveSimulationResult=True)
     self.add_connection(core_temperature_heating_setpoint, core_temperature_heating_controller, "scheduleValue", "heatingsetpointValue")
     self.add_connection(core_temperature_cooling_setpoint, core_temperature_heating_controller, "scheduleValue", "coolingsetpointValue")
     self.add_connection(self.components["core"], core_temperature_heating_controller, "indoorTemperature", "roomTemp")
@@ -67,7 +210,7 @@ def fcn(self):
     north_temperature_cooling_setpoint = tb.ScheduleSystem(id="north_temperature_cooling_setpoint", saveSimulationResult=True)
 
     #Add north temp controller
-    north_temperature_heating_controller = tb.VAVReheatControllerSystem(id="north_temperature_heating_controller", saveSimulationResult=True)
+    north_temperature_heating_controller = tb.VAVReheatControllerSystem(id="north_temperature_heating_controller", rat_v_flo_min=0, saveSimulationResult=True)
     self.add_connection(north_temperature_heating_setpoint, north_temperature_heating_controller, "scheduleValue", "heatingsetpointValue")
     self.add_connection(north_temperature_cooling_setpoint, north_temperature_heating_controller, "scheduleValue", "coolingsetpointValue")
     self.add_connection(self.components["north"], north_temperature_heating_controller, "indoorTemperature", "roomTemp")
@@ -102,7 +245,7 @@ def fcn(self):
     south_temperature_cooling_setpoint = tb.ScheduleSystem(id="south_temperature_cooling_setpoint", saveSimulationResult=True)
 
     #Add south temp controller
-    south_temperature_heating_controller = tb.VAVReheatControllerSystem(id="south_temperature_heating_controller", saveSimulationResult=True)
+    south_temperature_heating_controller = tb.VAVReheatControllerSystem(id="south_temperature_heating_controller", rat_v_flo_min=0, saveSimulationResult=True)
     self.add_connection(south_temperature_heating_setpoint, south_temperature_heating_controller, "scheduleValue", "heatingsetpointValue")
     self.add_connection(south_temperature_cooling_setpoint, south_temperature_heating_controller, "scheduleValue", "coolingsetpointValue")
     self.add_connection(self.components["south"], south_temperature_heating_controller, "indoorTemperature", "roomTemp")
@@ -136,7 +279,7 @@ def fcn(self):
     east_temperature_cooling_setpoint = tb.ScheduleSystem(id="east_temperature_cooling_setpoint", saveSimulationResult=True)
 
     #Add east temp controller
-    east_temperature_heating_controller = tb.VAVReheatControllerSystem(id="east_temperature_heating_controller", saveSimulationResult=True)
+    east_temperature_heating_controller = tb.VAVReheatControllerSystem(id="east_temperature_heating_controller", rat_v_flo_min=0, saveSimulationResult=True)
     self.add_connection(east_temperature_heating_setpoint, east_temperature_heating_controller, "scheduleValue", "heatingsetpointValue")
     self.add_connection(east_temperature_cooling_setpoint, east_temperature_heating_controller, "scheduleValue", "coolingsetpointValue")
     self.add_connection(self.components["east"], east_temperature_heating_controller, "indoorTemperature", "roomTemp")
@@ -170,7 +313,7 @@ def fcn(self):
     west_temperature_cooling_setpoint = tb.ScheduleSystem(id="west_temperature_cooling_setpoint", saveSimulationResult=True)
 
     #Add west temp controller
-    west_temperature_heating_controller = tb.VAVReheatControllerSystem(id="west_temperature_heating_controller", saveSimulationResult=True)
+    west_temperature_heating_controller = tb.VAVReheatControllerSystem(id="west_temperature_heating_controller", rat_v_flo_min=0, saveSimulationResult=True)
     self.add_connection(west_temperature_heating_setpoint, west_temperature_heating_controller, "scheduleValue", "heatingsetpointValue")
     self.add_connection(west_temperature_cooling_setpoint, west_temperature_heating_controller, "scheduleValue", "coolingsetpointValue")
     self.add_connection(self.components["west"], west_temperature_heating_controller, "indoorTemperature", "roomTemp")
@@ -210,7 +353,7 @@ def fcn(self):
     vent_supply_airflow_sensor = tb.SensorSystem(id="vent_supply_airflow_sensor", saveSimulationResult=True)
     self.add_connection(supply_junction, vent_supply_airflow_sensor, "airFlowRateIn", "supplyAirflow")
 
-    #Connect return flow junction
+    #Connect return flow junction 
     return_junction = self.components["exhaust_flow_junction"]
     self.add_connection(core_exhaust_damper, return_junction, "airFlowRate", "airFlowRateIn")
     self.add_connection(north_exhaust_damper, return_junction, "airFlowRate", "airFlowRateIn")
@@ -234,14 +377,15 @@ def get_model(id=None, fcn_=None):
         model.id = id
     return model
 
-def run():
-    stepSize = 600  # Seconds
+def run(model = None):
+    stepSize = 60  # Seconds
     
-    startTime = datetime.datetime(year=2024, month=1, day=3, hour=0, minute=0, second=0,
+    startTime = datetime.datetime(year=2024, month=1, day=1, hour=0, minute=0, second=0,
                                 tzinfo=gettz("Europe/Copenhagen"))
-    endTime = datetime.datetime(year=2024, month=1, day=4, hour=0, minute=0, second=0,
+    endTime = datetime.datetime(year=2024, month=2, day=10, hour=0, minute=0, second=0,
                                 tzinfo=gettz("Europe/Copenhagen"))
-    model = get_model()
+    if model is None:
+        model = get_model()
 
     simulator = tb.Simulator()
 
@@ -251,6 +395,8 @@ def run():
                         stepSize=stepSize)
 
     print("Simulation completed successfully!")
+
+    return simulator
 
 def print_parameter_results(model):
     """Print the resulting parameters for all rooms in a more organized way"""
@@ -297,7 +443,6 @@ def print_parameter_results(model):
             else:
                 print(f"{param}: {value}")
 
-
 def parameter_estimation():
     """
     Checklist for the parameter estimation:
@@ -313,11 +458,11 @@ def parameter_estimation():
     [] Load the estimation result
     [] Plot the results
     """
-    stepSize = 600  # Seconds can go down to 30
+    stepSize = 60  # Seconds can go down to 30
     # Then set the startTime and endTime to a valid range
     startTime = datetime.datetime(year=2024, month=1, day=1, hour=0, minute=0, second=0,
                                 tzinfo=gettz("Europe/Copenhagen"))
-    endTime = datetime.datetime(year=2024, month=1, day=15, hour=0, minute=0, second=0,
+    endTime = datetime.datetime(year=2024, month=2, day=12, hour=0, minute=0, second=0,
                                 tzinfo=gettz("Europe/Copenhagen"))
 
     model = get_model()
@@ -522,7 +667,98 @@ def load_and_print_parameters(filename):
     print("Resulting parameters:")
     print_parameter_results(model)
 
+def parameter_evaluation(data_points, parameter_filename):
+    """Evaluate model parameters by comparing simulation results with real data.
+    
+    Args:
+        data_points: List of dictionaries containing:
+            - component_id: ID of the component to extract simulation data from
+            - output_value: Name of the output value from component's saved outputs
+            - csv_path: Path to CSV file containing real data
+        parameter_filename: Path to pickle file containing estimated parameters
+    """
+    """
+    #Example of data_points format:
+    data_points = [
+        {
+            'component_id': 'core_indoor_temp_sensor',
+            'output_value': 'measuredValue',
+            'csv_path': 'path/to/core_temp_data.csv'
+        },
+        # Add more data points as needed
+    ]
+    """
+    
+    # Load model with estimated parameters and run simulation
+    model = get_model(id="five_rooms_only_template")
+    model.load_estimation_result(parameter_filename)
+    print("Resulting parameters:")
+    print_parameter_results(model)
+    simulator = run(model)
+    stepSize = simulator.stepSize
+    plotting_stepSize = 600
+    
+    # Create comparison plots for each data point
+    for data in data_points:
+        component_id = data['component_id']
+        output_value = data['output_value'] 
+        csv_path = data['csv_path']
+        
+        # Get simulation results
+        sim_data = simulator.model.components[component_id].savedOutput[output_value]
+        sim_times = simulator.dateTimeSteps
+        sim_df = pd.Series(data=sim_data, index=sim_times)
+        # Convert timezone without changing the actual timestamps
+        sim_df.index = sim_df.index.tz_convert('Europe/Copenhagen')
+
+        # Read real data
+        real_data = pd.read_csv(csv_path, parse_dates=True, index_col=0)
+        real_data.index = real_data.index.tz_localize('Europe/Copenhagen')
+
+        # First resample both to the common timestep
+        sim_df = sim_df.resample(pd.Timedelta(seconds=plotting_stepSize)).mean()
+        real_data = real_data.resample(pd.Timedelta(seconds=plotting_stepSize)).mean()
+
+        # Find overlapping time period
+        start_time = max(sim_df.index.min(), real_data.index.min())
+        end_time = min(sim_df.index.max(), real_data.index.max())
+        
+        # Slice both datasets to the overlapping period
+        sim_df = sim_df[start_time:end_time]
+        real_data = real_data[start_time:end_time]
+        
+        # Now align the data (should be minimal or no interpolation needed since both are on same timestep)
+        real_data = real_data.reindex(sim_df.index, method='nearest')
+        
+        # Create comparison plot
+        plt.figure(figsize=(12, 6))
+        plt.plot(sim_df.index, sim_df.values, label='Simulation', linewidth=2)
+        plt.plot(real_data.index, real_data.values, label='Real Data', linewidth=2, alpha=0.7)
+        
+        plt.title(f'Comparison for {component_id} - {output_value}')
+        plt.xlabel('Time')
+        plt.ylabel(output_value)
+        plt.legend()
+        plt.grid(True)
+        
+        # Rotate x-axis labels for better readability
+        plt.xticks(rotation=45)
+        plt.tight_layout()
+        
+        # Calculate and display error metrics
+        mse = np.mean((sim_df.values - real_data.values) ** 2)
+        rmse = np.sqrt(mse)
+        mae = np.mean(np.abs(sim_df.values - real_data.values))
+        
+        plt.figtext(0.15, 0.95, 
+                   f'MSE: {mse:.4f}\nRMSE: {rmse:.4f}\nMAE: {mae:.4f}',
+                   bbox=dict(facecolor='white', alpha=0.8))
+        
+        plt.show()
+
+    
+    
 if __name__ == "__main__":
     #parameter_estimation()
-    #run()
-    load_and_print_parameters(r"C:\Users\asces\OneDriveUni\Projects\RL_control\boptest_model\generated_files\models\five_rooms_only_template\model_parameters\estimation_results\LS_result\20250327_181329_ls.pickle")
+    parameter_filename = r"C:\Users\asces\OneDriveUni\Projects\RL_control\boptest_model\generated_files\models\five_rooms_only_template\model_parameters\estimation_results\LS_result\45daysofDataResults.pickle"
+    parameter_evaluation(model_output_points, parameter_filename)
