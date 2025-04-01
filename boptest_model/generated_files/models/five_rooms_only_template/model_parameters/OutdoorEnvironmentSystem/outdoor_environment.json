@@ -1,0 +1,12 @@
+{
+    "parameters": {
+        "a": null,
+        "b": null,
+        "apply_correction": null
+    },
+    "readings": {
+        "filename": "C:/Users/asces/OneDriveUni/Projects/RL_control/boptest_model/boptest_handler/data/merged_data/outdoor_env_data.csv",
+        "datecolumn": null,
+        "valuecolumn": null
+    }
+}

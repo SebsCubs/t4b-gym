@@ -1,0 +1,21 @@
+{
+    "parameters": {
+        "C_supply": 400.0,
+        "C_wall": null,
+        "C_air": null,
+        "C_int": null,
+        "C_boundary": null,
+        "R_out": null,
+        "R_in": null,
+        "R_int": null,
+        "R_boundary": 100,
+        "f_wall": null,
+        "f_air": null,
+        "Q_occ_gain": null,
+        "CO2_occ_gain": 8.18e-6,
+        "CO2_start": 400.0,
+        "airVolume": 360.07984,
+        "T_boundary": 20,
+        "infiltration": 0.005
+    }
+}

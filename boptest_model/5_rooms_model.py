@@ -10,11 +10,8 @@ if __name__ == '__main__':
     file_path = os.path.join(uppath(os.path.abspath(__file__), 4), "Twin4Build")
     sys.path.append(file_path)
 import twin4build as tb
-import twin4build.utils.plot.plot as plot
 from twin4build.utils.uppath import uppath
 import numpy as np
-import cProfile, io, pstats
-from twin4build.utils.rsetattr import rsetattr
 import matplotlib.pyplot as plt
 
 model_output_points = [
@@ -160,7 +157,6 @@ model_output_points = [
     }
 ]
 
-
 def fcn(self):
     '''
         The fcn() function adds connections between components in a system model,
@@ -173,7 +169,7 @@ def fcn(self):
     core_temperature_cooling_setpoint = tb.ScheduleSystem(id="core_temperature_cooling_setpoint", saveSimulationResult=True)
 
     #Add core temp controller
-    core_temperature_heating_controller = tb.VAVReheatControllerSystem(id="core_temperature_heating_controller", rat_v_flo_min=0, saveSimulationResult=True)
+    core_temperature_heating_controller = tb.VAVReheatControllerSystem(id="core_temperature_heating_controller", rat_v_flo_min=0.01, saveSimulationResult=True)
     self.add_connection(core_temperature_heating_setpoint, core_temperature_heating_controller, "scheduleValue", "heatingsetpointValue")
     self.add_connection(core_temperature_cooling_setpoint, core_temperature_heating_controller, "scheduleValue", "coolingsetpointValue")
     self.add_connection(self.components["core"], core_temperature_heating_controller, "indoorTemperature", "roomTemp")
@@ -210,7 +206,7 @@ def fcn(self):
     north_temperature_cooling_setpoint = tb.ScheduleSystem(id="north_temperature_cooling_setpoint", saveSimulationResult=True)
 
     #Add north temp controller
-    north_temperature_heating_controller = tb.VAVReheatControllerSystem(id="north_temperature_heating_controller", rat_v_flo_min=0, saveSimulationResult=True)
+    north_temperature_heating_controller = tb.VAVReheatControllerSystem(id="north_temperature_heating_controller", rat_v_flo_min=0.01, saveSimulationResult=True)
     self.add_connection(north_temperature_heating_setpoint, north_temperature_heating_controller, "scheduleValue", "heatingsetpointValue")
     self.add_connection(north_temperature_cooling_setpoint, north_temperature_heating_controller, "scheduleValue", "coolingsetpointValue")
     self.add_connection(self.components["north"], north_temperature_heating_controller, "indoorTemperature", "roomTemp")
@@ -245,7 +241,7 @@ def fcn(self):
     south_temperature_cooling_setpoint = tb.ScheduleSystem(id="south_temperature_cooling_setpoint", saveSimulationResult=True)
 
     #Add south temp controller
-    south_temperature_heating_controller = tb.VAVReheatControllerSystem(id="south_temperature_heating_controller", rat_v_flo_min=0, saveSimulationResult=True)
+    south_temperature_heating_controller = tb.VAVReheatControllerSystem(id="south_temperature_heating_controller", rat_v_flo_min=0.01, saveSimulationResult=True)
     self.add_connection(south_temperature_heating_setpoint, south_temperature_heating_controller, "scheduleValue", "heatingsetpointValue")
     self.add_connection(south_temperature_cooling_setpoint, south_temperature_heating_controller, "scheduleValue", "coolingsetpointValue")
     self.add_connection(self.components["south"], south_temperature_heating_controller, "indoorTemperature", "roomTemp")
@@ -279,7 +275,7 @@ def fcn(self):
     east_temperature_cooling_setpoint = tb.ScheduleSystem(id="east_temperature_cooling_setpoint", saveSimulationResult=True)
 
     #Add east temp controller
-    east_temperature_heating_controller = tb.VAVReheatControllerSystem(id="east_temperature_heating_controller", rat_v_flo_min=0, saveSimulationResult=True)
+    east_temperature_heating_controller = tb.VAVReheatControllerSystem(id="east_temperature_heating_controller", rat_v_flo_min=0.01, saveSimulationResult=True)
     self.add_connection(east_temperature_heating_setpoint, east_temperature_heating_controller, "scheduleValue", "heatingsetpointValue")
     self.add_connection(east_temperature_cooling_setpoint, east_temperature_heating_controller, "scheduleValue", "coolingsetpointValue")
     self.add_connection(self.components["east"], east_temperature_heating_controller, "indoorTemperature", "roomTemp")
@@ -313,7 +309,7 @@ def fcn(self):
     west_temperature_cooling_setpoint = tb.ScheduleSystem(id="west_temperature_cooling_setpoint", saveSimulationResult=True)
 
     #Add west temp controller
-    west_temperature_heating_controller = tb.VAVReheatControllerSystem(id="west_temperature_heating_controller", rat_v_flo_min=0, saveSimulationResult=True)
+    west_temperature_heating_controller = tb.VAVReheatControllerSystem(id="west_temperature_heating_controller", rat_v_flo_min=0.01, saveSimulationResult=True)
     self.add_connection(west_temperature_heating_setpoint, west_temperature_heating_controller, "scheduleValue", "heatingsetpointValue")
     self.add_connection(west_temperature_cooling_setpoint, west_temperature_heating_controller, "scheduleValue", "coolingsetpointValue")
     self.add_connection(self.components["west"], west_temperature_heating_controller, "indoorTemperature", "roomTemp")
@@ -406,9 +402,9 @@ def print_parameter_results(model):
     # Space model parameters
     print("SPACE MODEL PARAMETERS:")
     space_params = {
-        'core': ['C_air', 'C_int', 'C_boundary', 'R_int', 'R_boundary', 'Q_occ_gain'],
+        'core': ['C_air', 'C_int', 'C_boundary', 'R_int', 'R_boundary', 'Q_occ_gain', 'infiltration', 'T_boundary'],
         'other': ['C_wall', 'C_air', 'C_int', 'C_boundary', 'R_out', 'R_in', 'R_int', 
-                 'R_boundary', 'f_wall', 'f_air', 'Q_occ_gain']
+                 'R_boundary', 'f_wall', 'f_air', 'Q_occ_gain', 'infiltration', 'T_boundary']
     }
     
     for room in rooms:
@@ -462,7 +458,7 @@ def parameter_estimation():
     # Then set the startTime and endTime to a valid range
     startTime = datetime.datetime(year=2024, month=1, day=1, hour=0, minute=0, second=0,
                                 tzinfo=gettz("Europe/Copenhagen"))
-    endTime = datetime.datetime(year=2024, month=2, day=12, hour=0, minute=0, second=0,
+    endTime = datetime.datetime(year=2024, month=2, day=10, hour=0, minute=0, second=0,
                                 tzinfo=gettz("Europe/Copenhagen"))
 
     model = get_model()
@@ -497,26 +493,24 @@ def parameter_estimation():
     dampers_list = [core_supply_damper, core_exhaust_damper, north_supply_damper, north_exhaust_damper, south_supply_damper, south_exhaust_damper, east_supply_damper, east_exhaust_damper, west_supply_damper, west_exhaust_damper]
 
     targetParameters = {"private": {
-                                    "C_air": {"components": [core_space, north_space, south_space, east_space, west_space], "x0": 1e+5, "lb": 1e+4, "ub": 1e+7},                                    
-                                    "C_boundary": {"components": [core_space, north_space, south_space, east_space, west_space], "x0": 1e+5, "lb": 1e+4, "ub": 1e+6},
-                                    "R_boundary": {"components": [core_space, north_space, south_space, east_space, west_space], "x0": 0.1, "lb": 1e-2, "ub": 0.2},
-                                    "Q_occ_gain": {"components": [core_space, north_space, south_space, east_space, west_space], "x0": 100, "lb": 0, "ub": 200},
-
-                                    "C_wall": {"components": [north_space, south_space, east_space, west_space], "x0": 1e+5, "lb": 1e+4, "ub": 1e+7},
-                                    "R_out": {"components": [north_space, south_space, east_space, west_space], "x0": 0.1, "lb": 1e-2, "ub": 0.2},
-                                    "R_in": {"components": [north_space, south_space, east_space, west_space], "x0": 0.1, "lb": 1e-2, "ub": 0.2},
-                                    "f_wall": {"components": [north_space, south_space, east_space, west_space], "x0": 1, "lb": 0, "ub": 3},
-                                    "f_air": {"components": [north_space, south_space, east_space, west_space], "x0": 1, "lb": 0, "ub": 3},
-                                    "k_coo": {"components": [core_temp_controller, north_temp_controller, south_temp_controller, east_temp_controller, west_temp_controller], "x0": 2e-4, "lb": 1e-5, "ub": 3},
-                                    "ti_coo": {"components": [core_temp_controller, north_temp_controller, south_temp_controller, east_temp_controller, west_temp_controller], "x0": 3e-1, "lb": 1e-5, "ub": 3},
-                                    "k_hea": {"components": [core_temp_controller, north_temp_controller, south_temp_controller, east_temp_controller, west_temp_controller], "x0": 2e-4, "lb": 1e-5, "ub": 3},
-                                    "ti_hea": {"components": [core_temp_controller, north_temp_controller, south_temp_controller, east_temp_controller, west_temp_controller], "x0": 3e-1, "lb": 1e-5, "ub": 3},
-                                    "nominalAirFlowRate.hasValue": {"components": dampers_list, "x0": 1.6, "lb": 1e-2, "ub": 5}, #0.0202
+                                    "C_air": {"components": [core_space, north_space, south_space, east_space, west_space], "x0": 1e5, "lb": 1e+4, "ub": 1e+7},                                    
+                                    "C_boundary": {"components": [core_space, north_space, south_space, east_space, west_space], "x0": 1e5, "lb": 1e+4, "ub": 1e+6},
+                                    "Q_occ_gain": {"components": [core_space, north_space, south_space, east_space, west_space], "x0": 90, "lb": 0, "ub": 200},
+                                    "CO2_occ_gain": {"components": [core_space, north_space, south_space, east_space, west_space], "x0": 8.18e-6, "lb": 1e-10, "ub": 0.01},
+                                    "C_wall": {"components": [north_space, south_space, east_space, west_space], "x0": 9.9e4, "lb": 1e+4, "ub": 1e+7},
+                                    "R_out": {"components": [north_space, south_space, east_space, west_space], "x0": 0.013, "lb": 1e-2, "ub": 0.2},
+                                    "R_in": {"components": [north_space, south_space, east_space, west_space], "x0": 0.025, "lb": 1e-2, "ub": 0.2},
+                                    "f_wall": {"components": [north_space, south_space, east_space, west_space], "x0": 0.75, "lb": 0, "ub": 3},
+                                    "f_air": {"components": [north_space, south_space, east_space, west_space], "x0": 0.45, "lb": 0, "ub": 3},
+                                    "k_coo": {"components": [core_temp_controller, north_temp_controller, south_temp_controller, east_temp_controller, west_temp_controller], "x0": 2.5, "lb": 1e-5, "ub": 10},
+                                    "ti_coo": {"components": [core_temp_controller, north_temp_controller, south_temp_controller, east_temp_controller, west_temp_controller], "x0": 0.3, "lb": 1e-5, "ub": 10},
+                                    "k_hea": {"components": [core_temp_controller, north_temp_controller, south_temp_controller, east_temp_controller, west_temp_controller], "x0": 0.5, "lb": 1e-5, "ub": 10},
+                                    "ti_hea": {"components": [core_temp_controller, north_temp_controller, south_temp_controller, east_temp_controller, west_temp_controller], "x0": 0.3, "lb": 1e-5, "ub": 10},
+                                    "nominalAirFlowRate.hasValue": {"components": dampers_list, "x0": 3.5, "lb": 1e-2, "ub": 5},
                                     },
-                        "shared": {"C_int": {"components": [core_space, north_space, south_space, east_space, west_space], "x0": 1e+5, "lb": 1e+4, "ub": 1e+6},
-                                    "R_int": {"components": [core_space, north_space, south_space, east_space, west_space], "x0": 0.1, "lb": 1e-2, "ub": 0.2},
-                                    "T_boundary": {"components": [core_space, north_space, south_space, east_space, west_space], "x0": 20, "lb": 19, "ub": 23},
-                                    "a": {"components": dampers_list, "x0": 5, "lb": 0.5, "ub": 8},
+                        "shared": {"C_int": {"components": [core_space, north_space, south_space, east_space, west_space], "x0": 1e5, "lb": 1e+4, "ub": 1e+6},
+                                    "R_int": {"components": [core_space, north_space, south_space, east_space, west_space], "x0": 0.015, "lb": 1e-2, "ub": 0.2},
+                                    "a": {"components": dampers_list, "x0": 6.74, "lb": 0.5, "ub": 8},
                                     "infiltration": {"components": [core_space, north_space, south_space, east_space, west_space], "x0": 0.001, "lb": 1e-4, "ub": 0.01},
                                     "CO2_occ_gain": {"components": [core_space, north_space, south_space, east_space, west_space], "x0": 0.001, "lb": 1e-4, "ub": 0.01},
                             }}
@@ -636,7 +630,7 @@ def parameter_estimation():
 
     
     options = {
-            "n_cores": 4,
+            "n_cores": 8,
             "ftol": 1e-10,
             "xtol": 1e-10,
             "gtol": 1e-10,
@@ -667,7 +661,7 @@ def load_and_print_parameters(filename):
     print("Resulting parameters:")
     print_parameter_results(model)
 
-def parameter_evaluation(data_points, parameter_filename):
+def parameter_evaluation(data_points, parameter_filename, save_plots=False):
     """Evaluate model parameters by comparing simulation results with real data.
     
     Args:
@@ -753,12 +747,12 @@ def parameter_evaluation(data_points, parameter_filename):
         plt.figtext(0.15, 0.95, 
                    f'MSE: {mse:.4f}\nRMSE: {rmse:.4f}\nMAE: {mae:.4f}',
                    bbox=dict(facecolor='white', alpha=0.8))
-        
+        if save_plots:
+            os.makedirs('plots', exist_ok=True)
+            plt.savefig(f'plots/{component_id}_{output_value}_comparison.png')
         plt.show()
-
-    
-    
+ 
 if __name__ == "__main__":
-    #parameter_estimation()
-    parameter_filename = r"C:\Users\asces\OneDriveUni\Projects\RL_control\boptest_model\generated_files\models\five_rooms_only_template\model_parameters\estimation_results\LS_result\45daysofDataResults.pickle"
-    parameter_evaluation(model_output_points, parameter_filename)
+    parameter_estimation()
+    #parameter_filename = r"C:\Users\asces\OneDriveUni\Projects\RL_control\boptest_model\generated_files\models\five_rooms_only_template\model_parameters\estimation_results\LS_result\45days60stimestepResults.pickle"
+    #parameter_evaluation(model_output_points, parameter_filename, save_plots=True)
