@@ -278,21 +278,24 @@ def print_parameter_results(model):
     
     for room in rooms:
         print(f"\n{room.upper()}:")
-        controller_id = f"{room}_temp_controller"
+        controller_id = f"{room}_temperature_heating_controller"
         for param in controller_params:
             value = getattr(model.components[controller_id], param)
             print(f"{param}: {value}")
     
     # Damper parameters
     print("\nDAMPERS:")
-    damper_params = ['a', 'nominalAirFlowRate']
+    damper_params = ['a', "nominalAirFlowRate"]
     
     for room in rooms:
         print(f"\n{room.upper()}:")
         damper_id = f"{room}_supply_damper"
         for param in damper_params:
             value = getattr(model.components[damper_id], param)
-            print(f"{param}: {value}")
+            if param == "nominalAirFlowRate":
+                print(f"{param}: {value.hasValue}")
+            else:
+                print(f"{param}: {value}")
 
 
 def parameter_estimation():
@@ -317,7 +320,7 @@ def parameter_estimation():
     endTime = datetime.datetime(year=2024, month=1, day=15, hour=0, minute=0, second=0,
                                 tzinfo=gettz("Europe/Copenhagen"))
 
-    model = get_model(id="five_rooms_model")
+    model = get_model()
 
     ## Target parameters definition
     #CORE
@@ -510,7 +513,16 @@ def parameter_estimation():
     print("Resulting parameters:")
     print_parameter_results(model)
 
+def load_and_print_parameters(filename):
+    model = get_model()
+    model.load_estimation_result(filename)
+
+    #Print the resulting parameters
+
+    print("Resulting parameters:")
+    print_parameter_results(model)
 
 if __name__ == "__main__":
-    parameter_estimation()
+    #parameter_estimation()
     #run()
+    load_and_print_parameters(r"C:\Users\asces\OneDriveUni\Projects\RL_control\boptest_model\generated_files\models\five_rooms_only_template\model_parameters\estimation_results\LS_result\20250327_181329_ls.pickle")
