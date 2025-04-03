@@ -145,14 +145,17 @@ def plot_timeseries_data(data_dict, scenario, resample_interval='600S', figsize=
 
 def plot_merged_data(list_of_files, list_of_labels):
     """
-    Plot multiple time series from CSV files in the same plot
+    Plot multiple time series from CSV files in the same plot with interactive legend
     
     Args:
         list_of_files (list): List of paths to CSV files to plot
         list_of_labels (list): List of labels for the legend
     """
     # Initialize a figure
-    plt.figure(figsize=(12, 6))
+    fig, ax = plt.subplots(figsize=(12, 6))
+    
+    # Store the line objects and their visibility state
+    lines = []
     
     # Loop through the list of files
     for i, file in enumerate(list_of_files):
@@ -164,15 +167,37 @@ def plot_merged_data(list_of_files, list_of_labels):
         # Get the actual data column name (should be the only other column besides timestamp)
         data_column = df.columns[0]
         
-        # Plot the data
-        plt.plot(df.index, df[data_column], label=list_of_labels[i])
+        # Plot the data and store the line object
+        line, = ax.plot(df.index, df[data_column], label=list_of_labels[i])
+        lines.append(line)
     
-    # Add a legend
-    plt.legend()
-    plt.xlabel('Time')
-    plt.ylabel('Value')
-    plt.title('Merged Data')
-    plt.grid(True)
+    # Create the legend
+    leg = ax.legend()
+    
+    # Make the legend interactive
+    lined = {}  # Will map legend lines to original lines
+    for legline, origline in zip(leg.get_lines(), lines):
+        legline.set_picker(True)  # Enable picking on the legend line
+        lined[legline] = origline
+    
+    def on_pick(event):
+        # On the pick event, find the original line corresponding to the legend proxy line
+        legline = event.artist
+        origline = lined[legline]
+        vis = not origline.get_visible()
+        origline.set_visible(vis)
+        # Change the alpha on the line in the legend so we can see which lines have been toggled
+        legline.set_alpha(1.0 if vis else 0.2)
+        fig.canvas.draw()
+    
+    # Connect the pick event to the on_pick function
+    fig.canvas.mpl_connect('pick_event', on_pick)
+    
+    # Add labels and title
+    ax.set_xlabel('Time')
+    ax.set_ylabel('Value')
+    ax.set_title('Merged Data (Click legend to toggle lines)')
+    ax.grid(True)
     plt.xticks(rotation=45)
     plt.tight_layout()
     
@@ -215,10 +240,8 @@ if __name__ == "__main__":
     plot_timeseries_data(ahu_data, 'typical_heat_day')
     """
     # Plot the merged data
-    list_of_files = ["C:/Users/asces/OneDriveUni/Projects/RL_control/boptest_model/boptest_handler/data/merged_data/hvac_reaZonCor_TZon_y_processed.csv",
-                     "C:/Users/asces/OneDriveUni/Projects/RL_control/boptest_model/boptest_handler/data/merged_data/hvac_oveZonSupCor_TZonHeaSet_u_processed.csv",
-                     "C:/Users/asces/OneDriveUni/Projects/RL_control/boptest_model/boptest_handler/data/merged_data/hvac_oveZonSupCor_TZonCooSet_u_processed.csv",
+    list_of_files = ["C:/Users/asces/OneDriveUni/Projects/RL_control/boptest_model/boptest_handler/data/merged_data/hvac_reaAhu_TSup_y_processed.csv",
                      "C:/Users/asces/OneDriveUni/Projects/RL_control/boptest_model/boptest_handler/data/merged_data/hvac_reaZonCor_TSup_y_processed.csv",
                      ]
-    list_of_labels = ["Zone Temperature", "Heating Setpoint", "Cooling Setpoint", "Zone Supply Air Temperature"]
+    list_of_labels = ["AHU Supply Air Temperature", "Zone Supply Air Temperature"]
     plot_merged_data(list_of_files, list_of_labels)

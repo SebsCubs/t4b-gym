@@ -382,6 +382,7 @@ def run(model = None):
                                 tzinfo=gettz("Europe/Copenhagen"))
     if model is None:
         model = get_model()
+        #model._connect() #Neccessary with this fcn function modifying the model so much
 
     simulator = tb.Simulator()
 
@@ -753,6 +754,6 @@ def parameter_evaluation(data_points, parameter_filename, save_plots=False):
         plt.show()
  
 if __name__ == "__main__":
-    parameter_estimation()
-    #parameter_filename = r"C:\Users\asces\OneDriveUni\Projects\RL_control\boptest_model\generated_files\models\five_rooms_only_template\model_parameters\estimation_results\LS_result\45days60stimestepResults.pickle"
-    #parameter_evaluation(model_output_points, parameter_filename, save_plots=True)
+    #parameter_estimation()
+    parameter_filename = r"C:\Users\asces\OneDriveUni\Projects\RL_control\boptest_model\generated_files\models\five_rooms_only_template\model_parameters\estimation_results\LS_result\20250401_145631_ls.pickle"
+    parameter_evaluation(model_output_points, parameter_filename, save_plots=True)
