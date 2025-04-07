@@ -240,8 +240,8 @@ if __name__ == "__main__":
     plot_timeseries_data(ahu_data, 'typical_heat_day')
     """
     # Plot the merged data
-    list_of_files = ["C:/Users/asces/OneDriveUni/Projects/RL_control/boptest_model/boptest_handler/data/merged_data/hvac_reaAhu_TSup_y_processed.csv",
-                     "C:/Users/asces/OneDriveUni/Projects/RL_control/boptest_model/boptest_handler/data/merged_data/hvac_reaZonCor_TSup_y_processed.csv",
+    list_of_files = ["C:/Users/asces/OneDriveUni/Projects/RL_control/boptest_model/boptest_handler/data/merged_data/Occupancy[cor]_30s_processed.csv",
+                     "C:/Users/asces/OneDriveUni/Projects/RL_control/boptest_model/boptest_handler/data/merged_data/Occupancy[nor]_30s_processed.csv",
                      ]
-    list_of_labels = ["AHU Supply Air Temperature", "Zone Supply Air Temperature"]
+    list_of_labels = ["core occupancy", "north occupancy"]
     plot_merged_data(list_of_files, list_of_labels)

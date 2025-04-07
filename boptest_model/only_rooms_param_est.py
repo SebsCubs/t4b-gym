@@ -138,7 +138,7 @@ def run(model = None):
     
     startTime = datetime.datetime(year=2024, month=1, day=1, hour=0, minute=0, second=0,
                                 tzinfo=gettz("Europe/Copenhagen"))
-    endTime = datetime.datetime(year=2024, month=1, day=15, hour=0, minute=0, second=0,
+    endTime = datetime.datetime(year=2024, month=2, day=12, hour=0, minute=0, second=0,
                                 tzinfo=gettz("Europe/Copenhagen"))
     if model is None:
         model = get_model()
@@ -198,20 +198,20 @@ def parameter_estimation():
     west_space = model.components["west"]
 
     targetParameters = {"private": {
-                                    "C_wall": {"components": [north_space, south_space, east_space, west_space], "x0": 1e6, "lb": 1e+4, "ub": 1e+8},
-                                    "C_air": {"components": [core_space, north_space, south_space, east_space, west_space], "x0": 1e6, "lb": 1e+4, "ub": 1e+8},                                    
+                                    "C_wall": {"components": [north_space, south_space, east_space, west_space], "x0": 5476780, "lb": 1e+4, "ub": 1e+8},
+                                    "C_air": {"components": [core_space, north_space, south_space, east_space, west_space], "x0": 3698995, "lb": 1e+4, "ub": 1e+8},                                    
                                     "C_boundary": {"components": [core_space, north_space, south_space, east_space, west_space], "x0": 1e6, "lb": 1e+4, "ub": 1e+8},
-                                    "C_int": {"components": [core_space, north_space, south_space, east_space, west_space], "x0": 1e6, "lb": 1e+4, "ub": 1e+8},
-                                    "R_out": {"components": [north_space, south_space, east_space, west_space], "x0": 0.013, "lb": 1e-2, "ub": 0.5},
-                                    "R_in": {"components": [north_space, south_space, east_space, west_space], "x0": 0.025, "lb": 1e-4, "ub": 0.5},
+                                    "C_int": {"components": [core_space, north_space, south_space, east_space, west_space], "x0": 17381232, "lb": 1e+4, "ub": 1e+8},
+                                    "R_out": {"components": [north_space, south_space, east_space, west_space], "x0": 0.019, "lb": 1e-2, "ub": 0.5},
+                                    "R_in": {"components": [north_space, south_space, east_space, west_space], "x0": 0.015, "lb": 1e-4, "ub": 0.5},
                                     "f_wall": {"components": [north_space, south_space, east_space, west_space], "x0": 0.75, "lb": 0, "ub": 6},
                                     "f_air": {"components": [north_space, south_space, east_space, west_space], "x0": 0.45, "lb": 0, "ub": 6},
-                                    "R_int": {"components": [core_space, north_space, south_space, east_space, west_space], "x0": 0.015, "lb": 1e-4, "ub": 0.2},
-                                    "Q_occ_gain": {"components": [core_space, north_space, south_space, east_space, west_space], "x0": 90, "lb": 0, "ub": 500},
+                                    "R_int": {"components": [core_space, north_space, south_space, east_space, west_space], "x0": 0.015, "lb": 1e-5, "ub": 0.2},
+                                    "Q_occ_gain": {"components": [core_space, north_space, south_space, east_space, west_space], "x0": 200, "lb": 100, "ub": 350},
                                     },
                         "shared": {
                                     "CO2_occ_gain": {"components": [core_space, north_space, south_space, east_space, west_space], "x0": 8.18e-6, "lb": 1e-10, "ub": 0.1},
-                                    "infiltration": {"components": [core_space, north_space, south_space, east_space, west_space], "x0": 1e-5, "lb": 1e-7, "ub": 0.01}
+                                    "infiltration": {"components": [core_space, north_space, south_space, east_space, west_space], "x0": 1e-5, "lb": 1e-10, "ub": 0.01}
                             }}
     
     """
@@ -275,7 +275,7 @@ def parameter_estimation():
     - Indoor air temperature (core_indoor_air_temp_sensor, north_indoor_air_temp_sensor, south_indoor_air_temp_sensor, east_indoor_air_temp_sensor, west_indoor_air_temp_sensor)
     - CO2 concentration (core_co2_sensor, north_co2_sensor, south_co2_sensor, east_co2_sensor, west_co2_sensor)
     """
-
+    
 
     percentile = 2
     targetMeasuringDevices = {
@@ -344,8 +344,30 @@ def parameter_evaluation(data_points, parameter_filename, save_plots=False):
     # Load model with estimated parameters and run simulation
     model = get_model(id="only_rooms_estimation")
     model.load_estimation_result(parameter_filename)
+
+
+    
+
+    """
+    CORE:
+        C_supply: 400.0
+        C_air: 10564828.200215876
+        C_int: 6852402.107907902
+        C_boundary: 1221217.5316119944
+        R_int: 0.00031542152549524235
+        R_boundary: 100.0
+        Q_occ_gain: 251.2805298698468
+        CO2_occ_gain: 1.1067941581940439e-05
+        CO2_start: 400.0
+        airVolume: 2698.00128
+        T_boundary: 20.0
+        infiltration: 1.0000000000000001e-07
+    
+    """
+    model.components["core"].Q_occ_gain = 255
     print("Resulting parameters:")
     print_parameter_results(model)
+
     simulator = run(model)
     stepSize = simulator.stepSize
     plotting_stepSize = 600
@@ -412,6 +434,6 @@ def parameter_evaluation(data_points, parameter_filename, save_plots=False):
 
 
 if __name__ == "__main__":
-    filepath = parameter_estimation()
-    #filepath = r"C:\Users\asces\OneDriveUni\Projects\RL_control\boptest_model\generated_files\models\only_rooms_estimation\model_parameters\estimation_results\LS_result\20250407_105450_ls.pickle"
+    #filepath = parameter_estimation()
+    filepath = r"C:\Users\asces\OneDriveUni\Projects\RL_control\boptest_model\generated_files\models\only_rooms_estimation\model_parameters\estimation_results\LS_result\20250407_144914_ls.pickle"
     parameter_evaluation(model_output_points, filepath, save_plots=True)
