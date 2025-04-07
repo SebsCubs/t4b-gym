@@ -513,7 +513,7 @@ def parameter_estimation():
                                     "R_int": {"components": [core_space, north_space, south_space, east_space, west_space], "x0": 0.015, "lb": 1e-2, "ub": 0.2},
                                     "a": {"components": dampers_list, "x0": 6.74, "lb": 0.5, "ub": 8},
                                     "infiltration": {"components": [core_space, north_space, south_space, east_space, west_space], "x0": 0.001, "lb": 1e-4, "ub": 0.01},
-                                    "CO2_occ_gain": {"components": [core_space, north_space, south_space, east_space, west_space], "x0": 0.001, "lb": 1e-4, "ub": 0.01},
+                                    "CO2_occ_gain": {"components": [core_space, north_space, south_space, east_space, west_space], "x0": 1e-4, "lb": 1e-7, "ub": 0.01},
                             }}
     
     """
