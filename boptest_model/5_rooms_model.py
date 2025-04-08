@@ -369,6 +369,8 @@ def get_model(id=None, fcn_=None):
     
     filename = os.path.join(uppath(os.path.abspath(__file__), 1), r"semantic_models\five_rooms_no_contr.xlsm")
     model.load(semantic_model_filename=filename, fcn=fcn_, create_signature_graphs=False, validate_model=True, verbose=True, force_config_update=True)
+   
+    model.load_estimation_result(r"C:\Users\asces\OneDriveUni\Projects\RL_control\boptest_model\generated_files\models\only_rooms_estimation\model_parameters\estimation_results\LS_result\mix_day_most_accurate_08042025.pickle")
     if id is not None:
         model.id = id
     return model
@@ -378,7 +380,7 @@ def run(model = None):
     
     startTime = datetime.datetime(year=2024, month=1, day=1, hour=0, minute=0, second=0,
                                 tzinfo=gettz("Europe/Copenhagen"))
-    endTime = datetime.datetime(year=2024, month=2, day=10, hour=0, minute=0, second=0,
+    endTime = datetime.datetime(year=2024, month=1, day=15, hour=0, minute=0, second=0,
                                 tzinfo=gettz("Europe/Copenhagen"))
     if model is None:
         model = get_model()
@@ -459,34 +461,30 @@ def parameter_estimation():
     # Then set the startTime and endTime to a valid range
     startTime = datetime.datetime(year=2024, month=1, day=1, hour=0, minute=0, second=0,
                                 tzinfo=gettz("Europe/Copenhagen"))
-    endTime = datetime.datetime(year=2024, month=2, day=10, hour=0, minute=0, second=0,
+    endTime = datetime.datetime(year=2024, month=1, day=15, hour=0, minute=0, second=0,
                                 tzinfo=gettz("Europe/Copenhagen"))
 
     model = get_model()
 
     ## Target parameters definition
+    #Space parameters are estimated separately
     #CORE
-    core_space = model.components["core"]
     core_supply_damper = model.components["core_supply_damper"]
     core_exhaust_damper = model.components["core_exhaust_damper"]
     core_temp_controller = model.components["core_temperature_heating_controller"]
     #NORTH
-    north_space = model.components["north"]
     north_supply_damper = model.components["north_supply_damper"]
     north_exhaust_damper = model.components["north_exhaust_damper"]
     north_temp_controller = model.components["north_temperature_heating_controller"]
     #SOUTH
-    south_space = model.components["south"]
     south_supply_damper = model.components["south_supply_damper"]
     south_exhaust_damper = model.components["south_exhaust_damper"]
     south_temp_controller = model.components["south_temperature_heating_controller"]
     #EAST
-    east_space = model.components["east"]
     east_supply_damper = model.components["east_supply_damper"]
     east_exhaust_damper = model.components["east_exhaust_damper"]
     east_temp_controller = model.components["east_temperature_heating_controller"]
     #WEST
-    west_space = model.components["west"]
     west_supply_damper = model.components["west_supply_damper"]
     west_exhaust_damper = model.components["west_exhaust_damper"]
     west_temp_controller = model.components["west_temperature_heating_controller"]
@@ -494,27 +492,14 @@ def parameter_estimation():
     dampers_list = [core_supply_damper, core_exhaust_damper, north_supply_damper, north_exhaust_damper, south_supply_damper, south_exhaust_damper, east_supply_damper, east_exhaust_damper, west_supply_damper, west_exhaust_damper]
 
     targetParameters = {"private": {
-                                    "C_air": {"components": [core_space, north_space, south_space, east_space, west_space], "x0": 1e5, "lb": 1e+4, "ub": 1e+7},                                    
-                                    "C_boundary": {"components": [core_space, north_space, south_space, east_space, west_space], "x0": 1e5, "lb": 1e+4, "ub": 1e+6},
-                                    "Q_occ_gain": {"components": [core_space, north_space, south_space, east_space, west_space], "x0": 90, "lb": 0, "ub": 200},
-                                    "CO2_occ_gain": {"components": [core_space, north_space, south_space, east_space, west_space], "x0": 8.18e-6, "lb": 1e-10, "ub": 0.01},
-                                    "C_wall": {"components": [north_space, south_space, east_space, west_space], "x0": 9.9e4, "lb": 1e+4, "ub": 1e+7},
-                                    "R_out": {"components": [north_space, south_space, east_space, west_space], "x0": 0.013, "lb": 1e-2, "ub": 0.2},
-                                    "R_in": {"components": [north_space, south_space, east_space, west_space], "x0": 0.025, "lb": 1e-2, "ub": 0.2},
-                                    "f_wall": {"components": [north_space, south_space, east_space, west_space], "x0": 0.75, "lb": 0, "ub": 3},
-                                    "f_air": {"components": [north_space, south_space, east_space, west_space], "x0": 0.45, "lb": 0, "ub": 3},
-                                    "k_coo": {"components": [core_temp_controller, north_temp_controller, south_temp_controller, east_temp_controller, west_temp_controller], "x0": 2.5, "lb": 1e-5, "ub": 10},
-                                    "ti_coo": {"components": [core_temp_controller, north_temp_controller, south_temp_controller, east_temp_controller, west_temp_controller], "x0": 0.3, "lb": 1e-5, "ub": 10},
-                                    "k_hea": {"components": [core_temp_controller, north_temp_controller, south_temp_controller, east_temp_controller, west_temp_controller], "x0": 0.5, "lb": 1e-5, "ub": 10},
-                                    "ti_hea": {"components": [core_temp_controller, north_temp_controller, south_temp_controller, east_temp_controller, west_temp_controller], "x0": 0.3, "lb": 1e-5, "ub": 10},
-                                    "nominalAirFlowRate.hasValue": {"components": dampers_list, "x0": 3.5, "lb": 1e-2, "ub": 5},
-                                    },
-                        "shared": {"C_int": {"components": [core_space, north_space, south_space, east_space, west_space], "x0": 1e5, "lb": 1e+4, "ub": 1e+6},
-                                    "R_int": {"components": [core_space, north_space, south_space, east_space, west_space], "x0": 0.015, "lb": 1e-2, "ub": 0.2},
-                                    "a": {"components": dampers_list, "x0": 6.74, "lb": 0.5, "ub": 8},
-                                    "infiltration": {"components": [core_space, north_space, south_space, east_space, west_space], "x0": 0.001, "lb": 1e-4, "ub": 0.01},
-                                    "CO2_occ_gain": {"components": [core_space, north_space, south_space, east_space, west_space], "x0": 1e-4, "lb": 1e-7, "ub": 0.01},
-                            }}
+                                    "k_coo": {"components": [core_temp_controller, north_temp_controller, south_temp_controller, east_temp_controller, west_temp_controller], "x0": 1, "lb": 1e-5, "ub": 10},
+                                    "ti_coo": {"components": [core_temp_controller, north_temp_controller, south_temp_controller, east_temp_controller, west_temp_controller], "x0": 1, "lb": 1e-5, "ub": 10},
+                                    "k_hea": {"components": [core_temp_controller, north_temp_controller, south_temp_controller, east_temp_controller, west_temp_controller], "x0": 1, "lb": 1e-5, "ub": 10},
+                                    "ti_hea": {"components": [core_temp_controller, north_temp_controller, south_temp_controller, east_temp_controller, west_temp_controller], "x0": 1, "lb": 1e-5, "ub": 10},
+                                    "nominalAirFlowRate.hasValue": {"components": dampers_list, "x0": 3.5, "lb": 1e-2, "ub": 10},
+                                    "a": {"components": dampers_list, "x0": 6.74, "lb": 0.5, "ub": 8}
+                                    }
+                        }
     
     """
     Parameters for each room:
@@ -522,50 +507,6 @@ def parameter_estimation():
         - a (shared) 
         - nominalAirFlowRate
     - PI controller Kp, Ki constants
-    - Space model parameters:
-
-      BuildingSpaceNoSH1AdjBoundaryOutdoorFMUSystem (north, south, east, west)
-
-        C_supply 400
-        C_wall - To be estimated
-        C_air  - To be estimated
-        C_int  - To be estimated (shared)
-        C_boundary  - To be estimated
-        R_out  - To be estimated
-        R_in  - To be estimated
-        R_int  - To be estimated (shared)
-        R_boundary  - To be estimated
-        f_wall  - To be estimated
-        f_air  - To be estimated 
-        Q_occ_gain - To be estimated (default 0)
-        CO2_occ_gain  - To be estimated 8.18e-6?
-        CO2_start (400 ppm)
-        T_boundary  - To be estimated (shared)
-        infiltration - To be estimated (shared)
-        airVolume (Known from geometry)
-
-        BuildingSpaceNoSH1AdjBoundaryFMUSystem (core)
-
-        C_supply 400
-        C_air  - To be estimated
-        C_int - To be estimated (shared)    
-        C_boundary - To be estimated
-        R_int - To be estimated (shared)
-        R_boundary  - To be estimated
-        Q_occ_gain  - To be estimated (default 0 ?)
-        CO2_occ_gain  - To be estimated (shared) (Where does it come from?) 8.18e-6 ?
-        CO2_start (400 ppm)
-        T_boundary - To be estimated (shared)
-        infiltration - To be estimated (shared ?)
-        airVolume (Known from geometry)
-        
-        Where the shared parameters to reduce estimation effort are:
-        - C_int
-        - R_int
-        - T_boundary
-        - a (For the dampers)
-
-
     Required data points:
     Common data points:
     [x]Supply air temperature (hvac_reaAhu_TSup_y)
@@ -594,36 +535,36 @@ def parameter_estimation():
 
     percentile = 2
     targetMeasuringDevices = {
-                             model.components["vent_supply_airflow_sensor"]: {"standardDeviation": 0.1/percentile, "scale_factor": 20},
-                             model.components["vent_return_airflow_sensor"]: {"standardDeviation": 0.1/percentile, "scale_factor": 20},
+                             model.components["vent_supply_airflow_sensor"]: {"standardDeviation": 0.1/percentile, "scale_factor": 10},
+                             model.components["vent_return_airflow_sensor"]: {"standardDeviation": 0.1/percentile, "scale_factor": 10},
                              model.components["vent_return_air_temp_sensor"]: {"standardDeviation": 0.1/percentile, "scale_factor": 20},
 
                              model.components["core_indoor_temp_sensor"]: {"standardDeviation": 0.1/percentile, "scale_factor": 20},
-                             model.components["core_supply_airflow_sensor"]: {"standardDeviation": 0.1/percentile, "scale_factor": 1.5},
+                             model.components["core_supply_airflow_sensor"]: {"standardDeviation": 0.1/percentile, "scale_factor": 3},
                              model.components["core_co2_sensor"]: {"standardDeviation": 10/percentile, "scale_factor": 400},
                              model.components["core_supply_damper_position"]: {"standardDeviation": 0.01/percentile, "scale_factor": 1},
                              model.components["core_supply_air_temp_sensor"]: {"standardDeviation": 0.1/percentile, "scale_factor": 20},
 
                              model.components["north_indoor_temp_sensor"]: {"standardDeviation": 0.1/percentile, "scale_factor": 20},
-                             model.components["north_supply_airflow_sensor"]: {"standardDeviation": 0.1/percentile, "scale_factor": 1.5},
+                             model.components["north_supply_airflow_sensor"]: {"standardDeviation": 0.1/percentile, "scale_factor": 3},
                              model.components["north_co2_sensor"]: {"standardDeviation": 10/percentile, "scale_factor": 400},
                              model.components["north_supply_damper_position"]: {"standardDeviation": 0.01/percentile, "scale_factor": 1}, 
                              model.components["north_supply_air_temp_sensor"]: {"standardDeviation": 0.1/percentile, "scale_factor": 20},
 
                              model.components["south_indoor_temp_sensor"]: {"standardDeviation": 0.1/percentile, "scale_factor": 20},
-                             model.components["south_supply_airflow_sensor"]: {"standardDeviation": 0.1/percentile, "scale_factor": 1.5},
+                             model.components["south_supply_airflow_sensor"]: {"standardDeviation": 0.1/percentile, "scale_factor": 3},
                              model.components["south_co2_sensor"]: {"standardDeviation": 10/percentile, "scale_factor": 400},
                              model.components["south_supply_damper_position"]: {"standardDeviation": 0.01/percentile, "scale_factor": 1},
                              model.components["south_supply_air_temp_sensor"]: {"standardDeviation": 0.1/percentile, "scale_factor": 20},
 
                              model.components["east_indoor_temp_sensor"]: {"standardDeviation": 0.1/percentile, "scale_factor": 20},
-                             model.components["east_supply_airflow_sensor"]: {"standardDeviation": 0.1/percentile, "scale_factor": 1.5},
+                             model.components["east_supply_airflow_sensor"]: {"standardDeviation": 0.1/percentile, "scale_factor": 3},
                              model.components["east_co2_sensor"]: {"standardDeviation": 10/percentile, "scale_factor": 400},
                              model.components["east_supply_damper_position"]: {"standardDeviation": 0.01/percentile, "scale_factor": 1},
                              model.components["east_supply_air_temp_sensor"]: {"standardDeviation": 0.1/percentile, "scale_factor": 20},
 
                              model.components["west_indoor_temp_sensor"]: {"standardDeviation": 0.1/percentile, "scale_factor": 20},
-                             model.components["west_supply_airflow_sensor"]: {"standardDeviation": 0.1/percentile, "scale_factor": 1.5},
+                             model.components["west_supply_airflow_sensor"]: {"standardDeviation": 0.1/percentile, "scale_factor": 3},
                              model.components["west_co2_sensor"]: {"standardDeviation": 10/percentile, "scale_factor": 400},
                              model.components["west_supply_damper_position"]: {"standardDeviation": 0.01/percentile, "scale_factor": 1},
                              model.components["west_supply_air_temp_sensor"]: {"standardDeviation": 0.1/percentile, "scale_factor": 20},
@@ -635,6 +576,7 @@ def parameter_estimation():
             "ftol": 1e-10,
             "xtol": 1e-10,
             "gtol": 1e-10,
+            "max_nfev": 90,
             "verbose": 2}
     estimator = tb.Estimator(model)
     estimator.estimate(targetParameters=targetParameters,
@@ -650,8 +592,10 @@ def parameter_estimation():
 
     #Print the resulting parameters
 
-    print("Resulting parameters:")
+    print("Resulting parameters saved: ", estimator.result_savedir_pickle)
     print_parameter_results(model)
+
+    return estimator.result_savedir_pickle
 
 def load_and_print_parameters(filename):
     model = get_model()
@@ -754,6 +698,6 @@ def parameter_evaluation(data_points, parameter_filename, save_plots=False):
         plt.show()
  
 if __name__ == "__main__":
-    #parameter_estimation()
-    parameter_filename = r"C:\Users\asces\OneDriveUni\Projects\RL_control\boptest_model\generated_files\models\five_rooms_only_template\model_parameters\estimation_results\LS_result\20250401_145631_ls.pickle"
+    parameter_filename = parameter_estimation()
+    #parameter_filename = r"C:\Users\asces\OneDriveUni\Projects\RL_control\boptest_model\generated_files\models\five_rooms_only_template\model_parameters\estimation_results\LS_result\20250401_145631_ls.pickle"
     parameter_evaluation(model_output_points, parameter_filename, save_plots=True)
