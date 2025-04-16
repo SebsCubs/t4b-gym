@@ -297,14 +297,16 @@ def parameter_estimation():
 
     
     options = {
-            "n_cores": 8,
-            "ftol": 1e-10,
-            "xtol": 1e-10,
-            "gtol": 1e-10,
-            "max_nfev": 90,
-            "verbose": 2}
+                "n_cores": 8,
+                "ftol": 1e-10,
+                "xtol": 1e-10,
+                "gtol": 1e-10,
+                "max_nfev": 90,
+                "verbose": 2
+            }
     estimator = tb.Estimator(model)
-    estimator.estimate(targetParameters=targetParameters,
+    estimator.estimate(
+                        targetParameters=targetParameters,
                         targetMeasuringDevices=targetMeasuringDevices,
                         startTime=startTime,
                         endTime=endTime,
@@ -312,7 +314,7 @@ def parameter_estimation():
                         method="LS", #Use Least Squares instead
                         options=options,
                         verbose=True
-                        )
+                    )
     model.load_estimation_result(estimator.result_savedir_pickle)
     print("Resulting parameters:")
     print_parameter_results(model)

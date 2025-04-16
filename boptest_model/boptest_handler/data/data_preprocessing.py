@@ -316,6 +316,32 @@ def create_outdoor_env_data():
     merged_df.to_csv(os.path.join(script_dir, "merged_data\outdoor_env_data.csv"), index=False)
     print("Outdoor environment data created successfully!")
 
+def create_water_temperature_data():
+    """Create water temperature data."""
+    script_dir = get_script_directory()
+    main_coil_inlet_water_temperature = os.path.join(script_dir, "merged_data\hvac_reaAhu_THeaCoiSup_y_processed.csv")
+    #Create two dataframes, one for the inlet and one for the outlet with the same size
+    # and timestamp as the main_coil_inlet_water_temperature, then fill the inlet with constant 45 degrees
+    # and the outlet with constant 35 degrees
+    main_coil_inlet_water_temperature = pd.read_csv(main_coil_inlet_water_temperature)
+
+    #Create two dataframes, one for the inlet and one for the outlet with the same size
+    coils_inlet_water_temperature = pd.DataFrame(index=main_coil_inlet_water_temperature.index)
+    coils_outlet_water_temperature = pd.DataFrame(index=main_coil_inlet_water_temperature.index)
+
+    #Keep the timestamp from the main_coil_inlet_water_temperature
+    coils_inlet_water_temperature['timestamp'] = main_coil_inlet_water_temperature['timestamp']
+    coils_outlet_water_temperature['timestamp'] = main_coil_inlet_water_temperature['timestamp']
+
+    coils_inlet_water_temperature['inlet_water_temperature'] = 45
+    coils_outlet_water_temperature['outlet_water_temperature'] = 35
+
+    #Save the two dataframes to csv
+    coils_inlet_water_temperature.to_csv(os.path.join(script_dir, "merged_data\coils_inlet_water_temperature.csv"), index=False)
+    coils_outlet_water_temperature.to_csv(os.path.join(script_dir, "merged_data\coils_outlet_water_temperature.csv"), index=False)
+    print("Water temperature data created successfully!")
+
+
 def transform_temp_to_celsius(csv_file_path):
     """Read CSV file and transform temperature data from Kelvin to Celsius."""
     df = pd.read_csv(csv_file_path)
@@ -368,6 +394,7 @@ def regenerate_all_data():
     process_csv_files()
     process_all_occupancy_data()
     create_outdoor_env_data()
+    create_water_temperature_data()
     transform_temp_to_celsius_all()
 
 if __name__ == "__main__":

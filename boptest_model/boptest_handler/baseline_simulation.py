@@ -194,10 +194,10 @@ if __name__ == "__main__":
     print(f"\nProcessing {measurement['name']} measurements...")
     print(f"Points to process: {points}")
     """
-    points = ["weaSta_reaWeaHGloHor_y"] # Global horizontal solar radiation
-    #url='http://192.168.8.65:80'
+    points = ["hvac_oveZonActCor_yReaHea_u", "hvac_oveZonActNor_yReaHea_u", "hvac_oveZonActSou_yReaHea_u", "hvac_oveZonActEas_yReaHea_u", "hvac_oveZonActWes_yReaHea_u"] # Reheat control signal
+    url='http://192.168.8.65:80'
     
-    url='http://127.0.0.1:80'
+    #url='http://127.0.0.1:80'
     # For each scenario
     for scenario in scenarios:
         print(f"\nRunning scenario: {scenario}")
