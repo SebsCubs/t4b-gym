@@ -580,7 +580,7 @@ def parameter_evaluation(data_points, parameter_filename, save_plots=False):
     # Results: C:/Users/asces/OneDriveUni/Projects/RL_control/boptest_model/generated_files/models/vav_controllers_param_est/model_parameters/estimation_results/LS_result/20250416_122059_ls.pickle
 
     west_coil = model.components["west_reheat_coil"]
-    west_coil.m1_flow_nominal = 2.7941920710414165
+    west_coil.m1_flow_nominal = 2.489581121812883
     west_coil.m2_flow_nominal = 1.10274451
     west_coil.tau1 = 11.740211593307396
     west_coil.tau2 = 4.769272915298189

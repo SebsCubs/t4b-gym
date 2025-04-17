@@ -16,29 +16,9 @@ import matplotlib.pyplot as plt
 
 model_output_points = [
     {
-        'component_id': 'vent_supply_airflow_sensor',
-        'output_value': 'supplyAirflow',
-        'csv_path': 'C:/Users/asces/OneDriveUni/Projects/RL_control/boptest_model/boptest_handler/data/merged_data/hvac_reaAhu_V_flow_sup_y_processed.csv'
-    },
-    {
-        'component_id': 'vent_return_airflow_sensor',
-        'output_value': 'returnAirflow',
-        'csv_path': 'C:/Users/asces/OneDriveUni/Projects/RL_control/boptest_model/boptest_handler/data/merged_data/hvac_reaAhu_V_flow_ret_y_processed.csv'
-    },
-    {
-        'component_id': 'vent_return_air_temp_sensor',
-        'output_value': 'returnAirTemperature',
-        'csv_path': 'C:/Users/asces/OneDriveUni/Projects/RL_control/boptest_model/boptest_handler/data/merged_data/hvac_reaAhu_TRet_y_processed.csv'
-    },
-    {
         'component_id': 'core_indoor_temp_sensor',
-        'output_value': 'measuredValue',
+        'output_value': 'core_indoorTemperature',
         'csv_path': 'C:/Users/asces/OneDriveUni/Projects/RL_control/boptest_model/boptest_handler/data/merged_data/hvac_reaZonCor_TZon_y_processed.csv'
-    },
-    {
-        'component_id': 'core_supply_airflow_sensor',
-        'output_value': 'core_supplyAirflow',
-        'csv_path': 'C:/Users/asces/OneDriveUni/Projects/RL_control/boptest_model/boptest_handler/data/merged_data/hvac_reaZonCor_V_flow_y_processed.csv'
     },
     {
         'component_id': 'core_co2_sensor',
@@ -46,24 +26,9 @@ model_output_points = [
         'csv_path': 'C:/Users/asces/OneDriveUni/Projects/RL_control/boptest_model/boptest_handler/data/merged_data/hvac_reaZonCor_CO2Zon_y_processed.csv'
     },
     {
-        'component_id': 'core_supply_damper_position',
-        'output_value': 'core_supplyDamperPosition',
-        'csv_path': 'C:/Users/asces/OneDriveUni/Projects/RL_control/boptest_model/boptest_handler/data/merged_data/hvac_oveZonActCor_yDam_u_processed.csv'
-    },
-    {
-        'component_id': 'core_supply_air_temp_sensor',
-        'output_value': 'core_supplyAirTemperature',
-        'csv_path': 'C:/Users/asces/OneDriveUni/Projects/RL_control/boptest_model/boptest_handler/data/merged_data/hvac_reaZonCor_TSup_y_processed.csv'
-    },
-    {
         'component_id': 'north_indoor_temp_sensor',
-        'output_value': 'measuredValue',
+        'output_value': 'north_indoorTemperature',
         'csv_path': 'C:/Users/asces/OneDriveUni/Projects/RL_control/boptest_model/boptest_handler/data/merged_data/hvac_reaZonNor_TZon_y_processed.csv'
-    },
-    {
-        'component_id': 'north_supply_airflow_sensor',
-        'output_value': 'north_supplyAirflow',
-        'csv_path': 'C:/Users/asces/OneDriveUni/Projects/RL_control/boptest_model/boptest_handler/data/merged_data/hvac_reaZonNor_V_flow_y_processed.csv'
     },
     {
         'component_id': 'north_co2_sensor',
@@ -71,24 +36,9 @@ model_output_points = [
         'csv_path': 'C:/Users/asces/OneDriveUni/Projects/RL_control/boptest_model/boptest_handler/data/merged_data/hvac_reaZonNor_CO2Zon_y_processed.csv'
     },
     {
-        'component_id': 'north_supply_damper_position',
-        'output_value': 'north_supplyDamperPosition',
-        'csv_path': 'C:/Users/asces/OneDriveUni/Projects/RL_control/boptest_model/boptest_handler/data/merged_data/hvac_oveZonActNor_yDam_u_processed.csv'
-    },
-    {
-        'component_id': 'north_supply_air_temp_sensor',
-        'output_value': 'north_supplyAirTemperature',
-        'csv_path': 'C:/Users/asces/OneDriveUni/Projects/RL_control/boptest_model/boptest_handler/data/merged_data/hvac_reaZonNor_TSup_y_processed.csv'
-    },
-    {
         'component_id': 'south_indoor_temp_sensor',
-        'output_value': 'measuredValue',
+        'output_value': 'south_indoorTemperature',
         'csv_path': 'C:/Users/asces/OneDriveUni/Projects/RL_control/boptest_model/boptest_handler/data/merged_data/hvac_reaZonSou_TZon_y_processed.csv'
-    },
-    {
-        'component_id': 'south_supply_airflow_sensor',
-        'output_value': 'south_supplyAirflow',
-        'csv_path': 'C:/Users/asces/OneDriveUni/Projects/RL_control/boptest_model/boptest_handler/data/merged_data/hvac_reaZonSou_V_flow_y_processed.csv'
     },
     {
         'component_id': 'south_co2_sensor',
@@ -96,24 +46,9 @@ model_output_points = [
         'csv_path': 'C:/Users/asces/OneDriveUni/Projects/RL_control/boptest_model/boptest_handler/data/merged_data/hvac_reaZonSou_CO2Zon_y_processed.csv'
     },
     {
-        'component_id': 'south_supply_damper_position',
-        'output_value': 'south_supplyDamperPosition',
-        'csv_path': 'C:/Users/asces/OneDriveUni/Projects/RL_control/boptest_model/boptest_handler/data/merged_data/hvac_oveZonActSou_yDam_u_processed.csv'
-    },
-    {
-        'component_id': 'south_supply_air_temp_sensor',
-        'output_value': 'south_supplyAirTemperature',
-        'csv_path': 'C:/Users/asces/OneDriveUni/Projects/RL_control/boptest_model/boptest_handler/data/merged_data/hvac_reaZonSou_TSup_y_processed.csv'
-    },
-    {
         'component_id': 'east_indoor_temp_sensor',
-        'output_value': 'measuredValue',
+        'output_value': 'east_indoorTemperature',
         'csv_path': 'C:/Users/asces/OneDriveUni/Projects/RL_control/boptest_model/boptest_handler/data/merged_data/hvac_reaZonEas_TZon_y_processed.csv'
-    },
-    {
-        'component_id': 'east_supply_airflow_sensor',
-        'output_value': 'east_supplyAirflow',
-        'csv_path': 'C:/Users/asces/OneDriveUni/Projects/RL_control/boptest_model/boptest_handler/data/merged_data/hvac_reaZonEas_V_flow_y_processed.csv'
     },
     {
         'component_id': 'east_co2_sensor',
@@ -121,39 +56,14 @@ model_output_points = [
         'csv_path': 'C:/Users/asces/OneDriveUni/Projects/RL_control/boptest_model/boptest_handler/data/merged_data/hvac_reaZonEas_CO2Zon_y_processed.csv'
     },
     {
-        'component_id': 'east_supply_damper_position',
-        'output_value': 'east_supplyDamperPosition',
-        'csv_path': 'C:/Users/asces/OneDriveUni/Projects/RL_control/boptest_model/boptest_handler/data/merged_data/hvac_oveZonActEas_yDam_u_processed.csv'
-    },
-    {
-        'component_id': 'east_supply_air_temp_sensor',
-        'output_value': 'east_supplyAirTemperature',
-        'csv_path': 'C:/Users/asces/OneDriveUni/Projects/RL_control/boptest_model/boptest_handler/data/merged_data/hvac_reaZonEas_TSup_y_processed.csv'
-    },
-    {
         'component_id': 'west_indoor_temp_sensor',
-        'output_value': 'measuredValue',
+        'output_value': 'west_indoorTemperature',
         'csv_path': 'C:/Users/asces/OneDriveUni/Projects/RL_control/boptest_model/boptest_handler/data/merged_data/hvac_reaZonWes_TZon_y_processed.csv'
-    },
-    {
-        'component_id': 'west_supply_airflow_sensor',
-        'output_value': 'west_supplyAirflow',
-        'csv_path': 'C:/Users/asces/OneDriveUni/Projects/RL_control/boptest_model/boptest_handler/data/merged_data/hvac_reaZonWes_V_flow_y_processed.csv'
     },
     {
         'component_id': 'west_co2_sensor',
         'output_value': 'west_indoorCo2Concentration',
         'csv_path': 'C:/Users/asces/OneDriveUni/Projects/RL_control/boptest_model/boptest_handler/data/merged_data/hvac_reaZonWes_CO2Zon_y_processed.csv'
-    },
-    {
-        'component_id': 'west_supply_damper_position',
-        'output_value': 'west_supplyDamperPosition',
-        'csv_path': 'C:/Users/asces/OneDriveUni/Projects/RL_control/boptest_model/boptest_handler/data/merged_data/hvac_oveZonActWes_yDam_u_processed.csv'
-    },
-    {
-        'component_id': 'west_supply_air_temp_sensor',
-        'output_value': 'west_supplyAirTemperature',
-        'csv_path': 'C:/Users/asces/OneDriveUni/Projects/RL_control/boptest_model/boptest_handler/data/merged_data/hvac_reaZonWes_TSup_y_processed.csv'
     }
 ]
 
@@ -164,180 +74,108 @@ def fcn(self):
         The test() function sets simulation parameters and runs a simulation of the system
         model using the Simulator() class. It then generates several plots of the simulation results using functions from the plot module.
     '''
-    #Add core temp setpoint profiles
-    core_temperature_heating_setpoint = tb.ScheduleSystem(id="core_temperature_heating_setpoint", saveSimulationResult=True)
-    core_temperature_cooling_setpoint = tb.ScheduleSystem(id="core_temperature_cooling_setpoint", saveSimulationResult=True)
 
-    #Add core temp controller
-    core_temperature_heating_controller = tb.VAVReheatControllerSystem(id="core_temperature_heating_controller", rat_v_flo_min=0.01, saveSimulationResult=True)
-    self.add_connection(core_temperature_heating_setpoint, core_temperature_heating_controller, "scheduleValue", "heatingsetpointValue")
-    self.add_connection(core_temperature_cooling_setpoint, core_temperature_heating_controller, "scheduleValue", "coolingsetpointValue")
-    self.add_connection(self.components["core"], core_temperature_heating_controller, "indoorTemperature", "roomTemp")
-    #self.add_connection(core_temperature_heating_controller, self.components["core"], "supplyAirTemp", "supplyAirTemperature")
+    core = tb.BuildingSpaceNoSH1AdjBoundaryFMUSystem(id="core", saveSimulationResult=True)
+    north = tb.BuildingSpaceNoSH1AdjBoundaryOutdoorFMUSystem(id="north", saveSimulationResult=True)
+    south = tb.BuildingSpaceNoSH1AdjBoundaryOutdoorFMUSystem(id="south", saveSimulationResult=True)
+    east = tb.BuildingSpaceNoSH1AdjBoundaryOutdoorFMUSystem(id="east", saveSimulationResult=True)
+    west = tb.BuildingSpaceNoSH1AdjBoundaryOutdoorFMUSystem(id="west", saveSimulationResult=True)
+    outdoor_environment = tb.OutdoorEnvironmentSystem(id="outdoor_environment", saveSimulationResult=True)
 
-    #Add core dampers
-    core_supply_damper = tb.DamperSystem(id="core_supply_damper", saveSimulationResult=True)
-    core_exhaust_damper = tb.DamperSystem(id="core_exhaust_damper", saveSimulationResult=True)
-    self.add_connection(core_temperature_heating_controller, core_supply_damper, "y_dam", "damperPosition")
-    self.add_connection(core_temperature_heating_controller, core_exhaust_damper, "y_dam", "damperPosition")
-    self.add_connection(core_supply_damper, self.components["core"], "airFlowRate", "airFlowRate")
+    #Outdoor environment connections
+    self.add_connection(outdoor_environment, north, "outdoorTemperature", "outdoorTemperature")
+    self.add_connection(outdoor_environment, north, "globalIrradiation", "globalIrradiation")
+    self.add_connection(outdoor_environment, north, "outdoorCo2Concentration", "outdoorCo2Concentration")
 
-    # Add core heating coil
-    core_reheating_coil = tb.CoilHeatingSystem(id="core_reheating_coil", saveSimulationResult=True)
-    self.add_connection(core_temperature_heating_controller, core_reheating_coil, "supplyAirTemp", "outletAirTemperatureSetpoint")
-    self.add_connection(self.components["vent_supply_air_temp_sensor"], core_reheating_coil, "supplyAirTemperature", "inletAirTemperature")
-    self.add_connection(self.components["core_supply_damper"], core_reheating_coil, "airFlowRate", "airFlowRate")
-    self.remove_connection(self.components["vent_supply_air_temp_sensor"], self.components["core"], "measuredValue", "supplyAirTemperature") #This connection was generated from the semantic model but is not needed
-    self.add_connection(core_reheating_coil, self.components["core"], "outletAirTemperatureSetpoint", "supplyAirTemperature")
+    self.add_connection(outdoor_environment, south, "outdoorTemperature", "outdoorTemperature")
+    self.add_connection(outdoor_environment, south, "globalIrradiation", "globalIrradiation")
+    self.add_connection(outdoor_environment, south, "outdoorCo2Concentration", "outdoorCo2Concentration")
+
+    self.add_connection(outdoor_environment, east, "outdoorTemperature", "outdoorTemperature")
+    self.add_connection(outdoor_environment, east, "globalIrradiation", "globalIrradiation")
+    self.add_connection(outdoor_environment, east, "outdoorCo2Concentration", "outdoorCo2Concentration")
+
+    self.add_connection(outdoor_environment, west, "outdoorTemperature", "outdoorTemperature")
+    self.add_connection(outdoor_environment, west, "globalIrradiation", "globalIrradiation")
+    self.add_connection(outdoor_environment, west, "outdoorCo2Concentration", "outdoorCo2Concentration")
+
+
+
+    #Occupancy profiles
+    core_occupancy_profile = tb.ScheduleSystem(id="core_occupancy_profile", saveSimulationResult=True) 
+    self.add_connection(core_occupancy_profile, core, "scheduleValue", "numberOfPeople")
+    north_occupancy_profile = tb.ScheduleSystem(id="north_occupancy_profile", saveSimulationResult=True)
+    self.add_connection(north_occupancy_profile, north, "scheduleValue", "numberOfPeople")
+    south_occupancy_profile = tb.ScheduleSystem(id="south_occupancy_profile", saveSimulationResult=True)
+    self.add_connection(south_occupancy_profile, south, "scheduleValue", "numberOfPeople")
+    east_occupancy_profile = tb.ScheduleSystem(id="east_occupancy_profile", saveSimulationResult=True)
+    self.add_connection(east_occupancy_profile, east, "scheduleValue", "numberOfPeople")
+    west_occupancy_profile = tb.ScheduleSystem(id="west_occupancy_profile", saveSimulationResult=True)
+    self.add_connection(west_occupancy_profile, west, "scheduleValue", "numberOfPeople")
+
+    #Adjacency connections
+    self.add_connection(core, south, "indoorTemperature", "indoorTemperature_adj1")
+    self.add_connection(core, north, "indoorTemperature", "indoorTemperature_adj1")
+    self.add_connection(north, core, "indoorTemperature", "indoorTemperature_adj1")
+    self.add_connection(core, west, "indoorTemperature", "indoorTemperature_adj1")
+    self.add_connection(core, east, "indoorTemperature", "indoorTemperature_adj1")
+
+
 
     #Add core sensors
     core_co2_sensor = tb.SensorSystem(id="core_co2_sensor", saveSimulationResult=True)
-    self.add_connection(self.components["core"], core_co2_sensor, "indoorCo2Concentration", "core_indoorCo2Concentration")
     core_supply_air_temp_sensor = tb.SensorSystem(id="core_supply_air_temp_sensor", saveSimulationResult=True)
-    self.add_connection(core_reheating_coil, core_supply_air_temp_sensor, "outletAirTemperature", "core_supplyAirTemperature")
     core_supply_airflow_sensor = tb.SensorSystem(id="core_supply_airflow_sensor", saveSimulationResult=True)
-    self.add_connection(self.components["core_supply_damper"], core_supply_airflow_sensor, "airFlowRate", "core_supplyAirflow")
-    core_supply_damper_position = tb.SensorSystem(id="core_supply_damper_position", saveSimulationResult=True)
-    self.add_connection(self.components["core_supply_damper"], core_supply_damper_position, "damperPosition", "core_supplyDamperPosition")
-    
-    
-    #Add north temp setpoint profiles
-    north_temperature_heating_setpoint = tb.ScheduleSystem(id="north_temperature_heating_setpoint", saveSimulationResult=True)
-    north_temperature_cooling_setpoint = tb.ScheduleSystem(id="north_temperature_cooling_setpoint", saveSimulationResult=True)
+    core_indoor_temp_sensor = tb.SensorSystem(id="core_indoor_temp_sensor", saveSimulationResult=True)
+    self.add_connection(core, core_co2_sensor, "indoorCo2Concentration", "core_indoorCo2Concentration")
+    self.add_connection(core_supply_airflow_sensor, core, "airFlowRate", "airFlowRate")
+    self.add_connection(core_supply_air_temp_sensor, core, "supplyAirTemperature", "supplyAirTemperature")
+    self.add_connection(core, core_indoor_temp_sensor, "indoorTemperature", "core_indoorTemperature")
 
-    #Add north temp controller
-    north_temperature_heating_controller = tb.VAVReheatControllerSystem(id="north_temperature_heating_controller", rat_v_flo_min=0.01, saveSimulationResult=True)
-    self.add_connection(north_temperature_heating_setpoint, north_temperature_heating_controller, "scheduleValue", "heatingsetpointValue")
-    self.add_connection(north_temperature_cooling_setpoint, north_temperature_heating_controller, "scheduleValue", "coolingsetpointValue")
-    self.add_connection(self.components["north"], north_temperature_heating_controller, "indoorTemperature", "roomTemp")
-    self.add_connection(north_temperature_heating_controller, self.components["north"], "supplyAirTemp", "supplyAirTemperature")
-
-    #Add north dampers
-    north_supply_damper = tb.DamperSystem(id="north_supply_damper", saveSimulationResult=True)
-    north_exhaust_damper = tb.DamperSystem(id="north_exhaust_damper", saveSimulationResult=True)
-    self.add_connection(north_temperature_heating_controller, north_supply_damper, "y_dam", "damperPosition")
-    self.add_connection(north_temperature_heating_controller, north_exhaust_damper, "y_dam", "damperPosition")
-    self.add_connection(north_supply_damper, self.components["north"], "airFlowRate", "airFlowRate")
-
-    #Add north heating coil
-    north_heating_coil = tb.CoilHeatingSystem(id="north_heating_coil", saveSimulationResult=True)
-    self.add_connection(north_temperature_heating_controller, north_heating_coil, "supplyAirTemp", "outletAirTemperatureSetpoint")
-    self.add_connection(self.components["vent_supply_air_temp_sensor"], north_heating_coil, "supplyAirTemperature", "inletAirTemperature")
-    self.add_connection(north_supply_damper, north_heating_coil, "airFlowRate", "airFlowRate")
-    
 
     #Add north sensors
     north_co2_sensor = tb.SensorSystem(id="north_co2_sensor", saveSimulationResult=True)
-    self.add_connection(self.components["north"], north_co2_sensor, "indoorCo2Concentration", "north_indoorCo2Concentration")
+    self.add_connection(north, north_co2_sensor, "indoorCo2Concentration", "north_indoorCo2Concentration")
     north_supply_air_temp_sensor = tb.SensorSystem(id="north_supply_air_temp_sensor", saveSimulationResult=True)
-    self.add_connection(north_heating_coil, north_supply_air_temp_sensor, "outletAirTemperature", "north_supplyAirTemperature")
+    self.add_connection(north_supply_air_temp_sensor, north, "supplyAirTemperature", "supplyAirTemperature")
     north_supply_airflow_sensor = tb.SensorSystem(id="north_supply_airflow_sensor", saveSimulationResult=True)
-    self.add_connection(north_supply_damper, north_supply_airflow_sensor, "airFlowRate", "north_supplyAirflow")
-    north_supply_damper_position = tb.SensorSystem(id="north_supply_damper_position", saveSimulationResult=True)
-    self.add_connection(north_supply_damper, north_supply_damper_position, "damperPosition", "north_supplyDamperPosition")
+    self.add_connection(north_supply_airflow_sensor, north, "airFlowRate", "airFlowRate")
+    north_indoor_temp_sensor = tb.SensorSystem(id="north_indoor_temp_sensor", saveSimulationResult=True)
+    self.add_connection(north, north_indoor_temp_sensor, "indoorTemperature", "north_indoorTemperature")
 
-    #Add south temp setpoint profiles
-    south_temperature_heating_setpoint = tb.ScheduleSystem(id="south_temperature_heating_setpoint", saveSimulationResult=True)
-    south_temperature_cooling_setpoint = tb.ScheduleSystem(id="south_temperature_cooling_setpoint", saveSimulationResult=True)
-
-    #Add south temp controller
-    south_temperature_heating_controller = tb.VAVReheatControllerSystem(id="south_temperature_heating_controller", rat_v_flo_min=0.01, saveSimulationResult=True)
-    self.add_connection(south_temperature_heating_setpoint, south_temperature_heating_controller, "scheduleValue", "heatingsetpointValue")
-    self.add_connection(south_temperature_cooling_setpoint, south_temperature_heating_controller, "scheduleValue", "coolingsetpointValue")
-    self.add_connection(self.components["south"], south_temperature_heating_controller, "indoorTemperature", "roomTemp")
-    self.add_connection(south_temperature_heating_controller, self.components["south"], "supplyAirTemp", "supplyAirTemperature")
-
-    #Add south dampers
-    south_supply_damper = tb.DamperSystem(id="south_supply_damper", saveSimulationResult=True)
-    south_exhaust_damper = tb.DamperSystem(id="south_exhaust_damper", saveSimulationResult=True)
-    self.add_connection(south_temperature_heating_controller, south_supply_damper, "y_dam", "damperPosition")
-    self.add_connection(south_temperature_heating_controller, south_exhaust_damper, "y_dam", "damperPosition")
-    self.add_connection(south_supply_damper, self.components["south"], "airFlowRate", "airFlowRate")
-    #Add south heating coil
-    south_heating_coil = tb.CoilHeatingSystem(id="south_heating_coil", saveSimulationResult=True)
-    self.add_connection(south_temperature_heating_controller, south_heating_coil, "supplyAirTemp", "outletAirTemperatureSetpoint")
-    self.add_connection(self.components["vent_supply_air_temp_sensor"], south_heating_coil, "supplyAirTemperature", "inletAirTemperature")
-    self.add_connection(south_supply_damper, south_heating_coil, "airFlowRate", "airFlowRate")
-    
-
-    #Add south sensors
+     #Add south sensors
     south_co2_sensor = tb.SensorSystem(id="south_co2_sensor", saveSimulationResult=True)
-    self.add_connection(self.components["south"], south_co2_sensor, "indoorCo2Concentration", "south_indoorCo2Concentration")
+    self.add_connection(south, south_co2_sensor, "indoorCo2Concentration", "south_indoorCo2Concentration")
     south_supply_air_temp_sensor = tb.SensorSystem(id="south_supply_air_temp_sensor", saveSimulationResult=True)
-    self.add_connection(south_heating_coil, south_supply_air_temp_sensor, "outletAirTemperature", "south_supplyAirTemperature")
+    self.add_connection(south_supply_air_temp_sensor, south, "supplyAirTemperature", "supplyAirTemperature")
     south_supply_airflow_sensor = tb.SensorSystem(id="south_supply_airflow_sensor", saveSimulationResult=True)
-    self.add_connection(south_supply_damper, south_supply_airflow_sensor, "airFlowRate", "south_supplyAirflow")
-    south_supply_damper_position = tb.SensorSystem(id="south_supply_damper_position", saveSimulationResult=True)
-    self.add_connection(south_supply_damper, south_supply_damper_position, "damperPosition", "south_supplyDamperPosition")
+    self.add_connection(south_supply_airflow_sensor, south, "airFlowRate", "airFlowRate")
+    south_indoor_temp_sensor = tb.SensorSystem(id="south_indoor_temp_sensor", saveSimulationResult=True)
+    self.add_connection(south, south_indoor_temp_sensor, "indoorTemperature", "south_indoorTemperature")
 
-    #Add east temp setpoint profiles
-    east_temperature_heating_setpoint = tb.ScheduleSystem(id="east_temperature_heating_setpoint", saveSimulationResult=True)
-    east_temperature_cooling_setpoint = tb.ScheduleSystem(id="east_temperature_cooling_setpoint", saveSimulationResult=True)
-
-    #Add east temp controller
-    east_temperature_heating_controller = tb.VAVReheatControllerSystem(id="east_temperature_heating_controller", rat_v_flo_min=0.01, saveSimulationResult=True)
-    self.add_connection(east_temperature_heating_setpoint, east_temperature_heating_controller, "scheduleValue", "heatingsetpointValue")
-    self.add_connection(east_temperature_cooling_setpoint, east_temperature_heating_controller, "scheduleValue", "coolingsetpointValue")
-    self.add_connection(self.components["east"], east_temperature_heating_controller, "indoorTemperature", "roomTemp")
-    self.add_connection(east_temperature_heating_controller, self.components["east"], "supplyAirTemp", "supplyAirTemperature")
-
-
-    #Add east dampers
-    east_supply_damper = tb.DamperSystem(id="east_supply_damper", saveSimulationResult=True)
-    east_exhaust_damper = tb.DamperSystem(id="east_exhaust_damper", saveSimulationResult=True)
-    self.add_connection(east_temperature_heating_controller, east_supply_damper, "y_dam", "damperPosition")
-    self.add_connection(east_temperature_heating_controller, east_exhaust_damper, "y_dam", "damperPosition")
-    self.add_connection(east_supply_damper, self.components["east"], "airFlowRate", "airFlowRate")
-    #Add east heating coil
-    east_heating_coil = tb.CoilHeatingSystem(id="east_heating_coil", saveSimulationResult=True)
-    self.add_connection(east_temperature_heating_controller, east_heating_coil, "supplyAirTemp", "outletAirTemperatureSetpoint")
-    self.add_connection(self.components["vent_supply_air_temp_sensor"], east_heating_coil, "supplyAirTemperature", "inletAirTemperature")
-    self.add_connection(east_supply_damper, east_heating_coil, "airFlowRate", "airFlowRate")
 
     #Add east sensors
     east_co2_sensor = tb.SensorSystem(id="east_co2_sensor", saveSimulationResult=True)
-    self.add_connection(self.components["east"], east_co2_sensor, "indoorCo2Concentration", "east_indoorCo2Concentration")
+    self.add_connection(east, east_co2_sensor, "indoorCo2Concentration", "east_indoorCo2Concentration")
     east_supply_air_temp_sensor = tb.SensorSystem(id="east_supply_air_temp_sensor", saveSimulationResult=True)
-    self.add_connection(east_heating_coil, east_supply_air_temp_sensor, "outletAirTemperature", "east_supplyAirTemperature")
+    self.add_connection(east_supply_air_temp_sensor, east, "supplyAirTemperature", "supplyAirTemperature")
     east_supply_airflow_sensor = tb.SensorSystem(id="east_supply_airflow_sensor", saveSimulationResult=True)
-    self.add_connection(east_supply_damper, east_supply_airflow_sensor, "airFlowRate", "east_supplyAirflow")
-    east_supply_damper_position = tb.SensorSystem(id="east_supply_damper_position", saveSimulationResult=True)
-    self.add_connection(east_supply_damper, east_supply_damper_position, "damperPosition", "east_supplyDamperPosition")
-
-    #Add west temp setpoint profiles
-    west_temperature_heating_setpoint = tb.ScheduleSystem(id="west_temperature_heating_setpoint", saveSimulationResult=True)
-    west_temperature_cooling_setpoint = tb.ScheduleSystem(id="west_temperature_cooling_setpoint", saveSimulationResult=True)
-
-    #Add west temp controller
-    west_temperature_heating_controller = tb.VAVReheatControllerSystem(id="west_temperature_heating_controller", rat_v_flo_min=0.01, saveSimulationResult=True)
-    self.add_connection(west_temperature_heating_setpoint, west_temperature_heating_controller, "scheduleValue", "heatingsetpointValue")
-    self.add_connection(west_temperature_cooling_setpoint, west_temperature_heating_controller, "scheduleValue", "coolingsetpointValue")
-    self.add_connection(self.components["west"], west_temperature_heating_controller, "indoorTemperature", "roomTemp")
-    self.add_connection(west_temperature_heating_controller, self.components["west"], "supplyAirTemp", "supplyAirTemperature")
-
-    #Add west dampers
-    west_supply_damper = tb.DamperSystem(id="west_supply_damper", saveSimulationResult=True)
-    west_exhaust_damper = tb.DamperSystem(id="west_exhaust_damper", saveSimulationResult=True)
-    self.add_connection(west_temperature_heating_controller, west_supply_damper, "y_dam", "damperPosition")
-    self.add_connection(west_temperature_heating_controller, west_exhaust_damper, "y_dam", "damperPosition")
-    self.add_connection(west_supply_damper, self.components["west"], "airFlowRate", "airFlowRate")
-    #Add west heating coil
-    west_heating_coil = tb.CoilHeatingSystem(id="west_heating_coil", saveSimulationResult=True)
-    self.add_connection(west_temperature_heating_controller, west_heating_coil, "supplyAirTemp", "outletAirTemperatureSetpoint")
-    self.add_connection(self.components["vent_supply_air_temp_sensor"], west_heating_coil, "supplyAirTemperature", "inletAirTemperature")
-    self.add_connection(west_supply_damper, west_heating_coil, "airFlowRate", "airFlowRate")
+    self.add_connection(east_supply_airflow_sensor, east, "airFlowRate", "airFlowRate")
+    east_indoor_temp_sensor = tb.SensorSystem(id="east_indoor_temp_sensor", saveSimulationResult=True)
+    self.add_connection(east, east_indoor_temp_sensor, "indoorTemperature", "east_indoorTemperature")
+    
 
     #Add west sensors
     west_co2_sensor = tb.SensorSystem(id="west_co2_sensor", saveSimulationResult=True)
-    self.add_connection(self.components["west"], west_co2_sensor, "indoorCo2Concentration", "west_indoorCo2Concentration")
+    self.add_connection(west, west_co2_sensor, "indoorCo2Concentration", "west_indoorCo2Concentration")
     west_supply_air_temp_sensor = tb.SensorSystem(id="west_supply_air_temp_sensor", saveSimulationResult=True)
-    self.add_connection(west_heating_coil, west_supply_air_temp_sensor, "outletAirTemperature", "west_supplyAirTemperature")
+    self.add_connection(west_supply_air_temp_sensor, west, "supplyAirTemperature", "supplyAirTemperature")
     west_supply_airflow_sensor = tb.SensorSystem(id="west_supply_airflow_sensor", saveSimulationResult=True)
-    self.add_connection(west_supply_damper, west_supply_airflow_sensor, "airFlowRate", "west_supplyAirflow")
-    west_supply_damper_position = tb.SensorSystem(id="west_supply_damper_position", saveSimulationResult=True)
-    self.add_connection(west_supply_damper, west_supply_damper_position, "damperPosition", "west_supplyDamperPosition")
-    
+    self.add_connection(west_supply_airflow_sensor, west, "airFlowRate", "airFlowRate")
+    west_indoor_temp_sensor = tb.SensorSystem(id="west_indoor_temp_sensor", saveSimulationResult=True)
+    self.add_connection(west, west_indoor_temp_sensor, "indoorTemperature", "west_indoorTemperature")
 
+    """
     #Add supply junction
     supply_junction = tb.SupplyFlowJunctionSystem(id="supply_junction", saveSimulationResult=True)
     self.add_connection(core_supply_damper, supply_junction, "airFlowRate", "airFlowRateOut")
@@ -362,15 +200,16 @@ def fcn(self):
     vent_return_air_temp_sensor = tb.SensorSystem(id="vent_return_air_temp_sensor", saveSimulationResult=True)
     self.add_connection(return_junction, vent_return_air_temp_sensor, "airTemperatureOut", "returnAirTemperature")
 
+    """
+
 def get_model(id=None, fcn_=None):
     if fcn_ is None:
         fcn_ = fcn
     model = tb.Model(id="five_rooms_only_template", saveSimulationResult=True)
     
-    filename = os.path.join(uppath(os.path.abspath(__file__), 1), r"semantic_models\five_rooms_no_contr.xlsm")
-    model.load(semantic_model_filename=filename, fcn=fcn_, create_signature_graphs=False, validate_model=True, verbose=True, force_config_update=True)
+    model.load(fcn=fcn_, create_signature_graphs=False, validate_model=True, verbose=True, force_config_update=True)
    
-    model.load_estimation_result(r"C:\Users\asces\OneDriveUni\Projects\RL_control\boptest_model\generated_files\models\only_rooms_estimation\model_parameters\estimation_results\LS_result\mix_day_most_accurate_08042025.pickle")
+    #model.load_estimation_result(r"C:\Users\asces\OneDriveUni\Projects\RL_control\boptest_model\generated_files\models\only_rooms_estimation\model_parameters\estimation_results\LS_result\mix_day_most_accurate_08042025.pickle")
     if id is not None:
         model.id = id
     return model
@@ -384,7 +223,6 @@ def run(model = None):
                                 tzinfo=gettz("Europe/Copenhagen"))
     if model is None:
         model = get_model()
-        #model._connect() #Neccessary with this fcn function modifying the model so much
 
     simulator = tb.Simulator()
 
@@ -405,9 +243,10 @@ def print_parameter_results(model):
     # Space model parameters
     print("SPACE MODEL PARAMETERS:")
     space_params = {
-        'core': ['C_air', 'C_int', 'C_boundary', 'R_int', 'R_boundary', 'Q_occ_gain', 'infiltration', 'T_boundary'],
-        'other': ['C_wall', 'C_air', 'C_int', 'C_boundary', 'R_out', 'R_in', 'R_int', 
-                 'R_boundary', 'f_wall', 'f_air', 'Q_occ_gain', 'infiltration', 'T_boundary']
+        'core': ['C_supply', 'C_air', 'C_int', 'C_boundary', 'R_int', 'R_boundary', 'Q_occ_gain', 
+                 'CO2_occ_gain', 'CO2_start', 'airVolume', 'T_boundary', 'infiltration'],
+        'other': ['C_supply', 'C_wall', 'C_air', 'C_int', 'C_boundary', 'R_out', 'R_in', 'R_int', 
+                 'R_boundary', 'f_wall', 'f_air', 'Q_occ_gain', 'CO2_occ_gain', 'CO2_start', 'airVolume', 'T_boundary', 'infiltration']
     }
     
     for room in rooms:
@@ -416,31 +255,6 @@ def print_parameter_results(model):
         for param in params:
             value = getattr(model.components[room], param)
             print(f"{param}: {value}")
-    
-    # Controller parameters
-    print("\nCONTROLLERS:")
-    controller_params = ['k_coo', 'ti_coo', 'k_hea', 'ti_hea']
-    
-    for room in rooms:
-        print(f"\n{room.upper()}:")
-        controller_id = f"{room}_temperature_heating_controller"
-        for param in controller_params:
-            value = getattr(model.components[controller_id], param)
-            print(f"{param}: {value}")
-    
-    # Damper parameters
-    print("\nDAMPERS:")
-    damper_params = ['a', "nominalAirFlowRate"]
-    
-    for room in rooms:
-        print(f"\n{room.upper()}:")
-        damper_id = f"{room}_supply_damper"
-        for param in damper_params:
-            value = getattr(model.components[damper_id], param)
-            if param == "nominalAirFlowRate":
-                print(f"{param}: {value.hasValue}")
-            else:
-                print(f"{param}: {value}")
 
 def parameter_estimation():
     """
@@ -629,10 +443,32 @@ def parameter_evaluation(data_points, parameter_filename, save_plots=False):
     """
     
     # Load model with estimated parameters and run simulation
-    model = get_model(id="five_rooms_only_template")
+    model = get_model(id="only_rooms_estimation")
     model.load_estimation_result(parameter_filename)
+
+
+    
+
+    """
+    CORE:
+        C_supply: 400.0
+        C_air: 10564828.200215876
+        C_int: 6852402.107907902
+        C_boundary: 1221217.5316119944
+        R_int: 0.00031542152549524235
+        R_boundary: 100.0
+        Q_occ_gain: 251.2805298698468
+        CO2_occ_gain: 1.1067941581940439e-05
+        CO2_start: 400.0
+        airVolume: 2698.00128
+        T_boundary: 20.0
+        infiltration: 1.0000000000000001e-07
+    
+    """
+    model.components["core"].Q_occ_gain = 255
     print("Resulting parameters:")
     print_parameter_results(model)
+
     simulator = run(model)
     stepSize = simulator.stepSize
     plotting_stepSize = 600
@@ -696,8 +532,10 @@ def parameter_evaluation(data_points, parameter_filename, save_plots=False):
             os.makedirs('plots', exist_ok=True)
             plt.savefig(f'plots/{component_id}_{output_value}_comparison.png')
         plt.show()
- 
+
 if __name__ == "__main__":
-    parameter_filename = parameter_estimation()
-    #parameter_filename = r"C:\Users\asces\OneDriveUni\Projects\RL_control\boptest_model\generated_files\models\five_rooms_only_template\model_parameters\estimation_results\LS_result\20250401_145631_ls.pickle"
-    parameter_evaluation(model_output_points, parameter_filename, save_plots=True)
+    #parameter_filename = parameter_estimation()
+    filepath = r"C:\Users\asces\OneDriveUni\Projects\RL_control\boptest_model\generated_files\models\only_rooms_estimation\model_parameters\estimation_results\LS_result\mix_day_most_accurate_08042025.pickle"
+    parameter_evaluation(model_output_points, filepath, save_plots=True)
+
+    

@@ -115,13 +115,13 @@ if __name__ == "__main__":
     # Example usage for multiple directories
     directory_list = [
         # Use forward slashes instead of backslashes
-        "C:/Users/asces/OneDriveUni/Projects/RL_control/boptest_model/generated_files/models/five_rooms_only_template/model_parameters/SensorSystem",
-        "C:/Users/asces/OneDriveUni/Projects/RL_control/boptest_model/generated_files/models/five_rooms_only_template/model_parameters/ScheduleSystem",
-        "C:/Users/asces/OneDriveUni/Projects/RL_control/boptest_model/generated_files/models/five_rooms_only_template/model_parameters/OutdoorEnvironmentSystem"
+        "C:/Users/asces/OneDriveUni/Projects/RL_control/boptest_model/generated_files/models/only_rooms_estimation/model_parameters/SensorSystem",
+        "C:/Users/asces/OneDriveUni/Projects/RL_control/boptest_model/generated_files/models/only_rooms_estimation/model_parameters/ScheduleSystem",
+        "C:/Users/asces/OneDriveUni/Projects/RL_control/boptest_model/generated_files/models/only_rooms_estimation/model_parameters/OutdoorEnvironmentSystem"
     ]
     
     # Use os.path.join for constructing paths
-    base_path = "C:/Users/asces/OneDriveUni/Projects/RL_control/boptest_model/generated_files/models/five_rooms_only_template/model_parameters"
+    base_path = "C:/Users/asces/OneDriveUni/Projects/RL_control/boptest_model/generated_files/models/only_rooms_estimation/model_parameters"
     multi_output_path = os.path.join(base_path, "data_paths.json")
     
     # Create the JSON files

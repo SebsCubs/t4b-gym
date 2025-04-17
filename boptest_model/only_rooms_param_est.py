@@ -437,5 +437,5 @@ def parameter_evaluation(data_points, parameter_filename, save_plots=False):
 
 if __name__ == "__main__":
     #filepath = parameter_estimation()
-    filepath = r"C:\Users\asces\OneDriveUni\Projects\RL_control\boptest_model\generated_files\models\only_rooms_estimation\model_parameters\estimation_results\LS_result\20250407_144914_ls.pickle"
+    filepath = r"C:\Users\asces\OneDriveUni\Projects\RL_control\boptest_model\generated_files\models\only_rooms_estimation\model_parameters\estimation_results\LS_result\mix_day_most_accurate_08042025.pickle"
     parameter_evaluation(model_output_points, filepath, save_plots=True)
