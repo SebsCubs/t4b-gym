@@ -67,14 +67,11 @@ model_output_points = [
     }
 ]
 
-def fcn(self):
+def envelope_fcn(self):
     '''
-        The fcn() function adds connections between components in a system model,
+        The envelope_fcn() function adds connections between components in a system model,
         creates a schedule object, and adds it to the component dictionary.
-        The test() function sets simulation parameters and runs a simulation of the system
-        model using the Simulator() class. It then generates several plots of the simulation results using functions from the plot module.
     '''
-
     core = tb.BuildingSpaceNoSH1AdjBoundaryFMUSystem(id="core", saveSimulationResult=True)
     north = tb.BuildingSpaceNoSH1AdjBoundaryOutdoorFMUSystem(id="north", saveSimulationResult=True)
     south = tb.BuildingSpaceNoSH1AdjBoundaryOutdoorFMUSystem(id="south", saveSimulationResult=True)
@@ -124,32 +121,32 @@ def fcn(self):
 
     #Add core sensors
     core_co2_sensor = tb.SensorSystem(id="core_co2_sensor", saveSimulationResult=True)
-    core_supply_air_temp_sensor = tb.SensorSystem(id="core_supply_air_temp_sensor", saveSimulationResult=True)
-    core_supply_airflow_sensor = tb.SensorSystem(id="core_supply_airflow_sensor", saveSimulationResult=True)
+    #core_supply_air_temp_sensor = tb.SensorSystem(id="core_supply_air_temp_sensor", saveSimulationResult=True)
+    #core_supply_airflow_sensor = tb.SensorSystem(id="core_supply_airflow_sensor", saveSimulationResult=True)
     core_indoor_temp_sensor = tb.SensorSystem(id="core_indoor_temp_sensor", saveSimulationResult=True)
     self.add_connection(core, core_co2_sensor, "indoorCo2Concentration", "core_indoorCo2Concentration")
-    self.add_connection(core_supply_airflow_sensor, core, "airFlowRate", "airFlowRate")
-    self.add_connection(core_supply_air_temp_sensor, core, "supplyAirTemperature", "supplyAirTemperature")
+    #self.add_connection(core_supply_airflow_sensor, core, "airFlowRate", "airFlowRate")
+    #self.add_connection(core_supply_air_temp_sensor, core, "supplyAirTemperature", "supplyAirTemperature")
     self.add_connection(core, core_indoor_temp_sensor, "indoorTemperature", "core_indoorTemperature")
 
 
     #Add north sensors
     north_co2_sensor = tb.SensorSystem(id="north_co2_sensor", saveSimulationResult=True)
     self.add_connection(north, north_co2_sensor, "indoorCo2Concentration", "north_indoorCo2Concentration")
-    north_supply_air_temp_sensor = tb.SensorSystem(id="north_supply_air_temp_sensor", saveSimulationResult=True)
-    self.add_connection(north_supply_air_temp_sensor, north, "supplyAirTemperature", "supplyAirTemperature")
-    north_supply_airflow_sensor = tb.SensorSystem(id="north_supply_airflow_sensor", saveSimulationResult=True)
-    self.add_connection(north_supply_airflow_sensor, north, "airFlowRate", "airFlowRate")
+    #north_supply_air_temp_sensor = tb.SensorSystem(id="north_supply_air_temp_sensor", saveSimulationResult=True)
+    #self.add_connection(north_supply_air_temp_sensor, north, "supplyAirTemperature", "supplyAirTemperature")
+    #north_supply_airflow_sensor = tb.SensorSystem(id="north_supply_airflow_sensor", saveSimulationResult=True)
+    #self.add_connection(north_supply_airflow_sensor, north, "airFlowRate", "airFlowRate")
     north_indoor_temp_sensor = tb.SensorSystem(id="north_indoor_temp_sensor", saveSimulationResult=True)
     self.add_connection(north, north_indoor_temp_sensor, "indoorTemperature", "north_indoorTemperature")
 
      #Add south sensors
     south_co2_sensor = tb.SensorSystem(id="south_co2_sensor", saveSimulationResult=True)
     self.add_connection(south, south_co2_sensor, "indoorCo2Concentration", "south_indoorCo2Concentration")
-    south_supply_air_temp_sensor = tb.SensorSystem(id="south_supply_air_temp_sensor", saveSimulationResult=True)
-    self.add_connection(south_supply_air_temp_sensor, south, "supplyAirTemperature", "supplyAirTemperature")
-    south_supply_airflow_sensor = tb.SensorSystem(id="south_supply_airflow_sensor", saveSimulationResult=True)
-    self.add_connection(south_supply_airflow_sensor, south, "airFlowRate", "airFlowRate")
+    #south_supply_air_temp_sensor = tb.SensorSystem(id="south_supply_air_temp_sensor", saveSimulationResult=True)
+    #self.add_connection(south_supply_air_temp_sensor, south, "supplyAirTemperature", "supplyAirTemperature")
+    #south_supply_airflow_sensor = tb.SensorSystem(id="south_supply_airflow_sensor", saveSimulationResult=True)
+    #self.add_connection(south_supply_airflow_sensor, south, "airFlowRate", "airFlowRate")
     south_indoor_temp_sensor = tb.SensorSystem(id="south_indoor_temp_sensor", saveSimulationResult=True)
     self.add_connection(south, south_indoor_temp_sensor, "indoorTemperature", "south_indoorTemperature")
 
@@ -157,10 +154,10 @@ def fcn(self):
     #Add east sensors
     east_co2_sensor = tb.SensorSystem(id="east_co2_sensor", saveSimulationResult=True)
     self.add_connection(east, east_co2_sensor, "indoorCo2Concentration", "east_indoorCo2Concentration")
-    east_supply_air_temp_sensor = tb.SensorSystem(id="east_supply_air_temp_sensor", saveSimulationResult=True)
-    self.add_connection(east_supply_air_temp_sensor, east, "supplyAirTemperature", "supplyAirTemperature")
-    east_supply_airflow_sensor = tb.SensorSystem(id="east_supply_airflow_sensor", saveSimulationResult=True)
-    self.add_connection(east_supply_airflow_sensor, east, "airFlowRate", "airFlowRate")
+    #east_supply_air_temp_sensor = tb.SensorSystem(id="east_supply_air_temp_sensor", saveSimulationResult=True)
+    #self.add_connection(east_supply_air_temp_sensor, east, "supplyAirTemperature", "supplyAirTemperature")
+    #east_supply_airflow_sensor = tb.SensorSystem(id="east_supply_airflow_sensor", saveSimulationResult=True)
+    #self.add_connection(east_supply_airflow_sensor, east, "airFlowRate", "airFlowRate")
     east_indoor_temp_sensor = tb.SensorSystem(id="east_indoor_temp_sensor", saveSimulationResult=True)
     self.add_connection(east, east_indoor_temp_sensor, "indoorTemperature", "east_indoorTemperature")
     
@@ -168,12 +165,229 @@ def fcn(self):
     #Add west sensors
     west_co2_sensor = tb.SensorSystem(id="west_co2_sensor", saveSimulationResult=True)
     self.add_connection(west, west_co2_sensor, "indoorCo2Concentration", "west_indoorCo2Concentration")
-    west_supply_air_temp_sensor = tb.SensorSystem(id="west_supply_air_temp_sensor", saveSimulationResult=True)
-    self.add_connection(west_supply_air_temp_sensor, west, "supplyAirTemperature", "supplyAirTemperature")
-    west_supply_airflow_sensor = tb.SensorSystem(id="west_supply_airflow_sensor", saveSimulationResult=True)
-    self.add_connection(west_supply_airflow_sensor, west, "airFlowRate", "airFlowRate")
+    #west_supply_air_temp_sensor = tb.SensorSystem(id="west_supply_air_temp_sensor", saveSimulationResult=True)
+    #self.add_connection(west_supply_air_temp_sensor, west, "supplyAirTemperature", "supplyAirTemperature")
+    #west_supply_airflow_sensor = tb.SensorSystem(id="west_supply_airflow_sensor", saveSimulationResult=True)
+    #self.add_connection(west_supply_airflow_sensor, west, "airFlowRate", "airFlowRate")
     west_indoor_temp_sensor = tb.SensorSystem(id="west_indoor_temp_sensor", saveSimulationResult=True)
     self.add_connection(west, west_indoor_temp_sensor, "indoorTemperature", "west_indoorTemperature")
+
+def vavs_fcn(self):
+    '''
+        The vavs_fcn() function adds connections between components in a system model,
+        creates a schedule object, and adds it to the component dictionary.
+    '''
+    reheat_coils_supply_water_temperature = tb.SensorSystem(id="reheat_coils_supply_water_temperature", saveSimulationResult=True)
+    reheat_coils_supply_air_temperature = tb.SensorSystem(id="reheat_coils_supply_air_temperature", saveSimulationResult=True)
+
+    #Add core components
+    core_temperature_heating_setpoint = tb.ScheduleSystem(id="core_temperature_heating_setpoint", saveSimulationResult=True)
+    core_temperature_cooling_setpoint = tb.ScheduleSystem(id="core_temperature_cooling_setpoint", saveSimulationResult=True)
+    core_temperature_heating_controller = tb.VAVReheatControllerSystem(id="core_temperature_heating_controller", rat_v_flo_min=0.15, saveSimulationResult=True)
+    core_reheat_control_sensor = tb.SensorSystem(id="core_reheat_control_sensor", saveSimulationResult=True)
+    core_supply_air_temp_sensor = tb.SensorSystem(id="core_supply_air_temp_sensor", saveSimulationResult=True)    
+    core_supply_damper_position_sensor = tb.SensorSystem(id="core_supply_damper_position_sensor", saveSimulationResult=True)
+
+    #core_indoor_temp_sensor = tb.SensorSystem(id="core_indoor_temp_sensor", saveSimulationResult=True)
+
+    core_reheat_coil = tb.CoilPumpValveFMUSystem(m2_flow_nominal = 4.4966688*1.225, 
+                                                  tau_w_inlet = 1,
+                                                  tau_w_outlet = 1,
+                                                  tau_air_outlet = 1,
+                                                  id="core_reheat_coil", 
+                                                  saveSimulationResult=True)
+    core_supply_damper = tb.DamperSystem(nominalAirFlowRate=tb.Measurement(hasValue=4.4966688*1.225), id="core_supply_damper", saveSimulationResult=True)
+    core_reheat_coil_return_water_temperature = tb.SensorSystem(id="core_reheat_coil_return_water_temperature", saveSimulationResult=True)
+    
+    #Add core connections
+    self.add_connection(core_temperature_heating_setpoint, core_temperature_heating_controller, "scheduleValue", "heatingsetpointValue")
+    self.add_connection(core_temperature_cooling_setpoint, core_temperature_heating_controller, "scheduleValue", "coolingsetpointValue")
+    
+
+       
+    self.add_connection(core_temperature_heating_controller, core_reheat_control_sensor, "y_valve", "valvePosition")
+    self.add_connection(core_reheat_control_sensor, core_reheat_coil, "valvePosition", "valvePosition") 
+    self.add_connection(core_supply_damper, core_reheat_coil, "airFlowRate", "airFlowRate")
+    self.add_connection(reheat_coils_supply_water_temperature, core_reheat_coil, "supplyWaterTemperature", "supplyWaterTemperature")
+    self.add_connection(reheat_coils_supply_air_temperature, core_reheat_coil, "inletAirTemperature", "inletAirTemperature")
+
+    self.add_connection(core_temperature_heating_controller, core_supply_damper_position_sensor, "y_dam", "core_supplyDamperPosition")
+    self.add_connection(core_supply_damper_position_sensor, core_supply_damper, "core_supplyDamperPosition", "damperPosition")
+
+    self.add_connection(core_reheat_coil, core_supply_air_temp_sensor, "outletAirTemperature", "core_supplyAirTemperature")
+    self.add_connection(core_reheat_coil, core_reheat_coil_return_water_temperature, "inletWaterTemperature", "core_inletWaterTemperature")
+
+    #Connection to envelope
+    self.add_connection(self.components["core_indoor_temp_sensor"], core_temperature_heating_controller, "core_indoorTemperature", "roomTemp")
+    self.add_connection(core_supply_air_temp_sensor, self.components["core"], "core_supplyAirTemperature", "supplyAirTemperature")
+    self.add_connection(core_supply_damper, self.components["core"], "airFlowRate", "airFlowRate")
+
+    #Add north components
+    north_temperature_heating_setpoint = tb.ScheduleSystem(id="north_temperature_heating_setpoint", saveSimulationResult=True)
+    north_temperature_cooling_setpoint = tb.ScheduleSystem(id="north_temperature_cooling_setpoint", saveSimulationResult=True)
+    north_temperature_heating_controller = tb.VAVReheatControllerSystem(id="north_temperature_heating_controller", rat_v_flo_min=0.15, saveSimulationResult=True)
+    north_reheat_control_sensor = tb.SensorSystem(id="north_reheat_control_sensor", saveSimulationResult=True)
+    north_supply_air_temp_sensor = tb.SensorSystem(id="north_supply_air_temp_sensor", saveSimulationResult=True)    
+    north_supply_damper_position_sensor = tb.SensorSystem(id="north_supply_damper_position_sensor", saveSimulationResult=True)
+    #north_indoor_temp_sensor = tb.SensorSystem(id="north_indoor_temp_sensor", saveSimulationResult=True)
+    north_reheat_coil = tb.CoilPumpValveFMUSystem(m2_flow_nominal = 0.947948667*1.225, 
+                                                  tau_w_inlet = 1,
+                                                  tau_w_outlet = 1,
+                                                  tau_air_outlet = 1,
+                                                  id="north_reheat_coil", 
+                                                  saveSimulationResult=True)
+    north_supply_damper = tb.DamperSystem(nominalAirFlowRate=tb.Measurement(hasValue=0.947948667*1.225), id="north_supply_damper", saveSimulationResult=True)
+    north_reheat_coil_return_water_temperature = tb.SensorSystem(id="north_reheat_coil_return_water_temperature", saveSimulationResult=True)
+    
+    #Add north connections
+    self.add_connection(north_temperature_heating_setpoint, north_temperature_heating_controller, "scheduleValue", "heatingsetpointValue")
+    self.add_connection(north_temperature_cooling_setpoint, north_temperature_heating_controller, "scheduleValue", "coolingsetpointValue")
+
+    self.add_connection(north_temperature_heating_controller, north_reheat_control_sensor, "y_valve", "valvePosition")
+    self.add_connection(north_reheat_control_sensor, north_reheat_coil, "valvePosition", "valvePosition")
+    self.add_connection(north_supply_damper, north_reheat_coil, "airFlowRate", "airFlowRate")
+    self.add_connection(reheat_coils_supply_water_temperature, north_reheat_coil, "supplyWaterTemperature", "supplyWaterTemperature")
+    self.add_connection(reheat_coils_supply_air_temperature, north_reheat_coil, "inletAirTemperature", "inletAirTemperature")
+
+    self.add_connection(north_temperature_heating_controller, north_supply_damper_position_sensor, "y_dam", "north_supplyDamperPosition")
+    self.add_connection(north_supply_damper_position_sensor, north_supply_damper, "north_supplyDamperPosition", "damperPosition")
+    
+    self.add_connection(north_reheat_coil, north_supply_air_temp_sensor, "outletAirTemperature", "north_supplyAirTemperature")
+    self.add_connection(north_reheat_coil, north_reheat_coil_return_water_temperature, "inletWaterTemperature", "north_inletWaterTemperature")
+
+    #Connection to envelope
+    self.add_connection(self.components["north_indoor_temp_sensor"], north_temperature_heating_controller, "north_indoorTemperature", "roomTemp")
+    self.add_connection(north_supply_air_temp_sensor, self.components["north"], "north_supplyAirTemperature", "supplyAirTemperature")
+    self.add_connection(north_supply_damper, self.components["north"], "airFlowRate", "airFlowRate")    
+
+    #Add south components
+    south_temperature_heating_setpoint = tb.ScheduleSystem(id="south_temperature_heating_setpoint", saveSimulationResult=True)
+    south_temperature_cooling_setpoint = tb.ScheduleSystem(id="south_temperature_cooling_setpoint", saveSimulationResult=True)
+    south_temperature_heating_controller = tb.VAVReheatControllerSystem(id="south_temperature_heating_controller", rat_v_flo_min=0.15, saveSimulationResult=True)
+    south_reheat_control_sensor = tb.SensorSystem(id="south_reheat_control_sensor", saveSimulationResult=True)
+    south_supply_air_temp_sensor = tb.SensorSystem(id="south_supply_air_temp_sensor", saveSimulationResult=True)    
+    south_supply_damper_position_sensor = tb.SensorSystem(id="south_supply_damper_position_sensor", saveSimulationResult=True)
+    #south_indoor_temp_sensor = tb.SensorSystem(id="south_indoor_temp_sensor", saveSimulationResult=True)
+    south_reheat_coil = tb.CoilPumpValveFMUSystem(m2_flow_nominal = 0.947948667*1.225, 
+                                                  tau_w_inlet = 1,
+                                                  tau_w_outlet = 1,
+                                                  tau_air_outlet = 1,
+                                                  id="south_reheat_coil", 
+                                                  saveSimulationResult=True)
+    south_supply_damper = tb.DamperSystem(nominalAirFlowRate=tb.Measurement(hasValue=0.947948667*1.225), id="south_supply_damper", saveSimulationResult=True)
+    south_reheat_coil_return_water_temperature = tb.SensorSystem(id="south_reheat_coil_return_water_temperature", saveSimulationResult=True)
+
+    #Add south connections
+    self.add_connection(south_temperature_heating_setpoint, south_temperature_heating_controller, "scheduleValue", "heatingsetpointValue")
+    self.add_connection(south_temperature_cooling_setpoint, south_temperature_heating_controller, "scheduleValue", "coolingsetpointValue")
+    
+
+    self.add_connection(south_temperature_heating_controller, south_reheat_control_sensor, "y_valve", "valvePosition")
+    self.add_connection(south_reheat_control_sensor, south_reheat_coil, "valvePosition", "valvePosition")
+    self.add_connection(south_supply_damper, south_reheat_coil, "airFlowRate", "airFlowRate")
+    self.add_connection(reheat_coils_supply_water_temperature, south_reheat_coil, "supplyWaterTemperature", "supplyWaterTemperature")
+    self.add_connection(reheat_coils_supply_air_temperature, south_reheat_coil, "inletAirTemperature", "inletAirTemperature")
+
+    self.add_connection(south_temperature_heating_controller, south_supply_damper_position_sensor, "y_dam", "south_supplyDamperPosition")
+    self.add_connection(south_supply_damper_position_sensor, south_supply_damper, "south_supplyDamperPosition", "damperPosition")
+    
+    self.add_connection(south_reheat_coil, south_supply_air_temp_sensor, "outletAirTemperature", "south_supplyAirTemperature")
+    self.add_connection(south_reheat_coil, south_reheat_coil_return_water_temperature, "inletWaterTemperature", "south_inletWaterTemperature")
+
+    #Connection to envelope
+    self.add_connection(self.components["south_indoor_temp_sensor"], south_temperature_heating_controller, "south_indoorTemperature", "roomTemp")
+    self.add_connection(south_supply_air_temp_sensor, self.components["south"], "south_supplyAirTemperature", "supplyAirTemperature")
+    self.add_connection(south_supply_damper, self.components["south"], "airFlowRate", "airFlowRate")
+
+    #Add east components
+    east_temperature_heating_setpoint = tb.ScheduleSystem(id="east_temperature_heating_setpoint", saveSimulationResult=True)
+    east_temperature_cooling_setpoint = tb.ScheduleSystem(id="east_temperature_cooling_setpoint", saveSimulationResult=True)
+    east_temperature_heating_controller = tb.VAVReheatControllerSystem(id="east_temperature_heating_controller", rat_v_flo_min=0.15, saveSimulationResult=True)
+    east_reheat_control_sensor = tb.SensorSystem(id="east_reheat_control_sensor", saveSimulationResult=True)
+    east_supply_air_temp_sensor = tb.SensorSystem(id="east_supply_air_temp_sensor", saveSimulationResult=True)    
+    east_supply_damper_position_sensor = tb.SensorSystem(id="east_supply_damper_position_sensor", saveSimulationResult=True)
+    #east_indoor_temp_sensor = tb.SensorSystem(id="east_indoor_temp_sensor", saveSimulationResult=True)
+    east_reheat_coil = tb.CoilPumpValveFMUSystem(m2_flow_nominal = 0.9001996*1.225, 
+                                                  tau_w_inlet = 1,
+                                                  tau_w_outlet = 1,
+                                                  tau_air_outlet = 1,
+                                                  id="east_reheat_coil", 
+                                                  saveSimulationResult=True)
+    east_supply_damper = tb.DamperSystem(nominalAirFlowRate=tb.Measurement(hasValue=0.9001996*1.225), id="east_supply_damper", saveSimulationResult=True)
+    east_reheat_coil_return_water_temperature = tb.SensorSystem(id="east_reheat_coil_return_water_temperature", saveSimulationResult=True)
+
+    #Add east connections
+    self.add_connection(east_temperature_heating_setpoint, east_temperature_heating_controller, "scheduleValue", "heatingsetpointValue")
+    self.add_connection(east_temperature_cooling_setpoint, east_temperature_heating_controller, "scheduleValue", "coolingsetpointValue")
+    
+
+    self.add_connection(east_temperature_heating_controller, east_reheat_control_sensor, "y_valve", "valvePosition")
+    self.add_connection(east_reheat_control_sensor, east_reheat_coil, "valvePosition", "valvePosition")
+    self.add_connection(east_supply_damper, east_reheat_coil, "airFlowRate", "airFlowRate")
+    self.add_connection(reheat_coils_supply_water_temperature, east_reheat_coil, "supplyWaterTemperature", "supplyWaterTemperature")
+    self.add_connection(reheat_coils_supply_air_temperature, east_reheat_coil, "inletAirTemperature", "inletAirTemperature")
+
+    self.add_connection(east_temperature_heating_controller, east_supply_damper_position_sensor, "y_dam", "east_supplyDamperPosition")
+    self.add_connection(east_supply_damper_position_sensor, east_supply_damper, "east_supplyDamperPosition", "damperPosition")
+    
+    self.add_connection(east_reheat_coil, east_supply_air_temp_sensor, "outletAirTemperature", "east_supplyAirTemperature")
+    self.add_connection(east_reheat_coil, east_reheat_coil_return_water_temperature, "inletWaterTemperature", "east_inletWaterTemperature")
+
+    #Connection to envelope
+    self.add_connection(self.components["east_indoor_temp_sensor"], east_temperature_heating_controller, "east_indoorTemperature", "roomTemp")
+    self.add_connection(east_supply_air_temp_sensor, self.components["east"], "east_supplyAirTemperature", "supplyAirTemperature")
+    self.add_connection(east_supply_damper, self.components["east"], "airFlowRate", "airFlowRate")
+
+    #Add west components
+    west_temperature_heating_setpoint = tb.ScheduleSystem(id="west_temperature_heating_setpoint", saveSimulationResult=True)
+    west_temperature_cooling_setpoint = tb.ScheduleSystem(id="west_temperature_cooling_setpoint", saveSimulationResult=True)
+    west_temperature_heating_controller = tb.VAVReheatControllerSystem(id="west_temperature_heating_controller", rat_v_flo_min=0.15, saveSimulationResult=True)
+    west_supply_air_temp_sensor = tb.SensorSystem(id="west_supply_air_temp_sensor", saveSimulationResult=True)    
+    west_supply_damper_position_sensor = tb.SensorSystem(id="west_supply_damper_position_sensor", saveSimulationResult=True)
+    #west_indoor_temp_sensor = tb.SensorSystem(id="west_indoor_temp_sensor", saveSimulationResult=True)
+    west_reheat_control_sensor = tb.SensorSystem(id="west_reheat_control_sensor", saveSimulationResult=True)
+    west_reheat_coil = tb.CoilPumpValveFMUSystem(m2_flow_nominal = 0.700155244*1.225, 
+                                                  tau_w_inlet = 1,
+                                                  tau_w_outlet = 1,
+                                                  tau_air_outlet = 1,
+                                                  id="west_reheat_coil", 
+                                                  saveSimulationResult=True)
+    west_supply_damper = tb.DamperSystem(nominalAirFlowRate=tb.Measurement(hasValue=0.700155244*1.225), id="west_supply_damper", saveSimulationResult=True)
+    west_reheat_coil_return_water_temperature = tb.SensorSystem(id="west_reheat_coil_return_water_temperature", saveSimulationResult=True)
+
+    #Add west connections
+    self.add_connection(west_temperature_heating_setpoint, west_temperature_heating_controller, "scheduleValue", "heatingsetpointValue")
+    self.add_connection(west_temperature_cooling_setpoint, west_temperature_heating_controller, "scheduleValue", "coolingsetpointValue")
+
+
+    self.add_connection(west_temperature_heating_controller, west_reheat_control_sensor, "y_valve", "valvePosition")
+    self.add_connection(west_reheat_control_sensor, west_reheat_coil, "valvePosition", "valvePosition")
+    self.add_connection(west_supply_damper, west_reheat_coil, "airFlowRate", "airFlowRate")
+    self.add_connection(reheat_coils_supply_water_temperature, west_reheat_coil, "supplyWaterTemperature", "supplyWaterTemperature")
+    self.add_connection(reheat_coils_supply_air_temperature, west_reheat_coil, "inletAirTemperature", "inletAirTemperature")
+
+    self.add_connection(west_temperature_heating_controller, west_supply_damper_position_sensor, "y_dam", "west_supplyDamperPosition")
+    self.add_connection(west_supply_damper_position_sensor, west_supply_damper, "west_supplyDamperPosition", "damperPosition")
+    
+    self.add_connection(west_reheat_coil, west_supply_air_temp_sensor, "outletAirTemperature", "west_supplyAirTemperature")
+    self.add_connection(west_reheat_coil, west_reheat_coil_return_water_temperature, "inletWaterTemperature", "west_inletWaterTemperature")
+
+    #Connection to envelope
+    self.add_connection(self.components["west_indoor_temp_sensor"], west_temperature_heating_controller, "west_indoorTemperature", "roomTemp")
+    self.add_connection(west_supply_air_temp_sensor, self.components["west"], "west_supplyAirTemperature", "supplyAirTemperature")
+    self.add_connection(west_supply_damper, self.components["west"], "airFlowRate", "airFlowRate")
+
+
+def fcn(self):
+    '''
+        The fcn() function adds connections between components in a system model,
+        creates a schedule object, and adds it to the component dictionary.
+        The test() function sets simulation parameters and runs a simulation of the system
+        model using the Simulator() class. It then generates several plots of the simulation results using functions from the plot module.
+    '''
+
+    envelope_fcn(self)
+    vavs_fcn(self)
 
     """
     #Add supply junction
@@ -420,7 +634,7 @@ def load_and_print_parameters(filename):
     print("Resulting parameters:")
     print_parameter_results(model)
 
-def parameter_evaluation(data_points, parameter_filename, save_plots=False):
+def parameter_evaluation(data_points, parameter_filenames:dict, save_plots=False):
     """Evaluate model parameters by comparing simulation results with real data.
     
     Args:
@@ -444,28 +658,31 @@ def parameter_evaluation(data_points, parameter_filename, save_plots=False):
     
     # Load model with estimated parameters and run simulation
     model = get_model(id="only_rooms_estimation")
-    model.load_estimation_result(parameter_filename)
-
+    model.load_estimation_result(parameter_filenames["envelope"])
+    model.load_estimation_result(parameter_filenames["vavs"])
 
     
 
-    """
-    CORE:
-        C_supply: 400.0
-        C_air: 10564828.200215876
-        C_int: 6852402.107907902
-        C_boundary: 1221217.5316119944
-        R_int: 0.00031542152549524235
-        R_boundary: 100.0
-        Q_occ_gain: 251.2805298698468
-        CO2_occ_gain: 1.1067941581940439e-05
-        CO2_start: 400.0
-        airVolume: 2698.00128
-        T_boundary: 20.0
-        infiltration: 1.0000000000000001e-07
-    
-    """
-    model.components["core"].Q_occ_gain = 255
+    west_coil = model.components["west_reheat_coil"]
+    west_coil.m1_flow_nominal = 2.489581121812883
+    west_coil.m2_flow_nominal = 1.10274451
+    west_coil.tau1 = 11.740211593307396
+    west_coil.tau2 = 4.769272915298189
+    west_coil.tau_m = 16.072749602786455
+    west_coil.nominalUa.hasValue = 1637.3321140160149
+    west_coil.mFlowValve_nominal = 0.6770486544227082
+    west_coil.flowCoefficient.hasValue = 1.0000000000013491
+    west_coil.mFlowPump_nominal = 0.0026929261007314904
+    west_coil.KvCheckValve = 0.9999999999994005
+    west_coil.dp1_nominal = 32127.830691396135
+    west_coil.dpPump = 1347.484623168432
+    west_coil.dpSystem = 7198.204507093697
+    west_coil.dpFixedSystem = 34616.700590515815
+    west_coil.tau_w_inlet = 1.0
+    west_coil.tau_w_outlet = 1.0
+    west_coil.tau_air_outlet = 1.0
+
+
     print("Resulting parameters:")
     print_parameter_results(model)
 
@@ -535,7 +752,9 @@ def parameter_evaluation(data_points, parameter_filename, save_plots=False):
 
 if __name__ == "__main__":
     #parameter_filename = parameter_estimation()
-    filepath = r"C:\Users\asces\OneDriveUni\Projects\RL_control\boptest_model\generated_files\models\only_rooms_estimation\model_parameters\estimation_results\LS_result\mix_day_most_accurate_08042025.pickle"
-    parameter_evaluation(model_output_points, filepath, save_plots=True)
+    envelope_filepath = r"C:\Users\asces\OneDriveUni\Projects\RL_control\boptest_model\generated_files\models\only_rooms_estimation\model_parameters\estimation_results\LS_result\mix_day_most_accurate_08042025.pickle"
+    vavs_filepath = r"C:\Users\asces\OneDriveUni\Projects\RL_control\boptest_model\generated_files\models\vav_controllers_param_est\model_parameters\estimation_results\LS_result\20250416_122059_ls.pickle"
+    parameter_filenames = {"envelope": envelope_filepath, "vavs": vavs_filepath}
+    parameter_evaluation(model_output_points, parameter_filenames, save_plots=True)
 
     
