@@ -1,0 +1,21 @@
+{
+    "parameters": {
+        "m1_flow_nominal": null,
+        "m2_flow_nominal": 5.508419280000001,
+        "tau1": null,
+        "tau2": null,
+        "tau_m": null,
+        "nominalUa.hasValue": null,
+        "mFlowValve_nominal": null,
+        "flowCoefficient.hasValue": null,
+        "mFlowPump_nominal": null,
+        "KvCheckValve": null,
+        "dp1_nominal": null,
+        "dpPump": null,
+        "dpSystem": null,
+        "dpFixedSystem": null,
+        "tau_w_inlet": 1,
+        "tau_w_outlet": 1,
+        "tau_air_outlet": 1
+    }
+}

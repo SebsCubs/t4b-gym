@@ -1,0 +1,51 @@
+{
+    "SensorSystem": {
+        "core_co2_sensor.json": "C:/Users/asces/OneDriveUni/Projects/RL_control/boptest_model/boptest_handler/data/merged_data/hvac_reaZonCor_CO2Zon_y_processed.csv",
+        "core_indoor_temp_sensor.json": "C:/Users/asces/OneDriveUni/Projects/RL_control/boptest_model/boptest_handler/data/merged_data/hvac_reaZonCor_TZon_y_processed.csv",
+        "core_supply_airflow_sensor.json": "C:/Users/asces/OneDriveUni/Projects/RL_control/boptest_model/boptest_handler/data/merged_data/hvac_reaZonCor_V_flow_y_processed.csv",
+        "core_supply_air_temp_sensor.json": "C:/Users/asces/OneDriveUni/Projects/RL_control/boptest_model/boptest_handler/data/merged_data/hvac_reaZonCor_TSup_y_processed.csv",
+        "east_co2_sensor.json": "C:/Users/asces/OneDriveUni/Projects/RL_control/boptest_model/boptest_handler/data/merged_data/hvac_reaZonEas_CO2Zon_y_processed.csv",
+        "east_indoor_temp_sensor.json": "C:/Users/asces/OneDriveUni/Projects/RL_control/boptest_model/boptest_handler/data/merged_data/hvac_reaZonEas_TZon_y_processed.csv",
+        "east_supply_airflow_sensor.json": "C:/Users/asces/OneDriveUni/Projects/RL_control/boptest_model/boptest_handler/data/merged_data/hvac_reaZonEas_V_flow_y_processed.csv",
+        "east_supply_air_temp_sensor.json": "C:/Users/asces/OneDriveUni/Projects/RL_control/boptest_model/boptest_handler/data/merged_data/hvac_reaZonEas_TSup_y_processed.csv",
+        "north_co2_sensor.json": "C:/Users/asces/OneDriveUni/Projects/RL_control/boptest_model/boptest_handler/data/merged_data/hvac_reaZonNor_CO2Zon_y_processed.csv",
+        "north_indoor_temp_sensor.json": "C:/Users/asces/OneDriveUni/Projects/RL_control/boptest_model/boptest_handler/data/merged_data/hvac_reaZonNor_TZon_y_processed.csv",
+        "north_supply_airflow_sensor.json": "C:/Users/asces/OneDriveUni/Projects/RL_control/boptest_model/boptest_handler/data/merged_data/hvac_reaZonNor_V_flow_y_processed.csv",
+        "north_supply_air_temp_sensor.json": "C:/Users/asces/OneDriveUni/Projects/RL_control/boptest_model/boptest_handler/data/merged_data/hvac_reaZonNor_TSup_y_processed.csv",
+        "south_co2_sensor.json": "C:/Users/asces/OneDriveUni/Projects/RL_control/boptest_model/boptest_handler/data/merged_data/hvac_reaZonSou_CO2Zon_y_processed.csv",
+        "south_indoor_temp_sensor.json": "C:/Users/asces/OneDriveUni/Projects/RL_control/boptest_model/boptest_handler/data/merged_data/hvac_reaZonSou_TZon_y_processed.csv",
+        "south_supply_airflow_sensor.json": "C:/Users/asces/OneDriveUni/Projects/RL_control/boptest_model/boptest_handler/data/merged_data/hvac_reaZonSou_V_flow_y_processed.csv",
+        "south_supply_air_temp_sensor.json": "C:/Users/asces/OneDriveUni/Projects/RL_control/boptest_model/boptest_handler/data/merged_data/hvac_reaZonSou_TSup_y_processed.csv",
+        "west_co2_sensor.json": "C:/Users/asces/OneDriveUni/Projects/RL_control/boptest_model/boptest_handler/data/merged_data/hvac_reaZonWes_CO2Zon_y_processed.csv",
+        "west_indoor_temp_sensor.json": "C:/Users/asces/OneDriveUni/Projects/RL_control/boptest_model/boptest_handler/data/merged_data/hvac_reaZonWes_TZon_y_processed.csv",
+        "west_supply_airflow_sensor.json": "C:/Users/asces/OneDriveUni/Projects/RL_control/boptest_model/boptest_handler/data/merged_data/hvac_reaZonWes_V_flow_y_processed.csv",
+        "west_supply_air_temp_sensor.json": "C:/Users/asces/OneDriveUni/Projects/RL_control/boptest_model/boptest_handler/data/merged_data/hvac_reaZonWes_TSup_y_processed.csv",
+        "reheat_coils_supply_air_temperature.json": "C:/Users/asces/OneDriveUni/Projects/RL_control/boptest_model/boptest_handler/data/merged_data/coils_inlet_water_temperature.csv",
+        "vent_outdoor_air_temp_sensor.json": "C:/Users/asces/OneDriveUni/Projects/RL_control/boptest_model/boptest_handler/data/merged_data/weaSta_reaWeaTWetBul_y_processed.csv"
+    },
+    "ScheduleSystem": {
+        "core_occupancy_profile.json": "C:/Users/asces/OneDriveUni/Projects/RL_control/boptest_model/boptest_handler/data/merged_data/Occupancy[cor]_30s_processed.csv",
+        "east_occupancy_profile.json": "C:/Users/asces/OneDriveUni/Projects/RL_control/boptest_model/boptest_handler/data/merged_data/Occupancy[eas]_30s_processed.csv",
+        "north_occupancy_profile.json": "C:/Users/asces/OneDriveUni/Projects/RL_control/boptest_model/boptest_handler/data/merged_data/Occupancy[nor]_30s_processed.csv",
+        "south_occupancy_profile.json": "C:/Users/asces/OneDriveUni/Projects/RL_control/boptest_model/boptest_handler/data/merged_data/Occupancy[sou]_30s_processed.csv",
+        "west_occupancy_profile.json": "C:/Users/asces/OneDriveUni/Projects/RL_control/boptest_model/boptest_handler/data/merged_data/Occupancy[wes]_30s_processed.csv",
+        "cooling_coil_temperature_setpoint.json": "C:/Users/asces/OneDriveUni/Projects/RL_control/boptest_model/boptest_handler/data/merged_data/hvac_oveAhu_TSupSet_u_processed.csv",
+        "heating_coil_temperature_setpoint.json": "C:/Users/asces/OneDriveUni/Projects/RL_control/boptest_model/boptest_handler/data/merged_data/hvac_oveAhu_TSupSet_u_processed.csv",
+        "vent_mixing_damper_setpoint.json": "C:/Users/asces/OneDriveUni/Projects/RL_control/boptest_model/boptest_handler/data/merged_data/hvac_oveAhu_yRet_u_processed.csv",
+        "vent_return_damper_setpoint.json": "C:/Users/asces/OneDriveUni/Projects/RL_control/boptest_model/boptest_handler/data/merged_data/hvac_oveAhu_yOA_u_processed.csv",
+        "vent_supply_damper_setpoint.json": "C:/Users/asces/OneDriveUni/Projects/RL_control/boptest_model/boptest_handler/data/merged_data/hvac_oveAhu_yOA_u_processed.csv",
+        "core_temperature_cooling_setpoint.json": "C:/Users/asces/OneDriveUni/Projects/RL_control/boptest_model/boptest_handler/data/merged_data/hvac_oveZonSupCor_TZonCooSet_u_processed.csv",
+        "core_temperature_heating_setpoint.json": "C:/Users/asces/OneDriveUni/Projects/RL_control/boptest_model/boptest_handler/data/merged_data/hvac_oveZonSupCor_TZonHeaSet_u_processed.csv",
+        "east_temperature_cooling_setpoint.json": "C:/Users/asces/OneDriveUni/Projects/RL_control/boptest_model/boptest_handler/data/merged_data/hvac_oveZonSupEas_TZonCooSet_u_processed.csv",
+        "east_temperature_heating_setpoint.json": "C:/Users/asces/OneDriveUni/Projects/RL_control/boptest_model/boptest_handler/data/merged_data/hvac_oveZonSupEas_TZonHeaSet_u_processed.csv",
+        "north_temperature_cooling_setpoint.json": "C:/Users/asces/OneDriveUni/Projects/RL_control/boptest_model/boptest_handler/data/merged_data/hvac_oveZonSupNor_TZonCooSet_u_processed.csv",
+        "north_temperature_heating_setpoint.json": "C:/Users/asces/OneDriveUni/Projects/RL_control/boptest_model/boptest_handler/data/merged_data/hvac_oveZonSupNor_TZonHeaSet_u_processed.csv",
+        "south_temperature_cooling_setpoint.json": "C:/Users/asces/OneDriveUni/Projects/RL_control/boptest_model/boptest_handler/data/merged_data/hvac_oveZonSupSou_TZonCooSet_u_processed.csv",
+        "south_temperature_heating_setpoint.json": "C:/Users/asces/OneDriveUni/Projects/RL_control/boptest_model/boptest_handler/data/merged_data/hvac_oveZonSupSou_TZonHeaSet_u_processed.csv",
+        "west_temperature_cooling_setpoint.json": "C:/Users/asces/OneDriveUni/Projects/RL_control/boptest_model/boptest_handler/data/merged_data/hvac_oveZonSupWes_TZonCooSet_u_processed.csv",
+        "west_temperature_heating_setpoint.json": "C:/Users/asces/OneDriveUni/Projects/RL_control/boptest_model/boptest_handler/data/merged_data/hvac_oveZonSupWes_TZonHeaSet_u_processed.csv"
+    },
+    "OutdoorEnvironmentSystem": {
+        "outdoor_environment.json": "C:/Users/asces/OneDriveUni/Projects/RL_control/boptest_model/boptest_handler/data/merged_data/outdoor_env_data.csv"
+    }
+}

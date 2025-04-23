@@ -1,0 +1,8 @@
+{
+    "parameters": {
+        "k_coo": 0.1,
+        "k_hea": 0.1,
+        "ti_coo": 120,
+        "ti_hea": 120
+    }
+}

@@ -463,6 +463,8 @@ def ahu_fcn(self):
 
     #Add connections to the rooms
     self.add_connection(self.components["vent_return_air_temp_sensor"], return_flow_junction_for_supply, "returnAirTemperature", "airTemperatureIn")
+    #reheat coils supply air temperature
+    self.add_connection(return_flow_junction_for_supply, self.components["reheat_coils_supply_air_temperature"], "airTemperatureOut", "inletAirTemperature")
 
 def fcn(self):
     '''
@@ -844,7 +846,7 @@ def parameter_evaluation(data_points, parameter_filenames:dict, save_plots=False
 if __name__ == "__main__":
     envelope_filepath = r"C:\Users\asces\OneDriveUni\Projects\RL_control\boptest_model\generated_files\models\only_rooms_estimation\model_parameters\estimation_results\LS_result\mix_day_most_accurate_08042025.pickle"
     vavs_filepath = r"C:\Users\asces\OneDriveUni\Projects\RL_control\boptest_model\generated_files\models\vav_controllers_param_est\model_parameters\estimation_results\LS_result\20250416_122059_ls.pickle"
-    ahu_filepath = r"C:\Users\asces\OneDriveUni\Projects\RL_control\boptest_model\generated_files\models\ahu_param_est\model_parameters\estimation_results\LS_result\20250417_102525_ls.pickle"
+    ahu_filepath = r"C:\Users\asces\OneDriveUni\Projects\RL_control\boptest_model\generated_files\models\only_ahu_model\model_parameters\estimation_results\LS_result\20250314_163600_ls.pickle"
     parameter_filenames = {"envelope": envelope_filepath, "vavs": vavs_filepath, "ahu": ahu_filepath}
     parameter_evaluation(model_output_points, parameter_filenames, save_plots=True)
 

@@ -1,0 +1,10 @@
+{
+    "parameters": {
+        "c1": null,
+        "c2": null,
+        "c3": null,
+        "c4": null,
+        "nominalAirFlowRate.hasValue": 6.713,
+        "nominalPowerRate.hasValue": null
+    }
+}
