@@ -23,8 +23,6 @@ def fcn(self):
         The test() function sets simulation parameters and runs a simulation of the system
         model using the Simulator() class. It then generates several plots of the simulation results using functions from the plot module.
     '''
-
-
     vent_supply_air_temp_sensor = tb.SensorSystem(id="vent_supply_air_temp_sensor", saveSimulationResult=True)
     vent_mixed_air_temp_sensor = tb.SensorSystem(id="vent_mixed_air_temp_sensor", saveSimulationResult=True)
     vent_airflow_sensor = tb.SensorSystem(id="vent_airflow_sensor", saveSimulationResult=True)
