@@ -64,6 +64,31 @@ model_output_points = [
         'component_id': 'west_co2_sensor',
         'output_value': 'west_indoorCo2Concentration',
         'csv_path': 'C:/Users/asces/OneDriveUni/Projects/RL_control/boptest_model/boptest_handler/data/merged_data/hvac_reaZonWes_CO2Zon_y_processed.csv'
+    },
+    {
+        'component_id': 'vent_supply_airflow_sensor',
+        'output_value': 'supplyAirflow',
+        'csv_path': 'C:/Users/asces/OneDriveUni/Projects/RL_control/boptest_model/boptest_handler/data/merged_data/hvac_reaAhu_V_flow_sup_y_processed.csv'
+    },
+    {
+        'component_id': 'vent_return_air_temp_sensor',
+        'output_value': 'returnAirTemperature',
+        'csv_path': 'C:/Users/asces/OneDriveUni/Projects/RL_control/boptest_model/boptest_handler/data/merged_data/hvac_reaAhu_TRet_y_processed.csv'
+    },
+    {
+        'component_id': 'vent_return_airflow_sensor',
+        'output_value': 'returnAirflow',
+        'csv_path': 'C:/Users/asces/OneDriveUni/Projects/RL_control/boptest_model/boptest_handler/data/merged_data/hvac_reaAhu_V_flow_ret_y_processed.csv'
+    },
+    {
+        'component_id': 'vent_supply_air_temp_sensor',
+        'output_value': 'supplyAirTemperature',
+        'csv_path': 'C:/Users/asces/OneDriveUni/Projects/RL_control/boptest_model/boptest_handler/data/merged_data/hvac_reaAhu_TSup_y_processed.csv'
+    },
+    {
+        'component_id': 'supply_fan',
+        'output_value': 'Power',
+        'csv_path': 'C:/Users/asces/OneDriveUni/Projects/RL_control/boptest_model/boptest_handler/data/merged_data/hvac_reaAhu_PFanSup_y_processed.csv'
     }
 ]
 
@@ -378,14 +403,17 @@ def vavs_fcn(self):
     self.add_connection(west_supply_damper, self.components["west"], "airFlowRate", "airFlowRate")
 
 def ahu_fcn(self):
+    """
+    Assuming the supply and return junctions and their sensors are already added to the model
+    """
     vent_supply_air_temp_sensor = tb.SensorSystem(id="vent_supply_air_temp_sensor", saveSimulationResult=True)
     vent_mixed_air_temp_sensor = tb.SensorSystem(id="vent_mixed_air_temp_sensor", saveSimulationResult=True)
     vent_airflow_sensor = tb.SensorSystem(id="vent_airflow_sensor", saveSimulationResult=True)
     vent_supply_damper_setpoint = tb.ScheduleSystem(id="vent_supply_damper_setpoint", saveSimulationResult=True)
     vent_return_damper_setpoint = tb.ScheduleSystem(id="vent_return_damper_setpoint", saveSimulationResult=True)
     vent_mixing_damper_setpoint = tb.ScheduleSystem(id="vent_mixing_damper_setpoint", saveSimulationResult=True)
-    vent_return_air_temp_sensor = tb.SensorSystem(id="vent_return_air_temp_sensor", saveSimulationResult=True)
-    vent_return_airflow_sensor = tb.SensorSystem(id="vent_return_airflow_sensor", saveSimulationResult=True)
+    #vent_return_air_temp_sensor = tb.SensorSystem(id="vent_return_air_temp_sensor", saveSimulationResult=True)
+    vent_return_airflow_sensor_ahu = tb.SensorSystem(id="vent_return_airflow_sensor_ahu", saveSimulationResult=True)
     vent_outdoor_air_temp_sensor = tb.SensorSystem(id="vent_outdoor_air_temp_sensor", saveSimulationResult=True)
     vent_power_sensor = tb.SensorSystem(id="vent_power_sensor", saveSimulationResult=True)
 
@@ -420,18 +448,21 @@ def ahu_fcn(self):
 
     # Add supply flow junction
     supply_flow_junction_for_return = tb.SupplyFlowJunctionSystem(id="supply_flow_junction_for_return", saveSimulationResult=True)
-    self.add_connection(supply_flow_junction_for_return, vent_return_airflow_sensor, "airFlowRateIn", "returnAirFlowRate")
+    self.add_connection(supply_flow_junction_for_return, vent_return_airflow_sensor_ahu, "airFlowRateIn", "returnAirFlowRate")
     self.add_connection(main_return_damper, supply_flow_junction_for_return, "airFlowRate", "airFlowRateOut")
     self.add_connection(main_mixing_damper, supply_flow_junction_for_return, "airFlowRate", "airFlowRateOut")
 
     # Add return flow junction
-    return_flow_junction_for_supply = tb.ReturnFlowJunctionSystem(id="return_flow_junction", saveSimulationResult=True)
+    return_flow_junction_for_supply = tb.ReturnFlowJunctionSystem(id="return_flow_junction_for_supply", saveSimulationResult=True)
     self.add_connection(main_supply_damper, return_flow_junction_for_supply, "airFlowRate", "airFlowRateIn")
     self.add_connection(vent_outdoor_air_temp_sensor, return_flow_junction_for_supply, "airTemperatureIn", "airTemperatureIn")
     self.add_connection(main_mixing_damper, return_flow_junction_for_supply, "airFlowRate", "airFlowRateIn")
-    self.add_connection(vent_return_air_temp_sensor, return_flow_junction_for_supply, "returnAirTemperature", "airTemperatureIn")
+
     self.add_connection(return_flow_junction_for_supply, vent_airflow_sensor, "airFlowRateOut", "airFlowRateIn")
     self.add_connection(return_flow_junction_for_supply, vent_mixed_air_temp_sensor, "airTemperatureOut", "mixedAirTemperature")
+
+    #Add connections to the rooms
+    self.add_connection(self.components["vent_return_air_temp_sensor"], return_flow_junction_for_supply, "returnAirTemperature", "airTemperatureIn")
 
 def fcn(self):
     '''
@@ -443,34 +474,40 @@ def fcn(self):
 
     envelope_fcn(self)
     vavs_fcn(self)
-    ahu_fcn(self)
 
-    """
+
     #Add supply junction
     supply_junction = tb.SupplyFlowJunctionSystem(id="supply_junction", saveSimulationResult=True)
-    self.add_connection(core_supply_damper, supply_junction, "airFlowRate", "airFlowRateOut")
-    self.add_connection(north_supply_damper, supply_junction, "airFlowRate", "airFlowRateOut")
-    self.add_connection(south_supply_damper, supply_junction, "airFlowRate", "airFlowRateOut")
-    self.add_connection(east_supply_damper, supply_junction, "airFlowRate", "airFlowRateOut")
-    self.add_connection(west_supply_damper, supply_junction, "airFlowRate", "airFlowRateOut")
+    self.add_connection(self.components["core_supply_damper"], supply_junction, "airFlowRate", "airFlowRateOut")
+    self.add_connection(self.components["north_supply_damper"], supply_junction, "airFlowRate", "airFlowRateOut")
+    self.add_connection(self.components["south_supply_damper"], supply_junction, "airFlowRate", "airFlowRateOut")
+    self.add_connection(self.components["east_supply_damper"], supply_junction, "airFlowRate", "airFlowRateOut")
+    self.add_connection(self.components["west_supply_damper"], supply_junction, "airFlowRate", "airFlowRateOut")
     
     vent_supply_airflow_sensor = tb.SensorSystem(id="vent_supply_airflow_sensor", saveSimulationResult=True)
     self.add_connection(supply_junction, vent_supply_airflow_sensor, "airFlowRateIn", "supplyAirflow")
 
     #Connect return flow junction 
-    return_junction = self.components["exhaust_flow_junction"]
-    self.add_connection(core_exhaust_damper, return_junction, "airFlowRate", "airFlowRateIn")
-    self.add_connection(north_exhaust_damper, return_junction, "airFlowRate", "airFlowRateIn")
-    self.add_connection(south_exhaust_damper, return_junction, "airFlowRate", "airFlowRateIn")
-    self.add_connection(east_exhaust_damper, return_junction, "airFlowRate", "airFlowRateIn")
-    self.add_connection(west_exhaust_damper, return_junction, "airFlowRate", "airFlowRateIn")
+    return_junction = tb.ReturnFlowJunctionSystem(id="return_junction", saveSimulationResult=True)
+    self.add_connection(self.components["core_supply_damper"], return_junction, "airFlowRate", "airFlowRateIn")
+    self.add_connection(self.components["north_supply_damper"], return_junction, "airFlowRate", "airFlowRateIn")
+    self.add_connection(self.components["south_supply_damper"], return_junction, "airFlowRate", "airFlowRateIn")
+    self.add_connection(self.components["east_supply_damper"], return_junction, "airFlowRate", "airFlowRateIn")
+    self.add_connection(self.components["west_supply_damper"], return_junction, "airFlowRate", "airFlowRateIn")
+
+    self.add_connection(self.components["core"], return_junction, "indoorTemperature", "airTemperatureIn")
+    self.add_connection(self.components["north"], return_junction, "indoorTemperature", "airTemperatureIn")
+    self.add_connection(self.components["south"], return_junction, "indoorTemperature", "airTemperatureIn")
+    self.add_connection(self.components["east"], return_junction, "indoorTemperature", "airTemperatureIn")
+    self.add_connection(self.components["west"], return_junction, "indoorTemperature", "airTemperatureIn")
 
     vent_return_airflow_sensor = tb.SensorSystem(id="vent_return_airflow_sensor", saveSimulationResult=True)
     self.add_connection(return_junction, vent_return_airflow_sensor, "airFlowRateOut", "returnAirflow")
     vent_return_air_temp_sensor = tb.SensorSystem(id="vent_return_air_temp_sensor", saveSimulationResult=True)
     self.add_connection(return_junction, vent_return_air_temp_sensor, "airTemperatureOut", "returnAirTemperature")
 
-    """
+    ahu_fcn(self)
+
 
 def get_model(id=None, fcn_=None):
     if fcn_ is None:
