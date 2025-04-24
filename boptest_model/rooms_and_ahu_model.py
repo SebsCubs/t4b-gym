@@ -17,72 +17,72 @@ import matplotlib.pyplot as plt
 model_output_points = [
     {
         'component_id': 'core_indoor_temp_sensor',
-        'output_value': 'core_indoorTemperature',
+        'output_value': 'measuredValue',
         'csv_path': 'C:/Users/asces/OneDriveUni/Projects/RL_control/boptest_model/boptest_handler/data/merged_data/hvac_reaZonCor_TZon_y_processed.csv'
     },
     {
         'component_id': 'core_co2_sensor',
-        'output_value': 'core_indoorCo2Concentration',
+        'output_value': 'measuredValue',
         'csv_path': 'C:/Users/asces/OneDriveUni/Projects/RL_control/boptest_model/boptest_handler/data/merged_data/hvac_reaZonCor_CO2Zon_y_processed.csv'
     },
     {
         'component_id': 'north_indoor_temp_sensor',
-        'output_value': 'north_indoorTemperature',
+        'output_value': 'measuredValue',
         'csv_path': 'C:/Users/asces/OneDriveUni/Projects/RL_control/boptest_model/boptest_handler/data/merged_data/hvac_reaZonNor_TZon_y_processed.csv'
     },
     {
         'component_id': 'north_co2_sensor',
-        'output_value': 'north_indoorCo2Concentration',
+        'output_value': 'measuredValue',
         'csv_path': 'C:/Users/asces/OneDriveUni/Projects/RL_control/boptest_model/boptest_handler/data/merged_data/hvac_reaZonNor_CO2Zon_y_processed.csv'
     },
     {
         'component_id': 'south_indoor_temp_sensor',
-        'output_value': 'south_indoorTemperature',
+        'output_value': 'measuredValue',
         'csv_path': 'C:/Users/asces/OneDriveUni/Projects/RL_control/boptest_model/boptest_handler/data/merged_data/hvac_reaZonSou_TZon_y_processed.csv'
     },
     {
         'component_id': 'south_co2_sensor',
-        'output_value': 'south_indoorCo2Concentration',
+        'output_value': 'measuredValue',
         'csv_path': 'C:/Users/asces/OneDriveUni/Projects/RL_control/boptest_model/boptest_handler/data/merged_data/hvac_reaZonSou_CO2Zon_y_processed.csv'
     },
     {
         'component_id': 'east_indoor_temp_sensor',
-        'output_value': 'east_indoorTemperature',
+        'output_value': 'measuredValue',
         'csv_path': 'C:/Users/asces/OneDriveUni/Projects/RL_control/boptest_model/boptest_handler/data/merged_data/hvac_reaZonEas_TZon_y_processed.csv'
     },
     {
         'component_id': 'east_co2_sensor',
-        'output_value': 'east_indoorCo2Concentration',
+        'output_value': 'measuredValue',
         'csv_path': 'C:/Users/asces/OneDriveUni/Projects/RL_control/boptest_model/boptest_handler/data/merged_data/hvac_reaZonEas_CO2Zon_y_processed.csv'
     },
     {
         'component_id': 'west_indoor_temp_sensor',
-        'output_value': 'west_indoorTemperature',
+        'output_value': 'measuredValue',
         'csv_path': 'C:/Users/asces/OneDriveUni/Projects/RL_control/boptest_model/boptest_handler/data/merged_data/hvac_reaZonWes_TZon_y_processed.csv'
     },
     {
         'component_id': 'west_co2_sensor',
-        'output_value': 'west_indoorCo2Concentration',
+        'output_value': 'measuredValue',
         'csv_path': 'C:/Users/asces/OneDriveUni/Projects/RL_control/boptest_model/boptest_handler/data/merged_data/hvac_reaZonWes_CO2Zon_y_processed.csv'
     },
     {
         'component_id': 'vent_supply_airflow_sensor',
-        'output_value': 'supplyAirflow',
+        'output_value': 'measuredValue',
         'csv_path': 'C:/Users/asces/OneDriveUni/Projects/RL_control/boptest_model/boptest_handler/data/merged_data/hvac_reaAhu_V_flow_sup_y_processed.csv'
     },
     {
         'component_id': 'vent_return_air_temp_sensor',
-        'output_value': 'returnAirTemperature',
+        'output_value': 'measuredValue',
         'csv_path': 'C:/Users/asces/OneDriveUni/Projects/RL_control/boptest_model/boptest_handler/data/merged_data/hvac_reaAhu_TRet_y_processed.csv'
     },
     {
         'component_id': 'vent_return_airflow_sensor',
-        'output_value': 'returnAirflow',
+        'output_value': 'measuredValue',
         'csv_path': 'C:/Users/asces/OneDriveUni/Projects/RL_control/boptest_model/boptest_handler/data/merged_data/hvac_reaAhu_V_flow_ret_y_processed.csv'
     },
     {
         'component_id': 'vent_supply_air_temp_sensor',
-        'output_value': 'supplyAirTemperature',
+        'output_value': 'measuredValue',
         'csv_path': 'C:/Users/asces/OneDriveUni/Projects/RL_control/boptest_model/boptest_handler/data/merged_data/hvac_reaAhu_TSup_y_processed.csv'
     },
     {
@@ -102,7 +102,7 @@ def envelope_fcn(self):
     south = tb.BuildingSpaceNoSH1AdjBoundaryOutdoorFMUSystem(id="south", saveSimulationResult=True)
     east = tb.BuildingSpaceNoSH1AdjBoundaryOutdoorFMUSystem(id="east", saveSimulationResult=True)
     west = tb.BuildingSpaceNoSH1AdjBoundaryOutdoorFMUSystem(id="west", saveSimulationResult=True)
-    outdoor_environment = tb.OutdoorEnvironmentSystem(id="outdoor_environment", saveSimulationResult=True)
+    outdoor_environment = tb.OutdoorEnvironmentSystem(filename="C:/Users/asces/OneDriveUni/Projects/RL_control/boptest_model/boptest_handler/data/merged_data/outdoor_env_data.csv",id="outdoor_environment", saveSimulationResult=True)
 
     #Outdoor environment connections
     self.add_connection(outdoor_environment, north, "outdoorTemperature", "outdoorTemperature")
@@ -149,53 +149,53 @@ def envelope_fcn(self):
     #core_supply_air_temp_sensor = tb.SensorSystem(id="core_supply_air_temp_sensor", saveSimulationResult=True)
     #core_supply_airflow_sensor = tb.SensorSystem(id="core_supply_airflow_sensor", saveSimulationResult=True)
     core_indoor_temp_sensor = tb.SensorSystem(id="core_indoor_temp_sensor", saveSimulationResult=True)
-    self.add_connection(core, core_co2_sensor, "indoorCo2Concentration", "core_indoorCo2Concentration")
+    self.add_connection(core, core_co2_sensor, "indoorCo2Concentration", "measuredValue")
     #self.add_connection(core_supply_airflow_sensor, core, "airFlowRate", "airFlowRate")
     #self.add_connection(core_supply_air_temp_sensor, core, "supplyAirTemperature", "supplyAirTemperature")
-    self.add_connection(core, core_indoor_temp_sensor, "indoorTemperature", "core_indoorTemperature")
+    self.add_connection(core, core_indoor_temp_sensor, "indoorTemperature", "measuredValue")
 
 
     #Add north sensors
     north_co2_sensor = tb.SensorSystem(id="north_co2_sensor", saveSimulationResult=True)
-    self.add_connection(north, north_co2_sensor, "indoorCo2Concentration", "north_indoorCo2Concentration")
+    self.add_connection(north, north_co2_sensor, "indoorCo2Concentration", "measuredValue")
     #north_supply_air_temp_sensor = tb.SensorSystem(id="north_supply_air_temp_sensor", saveSimulationResult=True)
     #self.add_connection(north_supply_air_temp_sensor, north, "supplyAirTemperature", "supplyAirTemperature")
     #north_supply_airflow_sensor = tb.SensorSystem(id="north_supply_airflow_sensor", saveSimulationResult=True)
     #self.add_connection(north_supply_airflow_sensor, north, "airFlowRate", "airFlowRate")
     north_indoor_temp_sensor = tb.SensorSystem(id="north_indoor_temp_sensor", saveSimulationResult=True)
-    self.add_connection(north, north_indoor_temp_sensor, "indoorTemperature", "north_indoorTemperature")
+    self.add_connection(north, north_indoor_temp_sensor, "indoorTemperature", "measuredValue")
 
      #Add south sensors
     south_co2_sensor = tb.SensorSystem(id="south_co2_sensor", saveSimulationResult=True)
-    self.add_connection(south, south_co2_sensor, "indoorCo2Concentration", "south_indoorCo2Concentration")
+    self.add_connection(south, south_co2_sensor, "indoorCo2Concentration", "measuredValue")
     #south_supply_air_temp_sensor = tb.SensorSystem(id="south_supply_air_temp_sensor", saveSimulationResult=True)
     #self.add_connection(south_supply_air_temp_sensor, south, "supplyAirTemperature", "supplyAirTemperature")
     #south_supply_airflow_sensor = tb.SensorSystem(id="south_supply_airflow_sensor", saveSimulationResult=True)
     #self.add_connection(south_supply_airflow_sensor, south, "airFlowRate", "airFlowRate")
     south_indoor_temp_sensor = tb.SensorSystem(id="south_indoor_temp_sensor", saveSimulationResult=True)
-    self.add_connection(south, south_indoor_temp_sensor, "indoorTemperature", "south_indoorTemperature")
+    self.add_connection(south, south_indoor_temp_sensor, "indoorTemperature", "measuredValue")
 
 
     #Add east sensors
     east_co2_sensor = tb.SensorSystem(id="east_co2_sensor", saveSimulationResult=True)
-    self.add_connection(east, east_co2_sensor, "indoorCo2Concentration", "east_indoorCo2Concentration")
+    self.add_connection(east, east_co2_sensor, "indoorCo2Concentration", "measuredValue")
     #east_supply_air_temp_sensor = tb.SensorSystem(id="east_supply_air_temp_sensor", saveSimulationResult=True)
     #self.add_connection(east_supply_air_temp_sensor, east, "supplyAirTemperature", "supplyAirTemperature")
     #east_supply_airflow_sensor = tb.SensorSystem(id="east_supply_airflow_sensor", saveSimulationResult=True)
     #self.add_connection(east_supply_airflow_sensor, east, "airFlowRate", "airFlowRate")
     east_indoor_temp_sensor = tb.SensorSystem(id="east_indoor_temp_sensor", saveSimulationResult=True)
-    self.add_connection(east, east_indoor_temp_sensor, "indoorTemperature", "east_indoorTemperature")
+    self.add_connection(east, east_indoor_temp_sensor, "indoorTemperature", "measuredValue")
     
 
     #Add west sensors
     west_co2_sensor = tb.SensorSystem(id="west_co2_sensor", saveSimulationResult=True)
-    self.add_connection(west, west_co2_sensor, "indoorCo2Concentration", "west_indoorCo2Concentration")
+    self.add_connection(west, west_co2_sensor, "indoorCo2Concentration", "measuredValue")
     #west_supply_air_temp_sensor = tb.SensorSystem(id="west_supply_air_temp_sensor", saveSimulationResult=True)
     #self.add_connection(west_supply_air_temp_sensor, west, "supplyAirTemperature", "supplyAirTemperature")
     #west_supply_airflow_sensor = tb.SensorSystem(id="west_supply_airflow_sensor", saveSimulationResult=True)
     #self.add_connection(west_supply_airflow_sensor, west, "airFlowRate", "airFlowRate")
     west_indoor_temp_sensor = tb.SensorSystem(id="west_indoor_temp_sensor", saveSimulationResult=True)
-    self.add_connection(west, west_indoor_temp_sensor, "indoorTemperature", "west_indoorTemperature")
+    self.add_connection(west, west_indoor_temp_sensor, "indoorTemperature", "measuredValue")
 
 def vavs_fcn(self):
     '''
@@ -230,21 +230,21 @@ def vavs_fcn(self):
     
 
        
-    self.add_connection(core_temperature_heating_controller, core_reheat_control_sensor, "y_valve", "valvePosition")
-    self.add_connection(core_reheat_control_sensor, core_reheat_coil, "valvePosition", "valvePosition") 
+    self.add_connection(core_temperature_heating_controller, core_reheat_control_sensor, "y_valve", "measuredValue")
+    self.add_connection(core_reheat_control_sensor, core_reheat_coil, "measuredValue", "valvePosition") 
     self.add_connection(core_supply_damper, core_reheat_coil, "airFlowRate", "airFlowRate")
-    self.add_connection(reheat_coils_supply_water_temperature, core_reheat_coil, "supplyWaterTemperature", "supplyWaterTemperature")
-    self.add_connection(reheat_coils_supply_air_temperature, core_reheat_coil, "inletAirTemperature", "inletAirTemperature")
+    self.add_connection(reheat_coils_supply_water_temperature, core_reheat_coil, "measuredValue", "supplyWaterTemperature")
+    self.add_connection(reheat_coils_supply_air_temperature, core_reheat_coil, "measuredValue", "inletAirTemperature")
 
-    self.add_connection(core_temperature_heating_controller, core_supply_damper_position_sensor, "y_dam", "core_supplyDamperPosition")
-    self.add_connection(core_supply_damper_position_sensor, core_supply_damper, "core_supplyDamperPosition", "damperPosition")
+    self.add_connection(core_temperature_heating_controller, core_supply_damper_position_sensor, "y_dam", "measuredValue")
+    self.add_connection(core_supply_damper_position_sensor, core_supply_damper, "measuredValue", "damperPosition")
 
-    self.add_connection(core_reheat_coil, core_supply_air_temp_sensor, "outletAirTemperature", "core_supplyAirTemperature")
-    self.add_connection(core_reheat_coil, core_reheat_coil_return_water_temperature, "inletWaterTemperature", "core_inletWaterTemperature")
+    self.add_connection(core_reheat_coil, core_supply_air_temp_sensor, "outletAirTemperature", "measuredValue")
+    self.add_connection(core_reheat_coil, core_reheat_coil_return_water_temperature, "inletWaterTemperature", "measuredValue")
 
     #Connection to envelope
-    self.add_connection(self.components["core_indoor_temp_sensor"], core_temperature_heating_controller, "core_indoorTemperature", "roomTemp")
-    self.add_connection(core_supply_air_temp_sensor, self.components["core"], "core_supplyAirTemperature", "supplyAirTemperature")
+    self.add_connection(self.components["core_indoor_temp_sensor"], core_temperature_heating_controller, "measuredValue", "roomTemp")
+    self.add_connection(core_supply_air_temp_sensor, self.components["core"], "measuredValue", "supplyAirTemperature")
     self.add_connection(core_supply_damper, self.components["core"], "airFlowRate", "airFlowRate")
 
     #Add north components
@@ -268,21 +268,21 @@ def vavs_fcn(self):
     self.add_connection(north_temperature_heating_setpoint, north_temperature_heating_controller, "scheduleValue", "heatingsetpointValue")
     self.add_connection(north_temperature_cooling_setpoint, north_temperature_heating_controller, "scheduleValue", "coolingsetpointValue")
 
-    self.add_connection(north_temperature_heating_controller, north_reheat_control_sensor, "y_valve", "valvePosition")
-    self.add_connection(north_reheat_control_sensor, north_reheat_coil, "valvePosition", "valvePosition")
+    self.add_connection(north_temperature_heating_controller, north_reheat_control_sensor, "y_valve", "measuredValue")
+    self.add_connection(north_reheat_control_sensor, north_reheat_coil, "measuredValue", "valvePosition")
     self.add_connection(north_supply_damper, north_reheat_coil, "airFlowRate", "airFlowRate")
-    self.add_connection(reheat_coils_supply_water_temperature, north_reheat_coil, "supplyWaterTemperature", "supplyWaterTemperature")
-    self.add_connection(reheat_coils_supply_air_temperature, north_reheat_coil, "inletAirTemperature", "inletAirTemperature")
+    self.add_connection(reheat_coils_supply_water_temperature, north_reheat_coil, "measuredValue", "supplyWaterTemperature")
+    self.add_connection(reheat_coils_supply_air_temperature, north_reheat_coil, "measuredValue", "inletAirTemperature")
 
-    self.add_connection(north_temperature_heating_controller, north_supply_damper_position_sensor, "y_dam", "north_supplyDamperPosition")
-    self.add_connection(north_supply_damper_position_sensor, north_supply_damper, "north_supplyDamperPosition", "damperPosition")
+    self.add_connection(north_temperature_heating_controller, north_supply_damper_position_sensor, "y_dam", "measuredValue")
+    self.add_connection(north_supply_damper_position_sensor, north_supply_damper, "measuredValue", "damperPosition")
     
-    self.add_connection(north_reheat_coil, north_supply_air_temp_sensor, "outletAirTemperature", "north_supplyAirTemperature")
-    self.add_connection(north_reheat_coil, north_reheat_coil_return_water_temperature, "inletWaterTemperature", "north_inletWaterTemperature")
+    self.add_connection(north_reheat_coil, north_supply_air_temp_sensor, "outletAirTemperature", "measuredValue")
+    self.add_connection(north_reheat_coil, north_reheat_coil_return_water_temperature, "inletWaterTemperature", "measuredValue")
 
     #Connection to envelope
-    self.add_connection(self.components["north_indoor_temp_sensor"], north_temperature_heating_controller, "north_indoorTemperature", "roomTemp")
-    self.add_connection(north_supply_air_temp_sensor, self.components["north"], "north_supplyAirTemperature", "supplyAirTemperature")
+    self.add_connection(self.components["north_indoor_temp_sensor"], north_temperature_heating_controller, "measuredValue", "roomTemp")
+    self.add_connection(north_supply_air_temp_sensor, self.components["north"], "measuredValue", "supplyAirTemperature")
     self.add_connection(north_supply_damper, self.components["north"], "airFlowRate", "airFlowRate")    
 
     #Add south components
@@ -307,21 +307,21 @@ def vavs_fcn(self):
     self.add_connection(south_temperature_cooling_setpoint, south_temperature_heating_controller, "scheduleValue", "coolingsetpointValue")
     
 
-    self.add_connection(south_temperature_heating_controller, south_reheat_control_sensor, "y_valve", "valvePosition")
-    self.add_connection(south_reheat_control_sensor, south_reheat_coil, "valvePosition", "valvePosition")
+    self.add_connection(south_temperature_heating_controller, south_reheat_control_sensor, "y_valve", "measuredValue")
+    self.add_connection(south_reheat_control_sensor, south_reheat_coil, "measuredValue", "valvePosition")
     self.add_connection(south_supply_damper, south_reheat_coil, "airFlowRate", "airFlowRate")
-    self.add_connection(reheat_coils_supply_water_temperature, south_reheat_coil, "supplyWaterTemperature", "supplyWaterTemperature")
-    self.add_connection(reheat_coils_supply_air_temperature, south_reheat_coil, "inletAirTemperature", "inletAirTemperature")
+    self.add_connection(reheat_coils_supply_water_temperature, south_reheat_coil, "measuredValue", "supplyWaterTemperature")
+    self.add_connection(reheat_coils_supply_air_temperature, south_reheat_coil, "measuredValue", "inletAirTemperature")
 
-    self.add_connection(south_temperature_heating_controller, south_supply_damper_position_sensor, "y_dam", "south_supplyDamperPosition")
-    self.add_connection(south_supply_damper_position_sensor, south_supply_damper, "south_supplyDamperPosition", "damperPosition")
+    self.add_connection(south_temperature_heating_controller, south_supply_damper_position_sensor, "y_dam", "measuredValue")
+    self.add_connection(south_supply_damper_position_sensor, south_supply_damper, "measuredValue", "damperPosition")
     
-    self.add_connection(south_reheat_coil, south_supply_air_temp_sensor, "outletAirTemperature", "south_supplyAirTemperature")
-    self.add_connection(south_reheat_coil, south_reheat_coil_return_water_temperature, "inletWaterTemperature", "south_inletWaterTemperature")
+    self.add_connection(south_reheat_coil, south_supply_air_temp_sensor, "outletAirTemperature", "measuredValue")
+    self.add_connection(south_reheat_coil, south_reheat_coil_return_water_temperature, "inletWaterTemperature", "measuredValue")
 
     #Connection to envelope
-    self.add_connection(self.components["south_indoor_temp_sensor"], south_temperature_heating_controller, "south_indoorTemperature", "roomTemp")
-    self.add_connection(south_supply_air_temp_sensor, self.components["south"], "south_supplyAirTemperature", "supplyAirTemperature")
+    self.add_connection(self.components["south_indoor_temp_sensor"], south_temperature_heating_controller, "measuredValue", "roomTemp")
+    self.add_connection(south_supply_air_temp_sensor, self.components["south"], "measuredValue", "supplyAirTemperature")
     self.add_connection(south_supply_damper, self.components["south"], "airFlowRate", "airFlowRate")
 
     #Add east components
@@ -346,21 +346,21 @@ def vavs_fcn(self):
     self.add_connection(east_temperature_cooling_setpoint, east_temperature_heating_controller, "scheduleValue", "coolingsetpointValue")
     
 
-    self.add_connection(east_temperature_heating_controller, east_reheat_control_sensor, "y_valve", "valvePosition")
-    self.add_connection(east_reheat_control_sensor, east_reheat_coil, "valvePosition", "valvePosition")
+    self.add_connection(east_temperature_heating_controller, east_reheat_control_sensor, "y_valve", "measuredValue")
+    self.add_connection(east_reheat_control_sensor, east_reheat_coil, "measuredValue", "valvePosition")
     self.add_connection(east_supply_damper, east_reheat_coil, "airFlowRate", "airFlowRate")
-    self.add_connection(reheat_coils_supply_water_temperature, east_reheat_coil, "supplyWaterTemperature", "supplyWaterTemperature")
-    self.add_connection(reheat_coils_supply_air_temperature, east_reheat_coil, "inletAirTemperature", "inletAirTemperature")
+    self.add_connection(reheat_coils_supply_water_temperature, east_reheat_coil, "measuredValue", "supplyWaterTemperature")
+    self.add_connection(reheat_coils_supply_air_temperature, east_reheat_coil, "measuredValue", "inletAirTemperature")
 
-    self.add_connection(east_temperature_heating_controller, east_supply_damper_position_sensor, "y_dam", "east_supplyDamperPosition")
-    self.add_connection(east_supply_damper_position_sensor, east_supply_damper, "east_supplyDamperPosition", "damperPosition")
+    self.add_connection(east_temperature_heating_controller, east_supply_damper_position_sensor, "y_dam", "measuredValue")
+    self.add_connection(east_supply_damper_position_sensor, east_supply_damper, "measuredValue", "damperPosition")
     
-    self.add_connection(east_reheat_coil, east_supply_air_temp_sensor, "outletAirTemperature", "east_supplyAirTemperature")
-    self.add_connection(east_reheat_coil, east_reheat_coil_return_water_temperature, "inletWaterTemperature", "east_inletWaterTemperature")
+    self.add_connection(east_reheat_coil, east_supply_air_temp_sensor, "outletAirTemperature", "measuredValue")
+    self.add_connection(east_reheat_coil, east_reheat_coil_return_water_temperature, "inletWaterTemperature", "measuredValue")
 
     #Connection to envelope
-    self.add_connection(self.components["east_indoor_temp_sensor"], east_temperature_heating_controller, "east_indoorTemperature", "roomTemp")
-    self.add_connection(east_supply_air_temp_sensor, self.components["east"], "east_supplyAirTemperature", "supplyAirTemperature")
+    self.add_connection(self.components["east_indoor_temp_sensor"], east_temperature_heating_controller, "measuredValue", "roomTemp")
+    self.add_connection(east_supply_air_temp_sensor, self.components["east"], "measuredValue", "supplyAirTemperature")
     self.add_connection(east_supply_damper, self.components["east"], "airFlowRate", "airFlowRate")
 
     #Add west components
@@ -385,21 +385,21 @@ def vavs_fcn(self):
     self.add_connection(west_temperature_cooling_setpoint, west_temperature_heating_controller, "scheduleValue", "coolingsetpointValue")
 
 
-    self.add_connection(west_temperature_heating_controller, west_reheat_control_sensor, "y_valve", "valvePosition")
-    self.add_connection(west_reheat_control_sensor, west_reheat_coil, "valvePosition", "valvePosition")
+    self.add_connection(west_temperature_heating_controller, west_reheat_control_sensor, "y_valve", "measuredValue")
+    self.add_connection(west_reheat_control_sensor, west_reheat_coil, "measuredValue", "valvePosition")
     self.add_connection(west_supply_damper, west_reheat_coil, "airFlowRate", "airFlowRate")
-    self.add_connection(reheat_coils_supply_water_temperature, west_reheat_coil, "supplyWaterTemperature", "supplyWaterTemperature")
-    self.add_connection(reheat_coils_supply_air_temperature, west_reheat_coil, "inletAirTemperature", "inletAirTemperature")
+    self.add_connection(reheat_coils_supply_water_temperature, west_reheat_coil, "measuredValue", "supplyWaterTemperature")
+    self.add_connection(reheat_coils_supply_air_temperature, west_reheat_coil, "measuredValue", "inletAirTemperature")
 
-    self.add_connection(west_temperature_heating_controller, west_supply_damper_position_sensor, "y_dam", "west_supplyDamperPosition")
-    self.add_connection(west_supply_damper_position_sensor, west_supply_damper, "west_supplyDamperPosition", "damperPosition")
+    self.add_connection(west_temperature_heating_controller, west_supply_damper_position_sensor, "y_dam", "measuredValue")
+    self.add_connection(west_supply_damper_position_sensor, west_supply_damper, "measuredValue", "damperPosition")
     
-    self.add_connection(west_reheat_coil, west_supply_air_temp_sensor, "outletAirTemperature", "west_supplyAirTemperature")
-    self.add_connection(west_reheat_coil, west_reheat_coil_return_water_temperature, "inletWaterTemperature", "west_inletWaterTemperature")
+    self.add_connection(west_reheat_coil, west_supply_air_temp_sensor, "outletAirTemperature", "measuredValue")
+    self.add_connection(west_reheat_coil, west_reheat_coil_return_water_temperature, "inletWaterTemperature", "measuredValue")
 
     #Connection to envelope
-    self.add_connection(self.components["west_indoor_temp_sensor"], west_temperature_heating_controller, "west_indoorTemperature", "roomTemp")
-    self.add_connection(west_supply_air_temp_sensor, self.components["west"], "west_supplyAirTemperature", "supplyAirTemperature")
+    self.add_connection(self.components["west_indoor_temp_sensor"], west_temperature_heating_controller, "measuredValue", "roomTemp")
+    self.add_connection(west_supply_air_temp_sensor, self.components["west"], "measuredValue", "supplyAirTemperature")
     self.add_connection(west_supply_damper, self.components["west"], "airFlowRate", "airFlowRate")
 
 def ahu_fcn(self):
@@ -422,21 +422,21 @@ def ahu_fcn(self):
 
     # Add AHU fan
     supply_fan = tb.FanSystem(id="supply_fan", saveSimulationResult=True)
-    self.add_connection(vent_airflow_sensor, supply_fan, "airFlowRateIn", "airFlowRate")
-    self.add_connection(supply_fan, vent_power_sensor, "Power", "power")
+    self.add_connection(vent_airflow_sensor, supply_fan, "measuredValue", "airFlowRate")
+    self.add_connection(supply_fan, vent_power_sensor, "Power", "measuredValue")
 
     # Add AHU heating coil
     supply_heating_coil = tb.CoilHeatingSystem(id="supply_heating_coil", saveSimulationResult=True)
-    self.add_connection(vent_mixed_air_temp_sensor, supply_heating_coil, "mixedAirTemperature", "inletAirTemperature")
-    self.add_connection(vent_airflow_sensor, supply_heating_coil, "airFlowRateIn", "airFlowRate")
+    self.add_connection(vent_mixed_air_temp_sensor, supply_heating_coil, "measuredValue", "inletAirTemperature")
+    self.add_connection(vent_airflow_sensor, supply_heating_coil, "measuredValue", "airFlowRate")
     self.add_connection(heating_coil_temperature_setpoint, supply_heating_coil, "scheduleValue", "outletAirTemperatureSetpoint")
 
     # Add AHU cooling coil
     supply_cooling_coil = tb.CoilCoolingSystem(id="supply_cooling_coil", saveSimulationResult=True)
     self.add_connection(supply_heating_coil, supply_cooling_coil, "outletAirTemperature", "inletAirTemperature")
-    self.add_connection(vent_airflow_sensor, supply_cooling_coil, "airFlowRateIn", "airFlowRate")
+    self.add_connection(vent_airflow_sensor, supply_cooling_coil, "measuredValue", "airFlowRate")
     self.add_connection(cooling_coil_temperature_setpoint, supply_cooling_coil, "scheduleValue", "outletAirTemperatureSetpoint")
-    self.add_connection(supply_cooling_coil, vent_supply_air_temp_sensor, "outletAirTemperature", "supplyAirTemperature")
+    self.add_connection(supply_cooling_coil, vent_supply_air_temp_sensor, "outletAirTemperature", "measuredValue")
 
     # Add main dampers
     main_supply_damper = tb.DamperSystem(id="main_supply_damper", saveSimulationResult=True)
@@ -448,23 +448,23 @@ def ahu_fcn(self):
 
     # Add supply flow junction
     supply_flow_junction_for_return = tb.SupplyFlowJunctionSystem(id="supply_flow_junction_for_return", saveSimulationResult=True)
-    self.add_connection(supply_flow_junction_for_return, vent_return_airflow_sensor_ahu, "airFlowRateIn", "returnAirFlowRate")
+    self.add_connection(supply_flow_junction_for_return, vent_return_airflow_sensor_ahu, "airFlowRateIn", "measuredValue")
     self.add_connection(main_return_damper, supply_flow_junction_for_return, "airFlowRate", "airFlowRateOut")
     self.add_connection(main_mixing_damper, supply_flow_junction_for_return, "airFlowRate", "airFlowRateOut")
 
     # Add return flow junction
     return_flow_junction_for_supply = tb.ReturnFlowJunctionSystem(id="return_flow_junction_for_supply", saveSimulationResult=True)
     self.add_connection(main_supply_damper, return_flow_junction_for_supply, "airFlowRate", "airFlowRateIn")
-    self.add_connection(vent_outdoor_air_temp_sensor, return_flow_junction_for_supply, "airTemperatureIn", "airTemperatureIn")
+    self.add_connection(vent_outdoor_air_temp_sensor, return_flow_junction_for_supply, "measuredValue", "airTemperatureIn")
     self.add_connection(main_mixing_damper, return_flow_junction_for_supply, "airFlowRate", "airFlowRateIn")
 
-    self.add_connection(return_flow_junction_for_supply, vent_airflow_sensor, "airFlowRateOut", "airFlowRateIn")
-    self.add_connection(return_flow_junction_for_supply, vent_mixed_air_temp_sensor, "airTemperatureOut", "mixedAirTemperature")
+    self.add_connection(return_flow_junction_for_supply, vent_airflow_sensor, "airFlowRateOut", "measuredValue")
+    self.add_connection(return_flow_junction_for_supply, vent_mixed_air_temp_sensor, "airTemperatureOut", "measuredValue")
 
     #Add connections to the rooms
-    self.add_connection(self.components["vent_return_air_temp_sensor"], return_flow_junction_for_supply, "returnAirTemperature", "airTemperatureIn")
+    self.add_connection(self.components["vent_return_air_temp_sensor"], return_flow_junction_for_supply, "measuredValue", "airTemperatureIn")
     #reheat coils supply air temperature
-    self.add_connection(return_flow_junction_for_supply, self.components["reheat_coils_supply_air_temperature"], "airTemperatureOut", "inletAirTemperature")
+    self.add_connection(return_flow_junction_for_supply, self.components["reheat_coils_supply_air_temperature"], "airTemperatureOut", "measuredValue")
 
 def fcn(self):
     '''
@@ -487,7 +487,7 @@ def fcn(self):
     self.add_connection(self.components["west_supply_damper"], supply_junction, "airFlowRate", "airFlowRateOut")
     
     vent_supply_airflow_sensor = tb.SensorSystem(id="vent_supply_airflow_sensor", saveSimulationResult=True)
-    self.add_connection(supply_junction, vent_supply_airflow_sensor, "airFlowRateIn", "supplyAirflow")
+    self.add_connection(supply_junction, vent_supply_airflow_sensor, "airFlowRateIn", "measuredValue")
 
     #Connect return flow junction 
     return_junction = tb.ReturnFlowJunctionSystem(id="return_junction", saveSimulationResult=True)
@@ -504,9 +504,9 @@ def fcn(self):
     self.add_connection(self.components["west"], return_junction, "indoorTemperature", "airTemperatureIn")
 
     vent_return_airflow_sensor = tb.SensorSystem(id="vent_return_airflow_sensor", saveSimulationResult=True)
-    self.add_connection(return_junction, vent_return_airflow_sensor, "airFlowRateOut", "returnAirflow")
+    self.add_connection(return_junction, vent_return_airflow_sensor, "airFlowRateOut", "measuredValue")
     vent_return_air_temp_sensor = tb.SensorSystem(id="vent_return_air_temp_sensor", saveSimulationResult=True)
-    self.add_connection(return_junction, vent_return_air_temp_sensor, "airTemperatureOut", "returnAirTemperature")
+    self.add_connection(return_junction, vent_return_air_temp_sensor, "airTemperatureOut", "measuredValue")
 
     ahu_fcn(self)
 
