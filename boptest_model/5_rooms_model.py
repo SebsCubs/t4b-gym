@@ -769,7 +769,7 @@ def parameter_evaluation(data_points, parameter_filenames:dict, save_plots=False
         if save_plots:
             os.makedirs('plots', exist_ok=True)
             plt.savefig(f'plots/{component_id}_{output_value}_comparison.png')
-        plt.show()
+        #plt.show()
 
 if __name__ == "__main__":
     #parameter_filename = parameter_estimation()

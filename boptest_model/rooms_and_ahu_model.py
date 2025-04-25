@@ -121,8 +121,6 @@ def envelope_fcn(self):
     self.add_connection(outdoor_environment, west, "globalIrradiation", "globalIrradiation")
     self.add_connection(outdoor_environment, west, "outdoorCo2Concentration", "outdoorCo2Concentration")
 
-
-
     #Occupancy profiles
     core_occupancy_profile = tb.ScheduleSystem(id="core_occupancy_profile", saveSimulationResult=True) 
     self.add_connection(core_occupancy_profile, core, "scheduleValue", "numberOfPeople")
@@ -141,8 +139,6 @@ def envelope_fcn(self):
     self.add_connection(north, core, "indoorTemperature", "indoorTemperature_adj1")
     self.add_connection(core, west, "indoorTemperature", "indoorTemperature_adj1")
     self.add_connection(core, east, "indoorTemperature", "indoorTemperature_adj1")
-
-
 
     #Add core sensors
     core_co2_sensor = tb.SensorSystem(id="core_co2_sensor", saveSimulationResult=True)
