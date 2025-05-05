@@ -26,6 +26,16 @@ model_output_points = [
         'csv_path': 'C:/Users/asces/OneDriveUni/Projects/RL_control/boptest_model/boptest_handler/data/merged_data/hvac_reaZonCor_CO2Zon_y_processed.csv'
     },
     {
+        'component_id': 'core_supply_air_temp_sensor',
+        'output_value': 'supplyAirTemperature',
+        'csv_path': 'C:/Users/asces/OneDriveUni/Projects/RL_control/boptest_model/boptest_handler/data/merged_data/hvac_reaZonCor_TSup_y_processed.csv'
+    },
+    {
+        'component_id': 'core_supply_airflow_sensor',
+        'output_value': 'airFlowRate',
+        'csv_path': 'C:/Users/asces/OneDriveUni/Projects/RL_control/boptest_model/boptest_handler/data/merged_data/hvac_reaZonCor_V_flow_y_processed.csv'
+    },
+    {
         'component_id': 'north_indoor_temp_sensor',
         'output_value': 'measuredValue',
         'csv_path': 'C:/Users/asces/OneDriveUni/Projects/RL_control/boptest_model/boptest_handler/data/merged_data/hvac_reaZonNor_TZon_y_processed.csv'
@@ -34,6 +44,16 @@ model_output_points = [
         'component_id': 'north_co2_sensor',
         'output_value': 'north_indoorCo2Concentration',
         'csv_path': 'C:/Users/asces/OneDriveUni/Projects/RL_control/boptest_model/boptest_handler/data/merged_data/hvac_reaZonNor_CO2Zon_y_processed.csv'
+    },
+    {
+        'component_id': 'north_supply_air_temp_sensor',
+        'output_value': 'supplyAirTemperature',
+        'csv_path': 'C:/Users/asces/OneDriveUni/Projects/RL_control/boptest_model/boptest_handler/data/merged_data/hvac_reaZonNor_TSup_y_processed.csv'
+    },
+    {
+        'component_id': 'north_supply_airflow_sensor',
+        'output_value': 'airFlowRate',
+        'csv_path': 'C:/Users/asces/OneDriveUni/Projects/RL_control/boptest_model/boptest_handler/data/merged_data/hvac_reaZonNor_V_flow_y_processed.csv'
     },
     {
         'component_id': 'south_indoor_temp_sensor',
@@ -46,6 +66,16 @@ model_output_points = [
         'csv_path': 'C:/Users/asces/OneDriveUni/Projects/RL_control/boptest_model/boptest_handler/data/merged_data/hvac_reaZonSou_CO2Zon_y_processed.csv'
     },
     {
+        'component_id': 'south_supply_air_temp_sensor',
+        'output_value': 'supplyAirTemperature',
+        'csv_path': 'C:/Users/asces/OneDriveUni/Projects/RL_control/boptest_model/boptest_handler/data/merged_data/hvac_reaZonSou_TSup_y_processed.csv'
+    },
+    {
+        'component_id': 'south_supply_airflow_sensor',
+        'output_value': 'airFlowRate',
+        'csv_path': 'C:/Users/asces/OneDriveUni/Projects/RL_control/boptest_model/boptest_handler/data/merged_data/hvac_reaZonSou_V_flow_y_processed.csv'
+    },
+    {
         'component_id': 'east_indoor_temp_sensor',
         'output_value': 'measuredValue',
         'csv_path': 'C:/Users/asces/OneDriveUni/Projects/RL_control/boptest_model/boptest_handler/data/merged_data/hvac_reaZonEas_TZon_y_processed.csv'
@@ -56,6 +86,16 @@ model_output_points = [
         'csv_path': 'C:/Users/asces/OneDriveUni/Projects/RL_control/boptest_model/boptest_handler/data/merged_data/hvac_reaZonEas_CO2Zon_y_processed.csv'
     },
     {
+        'component_id': 'east_supply_air_temp_sensor',
+        'output_value': 'supplyAirTemperature',
+        'csv_path': 'C:/Users/asces/OneDriveUni/Projects/RL_control/boptest_model/boptest_handler/data/merged_data/hvac_reaZonEas_TSup_y_processed.csv'
+    },
+    {
+        'component_id': 'east_supply_airflow_sensor',
+        'output_value': 'airFlowRate',
+        'csv_path': 'C:/Users/asces/OneDriveUni/Projects/RL_control/boptest_model/boptest_handler/data/merged_data/hvac_reaZonEas_V_flow_y_processed.csv'
+    },
+    {
         'component_id': 'west_indoor_temp_sensor',
         'output_value': 'measuredValue',
         'csv_path': 'C:/Users/asces/OneDriveUni/Projects/RL_control/boptest_model/boptest_handler/data/merged_data/hvac_reaZonWes_TZon_y_processed.csv'
@@ -64,7 +104,18 @@ model_output_points = [
         'component_id': 'west_co2_sensor',
         'output_value': 'west_indoorCo2Concentration',
         'csv_path': 'C:/Users/asces/OneDriveUni/Projects/RL_control/boptest_model/boptest_handler/data/merged_data/hvac_reaZonWes_CO2Zon_y_processed.csv'
+    },
+    {
+        'component_id': 'west_supply_air_temp_sensor',
+        'output_value': 'supplyAirTemperature',
+        'csv_path': 'C:/Users/asces/OneDriveUni/Projects/RL_control/boptest_model/boptest_handler/data/merged_data/hvac_reaZonWes_TSup_y_processed.csv'
+    },
+    {
+        'component_id': 'west_supply_airflow_sensor',
+        'output_value': 'airFlowRate',
+        'csv_path': 'C:/Users/asces/OneDriveUni/Projects/RL_control/boptest_model/boptest_handler/data/merged_data/hvac_reaZonWes_V_flow_y_processed.csv'
     }
+
 ]
 
 def fcn(self):
@@ -432,7 +483,7 @@ def parameter_evaluation(data_points, parameter_filename, save_plots=False):
         if save_plots:
             os.makedirs('plots', exist_ok=True)
             plt.savefig(f'plots/{component_id}_{output_value}_comparison.png')
-        plt.show()
+        #plt.show()
 
 
 if __name__ == "__main__":

@@ -18,7 +18,7 @@ model_output_points = [
     {
         'component_id': 'core_supply_damper_position_sensor',
         'output_value': 'core_supplyDamperPosition',
-        'csv_path': 'C:/Users/asces/OneDriveUni/Projects/RL_control/boptest_model/boptest_handler/data/merged_data/hvac_oveZonActCor_yDam_u_processed.csv'
+        'csv_path': 'C:/Users/asces/OneDriveUni/Projects/RL_control/boptest_model/boptest_handler/data/merged_data/hvac_reaZonCor_damper_position_y_processed.csv'
     },
     {
         'component_id': 'core_supply_air_temp_sensor',
@@ -38,7 +38,7 @@ model_output_points = [
     {
         'component_id': 'north_supply_damper_position_sensor',
         'output_value': 'north_supplyDamperPosition',
-        'csv_path': 'C:/Users/asces/OneDriveUni/Projects/RL_control/boptest_model/boptest_handler/data/merged_data/hvac_oveZonActNor_yDam_u_processed.csv'
+        'csv_path': 'C:/Users/asces/OneDriveUni/Projects/RL_control/boptest_model/boptest_handler/data/merged_data/hvac_reaZonNor_damper_position_y_processed.csv'
     },
     {
         'component_id': 'north_supply_air_temp_sensor',
@@ -58,7 +58,7 @@ model_output_points = [
     {
         'component_id': 'south_supply_damper_position_sensor',
         'output_value': 'south_supplyDamperPosition',
-        'csv_path': 'C:/Users/asces/OneDriveUni/Projects/RL_control/boptest_model/boptest_handler/data/merged_data/hvac_oveZonActSou_yDam_u_processed.csv'
+        'csv_path': 'C:/Users/asces/OneDriveUni/Projects/RL_control/boptest_model/boptest_handler/data/merged_data/hvac_reaZonSou_damper_position_y_processed.csv'
     },
     {
         'component_id': 'south_supply_air_temp_sensor',
@@ -78,7 +78,7 @@ model_output_points = [
     {
         'component_id': 'east_supply_damper_position_sensor',
         'output_value': 'east_supplyDamperPosition',
-        'csv_path': 'C:/Users/asces/OneDriveUni/Projects/RL_control/boptest_model/boptest_handler/data/merged_data/hvac_oveZonActEas_yDam_u_processed.csv'
+        'csv_path': 'C:/Users/asces/OneDriveUni/Projects/RL_control/boptest_model/boptest_handler/data/merged_data/hvac_reaZonEas_damper_position_y_processed.csv'
     },
     {
         'component_id': 'east_supply_air_temp_sensor',
@@ -98,7 +98,7 @@ model_output_points = [
     {
         'component_id': 'west_supply_damper_position_sensor',
         'output_value': 'west_supplyDamperPosition',
-        'csv_path': 'C:/Users/asces/OneDriveUni/Projects/RL_control/boptest_model/boptest_handler/data/merged_data/hvac_oveZonActWes_yDam_u_processed.csv'
+        'csv_path': 'C:/Users/asces/OneDriveUni/Projects/RL_control/boptest_model/boptest_handler/data/merged_data/hvac_reaZonWes_damper_position_y_processed.csv'
     },
     {
         'component_id': 'west_supply_air_temp_sensor',
@@ -134,6 +134,7 @@ def fcn(self):
     core_reheat_control_sensor = tb.SensorSystem(id="core_reheat_control_sensor", saveSimulationResult=True)
     core_supply_air_temp_sensor = tb.SensorSystem(id="core_supply_air_temp_sensor", saveSimulationResult=True)    
     core_supply_damper_position_sensor = tb.SensorSystem(id="core_supply_damper_position_sensor", saveSimulationResult=True)
+    core_supply_airflow_sensor = tb.SensorSystem(id="core_supply_airflow_sensor", saveSimulationResult=True)
     core_indoor_temp_sensor = tb.SensorSystem(id="core_indoor_temp_sensor", saveSimulationResult=True)
     core_reheat_coil = tb.CoilPumpValveFMUSystem(m2_flow_nominal = 4.4966688*1.225, 
                                                   tau_w_inlet = 1,
@@ -152,7 +153,8 @@ def fcn(self):
        
     self.add_connection(core_temperature_heating_controller, core_reheat_control_sensor, "y_valve", "valvePosition")
     self.add_connection(core_reheat_control_sensor, core_reheat_coil, "valvePosition", "valvePosition") 
-    self.add_connection(core_supply_damper, core_reheat_coil, "airFlowRate", "airFlowRate")
+    self.add_connection(core_supply_damper, core_supply_airflow_sensor, "airFlowRate", "airFlowRate")
+    self.add_connection(core_supply_airflow_sensor, core_reheat_coil, "airFlowRate", "airFlowRate")
     self.add_connection(reheat_coils_supply_water_temperature, core_reheat_coil, "supplyWaterTemperature", "supplyWaterTemperature")
     self.add_connection(reheat_coils_supply_air_temperature, core_reheat_coil, "inletAirTemperature", "inletAirTemperature")
 
@@ -169,6 +171,7 @@ def fcn(self):
     north_reheat_control_sensor = tb.SensorSystem(id="north_reheat_control_sensor", saveSimulationResult=True)
     north_supply_air_temp_sensor = tb.SensorSystem(id="north_supply_air_temp_sensor", saveSimulationResult=True)    
     north_supply_damper_position_sensor = tb.SensorSystem(id="north_supply_damper_position_sensor", saveSimulationResult=True)
+    north_supply_airflow_sensor = tb.SensorSystem(id="north_supply_airflow_sensor", saveSimulationResult=True)
     north_indoor_temp_sensor = tb.SensorSystem(id="north_indoor_temp_sensor", saveSimulationResult=True)
     north_reheat_coil = tb.CoilPumpValveFMUSystem(m2_flow_nominal = 0.947948667*1.225, 
                                                   tau_w_inlet = 1,
@@ -186,7 +189,8 @@ def fcn(self):
 
     self.add_connection(north_temperature_heating_controller, north_reheat_control_sensor, "y_valve", "valvePosition")
     self.add_connection(north_reheat_control_sensor, north_reheat_coil, "valvePosition", "valvePosition")
-    self.add_connection(north_supply_damper, north_reheat_coil, "airFlowRate", "airFlowRate")
+    self.add_connection(north_supply_damper, north_supply_airflow_sensor, "airFlowRate", "airFlowRate")
+    self.add_connection(north_supply_airflow_sensor, north_reheat_coil, "airFlowRate", "airFlowRate")
     self.add_connection(reheat_coils_supply_water_temperature, north_reheat_coil, "supplyWaterTemperature", "supplyWaterTemperature")
     self.add_connection(reheat_coils_supply_air_temperature, north_reheat_coil, "inletAirTemperature", "inletAirTemperature")
 
@@ -202,6 +206,7 @@ def fcn(self):
     south_reheat_control_sensor = tb.SensorSystem(id="south_reheat_control_sensor", saveSimulationResult=True)
     south_supply_air_temp_sensor = tb.SensorSystem(id="south_supply_air_temp_sensor", saveSimulationResult=True)    
     south_supply_damper_position_sensor = tb.SensorSystem(id="south_supply_damper_position_sensor", saveSimulationResult=True)
+    south_supply_airflow_sensor = tb.SensorSystem(id="south_supply_airflow_sensor", saveSimulationResult=True)
     south_indoor_temp_sensor = tb.SensorSystem(id="south_indoor_temp_sensor", saveSimulationResult=True)
     south_reheat_coil = tb.CoilPumpValveFMUSystem(m2_flow_nominal = 0.947948667*1.225, 
                                                   tau_w_inlet = 1,
@@ -219,7 +224,8 @@ def fcn(self):
 
     self.add_connection(south_temperature_heating_controller, south_reheat_control_sensor, "y_valve", "valvePosition")
     self.add_connection(south_reheat_control_sensor, south_reheat_coil, "valvePosition", "valvePosition")
-    self.add_connection(south_supply_damper, south_reheat_coil, "airFlowRate", "airFlowRate")
+    self.add_connection(south_supply_damper, south_supply_airflow_sensor, "airFlowRate", "airFlowRate")
+    self.add_connection(south_supply_airflow_sensor, south_reheat_coil, "airFlowRate", "airFlowRate")
     self.add_connection(reheat_coils_supply_water_temperature, south_reheat_coil, "supplyWaterTemperature", "supplyWaterTemperature")
     self.add_connection(reheat_coils_supply_air_temperature, south_reheat_coil, "inletAirTemperature", "inletAirTemperature")
 
@@ -237,6 +243,7 @@ def fcn(self):
     east_supply_air_temp_sensor = tb.SensorSystem(id="east_supply_air_temp_sensor", saveSimulationResult=True)    
     east_supply_damper_position_sensor = tb.SensorSystem(id="east_supply_damper_position_sensor", saveSimulationResult=True)
     east_indoor_temp_sensor = tb.SensorSystem(id="east_indoor_temp_sensor", saveSimulationResult=True)
+    east_supply_airflow_sensor = tb.SensorSystem(id="east_supply_airflow_sensor", saveSimulationResult=True)
     east_reheat_coil = tb.CoilPumpValveFMUSystem(m2_flow_nominal = 0.9001996*1.225, 
                                                   tau_w_inlet = 1,
                                                   tau_w_outlet = 1,
@@ -253,7 +260,8 @@ def fcn(self):
 
     self.add_connection(east_temperature_heating_controller, east_reheat_control_sensor, "y_valve", "valvePosition")
     self.add_connection(east_reheat_control_sensor, east_reheat_coil, "valvePosition", "valvePosition")
-    self.add_connection(east_supply_damper, east_reheat_coil, "airFlowRate", "airFlowRate")
+    self.add_connection(east_supply_damper, east_supply_airflow_sensor, "airFlowRate", "airFlowRate")
+    self.add_connection(east_supply_airflow_sensor, east_reheat_coil, "airFlowRate", "airFlowRate")
     self.add_connection(reheat_coils_supply_water_temperature, east_reheat_coil, "supplyWaterTemperature", "supplyWaterTemperature")
     self.add_connection(reheat_coils_supply_air_temperature, east_reheat_coil, "inletAirTemperature", "inletAirTemperature")
 
@@ -270,6 +278,7 @@ def fcn(self):
     west_supply_air_temp_sensor = tb.SensorSystem(id="west_supply_air_temp_sensor", saveSimulationResult=True)    
     west_supply_damper_position_sensor = tb.SensorSystem(id="west_supply_damper_position_sensor", saveSimulationResult=True)
     west_indoor_temp_sensor = tb.SensorSystem(id="west_indoor_temp_sensor", saveSimulationResult=True)
+    west_supply_airflow_sensor = tb.SensorSystem(id="west_supply_airflow_sensor", saveSimulationResult=True)
     west_reheat_control_sensor = tb.SensorSystem(id="west_reheat_control_sensor", saveSimulationResult=True)
     west_reheat_coil = tb.CoilPumpValveFMUSystem(m2_flow_nominal = 0.700155244*1.225, 
                                                   tau_w_inlet = 1,
@@ -287,7 +296,8 @@ def fcn(self):
 
     self.add_connection(west_temperature_heating_controller, west_reheat_control_sensor, "y_valve", "valvePosition")
     self.add_connection(west_reheat_control_sensor, west_reheat_coil, "valvePosition", "valvePosition")
-    self.add_connection(west_supply_damper, west_reheat_coil, "airFlowRate", "airFlowRate")
+    self.add_connection(west_supply_damper, west_supply_airflow_sensor, "airFlowRate", "airFlowRate")
+    self.add_connection(west_supply_airflow_sensor, west_reheat_coil, "airFlowRate", "airFlowRate")
     self.add_connection(reheat_coils_supply_water_temperature, west_reheat_coil, "supplyWaterTemperature", "supplyWaterTemperature")
     self.add_connection(reheat_coils_supply_air_temperature, west_reheat_coil, "inletAirTemperature", "inletAirTemperature")
 
@@ -491,22 +501,27 @@ def parameter_estimation():
 
                              model.components["core_supply_air_temp_sensor"]: {"standardDeviation": 0.1/percentile, "scale_factor": 20},
                              model.components["core_supply_damper_position_sensor"]: {"standardDeviation": 0.01/percentile, "scale_factor": 1},
+                             model.components["core_supply_airflow_sensor"]: {"standardDeviation": 0.01/percentile, "scale_factor": 1},
                              model.components["core_reheat_control_sensor"]: {"standardDeviation": 0.01/percentile, "scale_factor": 1},
                              
                              model.components["north_supply_damper_position_sensor"]: {"standardDeviation": 0.01/percentile, "scale_factor": 1}, 
                              model.components["north_supply_air_temp_sensor"]: {"standardDeviation": 0.1/percentile, "scale_factor": 20},
+                             model.components["north_supply_airflow_sensor"]: {"standardDeviation": 0.01/percentile, "scale_factor": 1},
                              model.components["north_reheat_control_sensor"]: {"standardDeviation": 0.01/percentile, "scale_factor": 1},
 
                              model.components["south_supply_damper_position_sensor"]: {"standardDeviation": 0.01/percentile, "scale_factor": 1},
                              model.components["south_supply_air_temp_sensor"]: {"standardDeviation": 0.1/percentile, "scale_factor": 20},
+                             model.components["south_supply_airflow_sensor"]: {"standardDeviation": 0.01/percentile, "scale_factor": 1},
                              model.components["south_reheat_control_sensor"]: {"standardDeviation": 0.01/percentile, "scale_factor": 1},
 
                              model.components["east_supply_damper_position_sensor"]: {"standardDeviation": 0.01/percentile, "scale_factor": 1},
                              model.components["east_supply_air_temp_sensor"]: {"standardDeviation": 0.1/percentile, "scale_factor": 20},
+                             model.components["east_supply_airflow_sensor"]: {"standardDeviation": 0.01/percentile, "scale_factor": 1},
                              model.components["east_reheat_control_sensor"]: {"standardDeviation": 0.01/percentile, "scale_factor": 1},
 
                              model.components["west_supply_damper_position_sensor"]: {"standardDeviation": 0.01/percentile, "scale_factor": 1},
                              model.components["west_supply_air_temp_sensor"]: {"standardDeviation": 0.1/percentile, "scale_factor": 20},
+                             model.components["west_supply_airflow_sensor"]: {"standardDeviation": 0.01/percentile, "scale_factor": 1},
                              model.components["west_reheat_control_sensor"]: {"standardDeviation": 0.01/percentile, "scale_factor": 1},
                              }  
 
@@ -662,10 +677,10 @@ def parameter_evaluation(data_points, parameter_filename, save_plots=False):
         if save_plots:
             os.makedirs('plots', exist_ok=True)
             plt.savefig(f'plots/{component_id}_{output_value}_comparison.png')
-        plt.show()
+        #plt.show()
  
 
 if __name__ == "__main__":
-    #parameter_filename = parameter_estimation()
-    parameter_filename = r"C:\Users\asces\OneDriveUni\Projects\RL_control\boptest_model\generated_files\models\vav_controllers_param_est\model_parameters\estimation_results\LS_result\20250416_122059_ls.pickle"
+    parameter_filename = parameter_estimation()
+    #parameter_filename = r"C:\Users\asces\OneDriveUni\Projects\RL_control\boptest_model\generated_files\models\vav_controllers_param_est\model_parameters\estimation_results\LS_result\20250416_122059_ls.pickle"
     parameter_evaluation(model_output_points, parameter_filename, save_plots=True)

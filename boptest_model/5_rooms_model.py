@@ -16,6 +16,16 @@ import matplotlib.pyplot as plt
 
 model_output_points = [
     {
+        'component_id': 'core_reheat_control_sensor',
+        'output_value': 'valvePosition',
+        'csv_path': 'C:/Users/asces/OneDriveUni/Projects/RL_control/boptest_model/boptest_handler/data/merged_data/hvac_oveZonActCor_yReaHea_u_processed.csv'
+    },
+    {
+        'component_id': 'core_supply_damper_position_sensor',
+        'output_value': 'core_supplyDamperPosition',
+        'csv_path': 'C:/Users/asces/OneDriveUni/Projects/RL_control/boptest_model/boptest_handler/data/merged_data/hvac_oveZonActCor_yDam_u_processed.csv'
+    },
+    {
         'component_id': 'core_indoor_temp_sensor',
         'output_value': 'core_indoorTemperature',
         'csv_path': 'C:/Users/asces/OneDriveUni/Projects/RL_control/boptest_model/boptest_handler/data/merged_data/hvac_reaZonCor_TZon_y_processed.csv'
@@ -24,6 +34,16 @@ model_output_points = [
         'component_id': 'core_co2_sensor',
         'output_value': 'core_indoorCo2Concentration',
         'csv_path': 'C:/Users/asces/OneDriveUni/Projects/RL_control/boptest_model/boptest_handler/data/merged_data/hvac_reaZonCor_CO2Zon_y_processed.csv'
+    },
+    {
+        'component_id': 'north_reheat_control_sensor',
+        'output_value': 'valvePosition',
+        'csv_path': 'C:/Users/asces/OneDriveUni/Projects/RL_control/boptest_model/boptest_handler/data/merged_data/hvac_oveZonActNor_yReaHea_u_processed.csv'
+    },
+    {
+        'component_id': 'north_supply_damper_position_sensor',
+        'output_value': 'north_supplyDamperPosition',
+        'csv_path': 'C:/Users/asces/OneDriveUni/Projects/RL_control/boptest_model/boptest_handler/data/merged_data/hvac_oveZonActNor_yDam_u_processed.csv'
     },
     {
         'component_id': 'north_indoor_temp_sensor',
@@ -36,6 +56,16 @@ model_output_points = [
         'csv_path': 'C:/Users/asces/OneDriveUni/Projects/RL_control/boptest_model/boptest_handler/data/merged_data/hvac_reaZonNor_CO2Zon_y_processed.csv'
     },
     {
+        'component_id': 'south_reheat_control_sensor',
+        'output_value': 'valvePosition',
+        'csv_path': 'C:/Users/asces/OneDriveUni/Projects/RL_control/boptest_model/boptest_handler/data/merged_data/hvac_oveZonActSou_yReaHea_u_processed.csv'
+    },
+    {
+        'component_id': 'south_supply_damper_position_sensor',
+        'output_value': 'south_supplyDamperPosition',
+        'csv_path': 'C:/Users/asces/OneDriveUni/Projects/RL_control/boptest_model/boptest_handler/data/merged_data/hvac_oveZonActSou_yDam_u_processed.csv'
+    },
+    {
         'component_id': 'south_indoor_temp_sensor',
         'output_value': 'south_indoorTemperature',
         'csv_path': 'C:/Users/asces/OneDriveUni/Projects/RL_control/boptest_model/boptest_handler/data/merged_data/hvac_reaZonSou_TZon_y_processed.csv'
@@ -46,6 +76,16 @@ model_output_points = [
         'csv_path': 'C:/Users/asces/OneDriveUni/Projects/RL_control/boptest_model/boptest_handler/data/merged_data/hvac_reaZonSou_CO2Zon_y_processed.csv'
     },
     {
+        'component_id': 'east_reheat_control_sensor',
+        'output_value': 'valvePosition',
+        'csv_path': 'C:/Users/asces/OneDriveUni/Projects/RL_control/boptest_model/boptest_handler/data/merged_data/hvac_oveZonActEas_yReaHea_u_processed.csv'
+    },
+    {
+        'component_id': 'east_supply_damper_position_sensor',
+        'output_value': 'east_supplyDamperPosition',
+        'csv_path': 'C:/Users/asces/OneDriveUni/Projects/RL_control/boptest_model/boptest_handler/data/merged_data/hvac_oveZonActEas_yDam_u_processed.csv'
+    },
+    {
         'component_id': 'east_indoor_temp_sensor',
         'output_value': 'east_indoorTemperature',
         'csv_path': 'C:/Users/asces/OneDriveUni/Projects/RL_control/boptest_model/boptest_handler/data/merged_data/hvac_reaZonEas_TZon_y_processed.csv'
@@ -54,6 +94,16 @@ model_output_points = [
         'component_id': 'east_co2_sensor',
         'output_value': 'east_indoorCo2Concentration',
         'csv_path': 'C:/Users/asces/OneDriveUni/Projects/RL_control/boptest_model/boptest_handler/data/merged_data/hvac_reaZonEas_CO2Zon_y_processed.csv'
+    },
+    {
+        'component_id': 'west_reheat_control_sensor',
+        'output_value': 'valvePosition',
+        'csv_path': 'C:/Users/asces/OneDriveUni/Projects/RL_control/boptest_model/boptest_handler/data/merged_data/hvac_oveZonActWes_yReaHea_u_processed.csv'
+    },
+    {
+        'component_id': 'west_supply_damper_position_sensor',
+        'output_value': 'west_supplyDamperPosition',
+        'csv_path': 'C:/Users/asces/OneDriveUni/Projects/RL_control/boptest_model/boptest_handler/data/merged_data/hvac_oveZonActWes_yDam_u_processed.csv'
     },
     {
         'component_id': 'west_indoor_temp_sensor',

@@ -341,6 +341,36 @@ def create_water_temperature_data():
     coils_outlet_water_temperature.to_csv(os.path.join(script_dir, "merged_data\coils_outlet_water_temperature.csv"), index=False)
     print("Water temperature data created successfully!")
 
+def create_airflow_based_damper_positions():
+    """Read all the zone airflow data and create a damper position based on the airflow rate.
+    - Normalize the airflow rate to the maximum airflow rate in the dataframe
+    - Save the damper position to a csv file with timestamp from original data
+    """
+    script_dir = get_script_directory()
+    zone_airflow_files = ["hvac_reaZonCor_V_flow_y_processed.csv",
+                         "hvac_reaZonEas_V_flow_y_processed.csv",
+                         "hvac_reaZonNor_V_flow_y_processed.csv",
+                         "hvac_reaZonSou_V_flow_y_processed.csv",
+                         "hvac_reaZonWes_V_flow_y_processed.csv"]
+    
+    for file in zone_airflow_files:
+        df = pd.read_csv(os.path.join(script_dir, "merged_data", file))
+        #get the name of the second column
+        column_name = df.columns[1]
+        #Normalize the airflow rate to the maximum airflow rate in the dataframe
+        max_airflow_rate = df[column_name].max()
+        df[column_name] = df[column_name] / max_airflow_rate
+
+        #Create a new dataframe with timestamp and damper position
+        airflow_based_damper_position = pd.DataFrame({
+            'timestamp': df['timestamp'],
+            'damper_position': df[column_name]
+        })
+
+        #Save the damper position to a csv file
+        airflow_based_damper_position.to_csv(os.path.join(script_dir, "merged_data", file.replace("_V_flow_y_processed.csv", "_damper_position_y_processed.csv")), index=False)
+        
+        print(f"Airflow-based damper position data created for {file}")
 
 def transform_temp_to_celsius(csv_file_path):
     """Read CSV file and transform temperature data from Kelvin to Celsius."""
@@ -395,6 +425,7 @@ def regenerate_all_data():
     process_all_occupancy_data()
     create_outdoor_env_data()
     create_water_temperature_data()
+    create_airflow_based_damper_positions()
     transform_temp_to_celsius_all()
 
 if __name__ == "__main__":
