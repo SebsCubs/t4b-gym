@@ -36,6 +36,11 @@ model_output_points = [
         'csv_path': 'C:/Users/asces/OneDriveUni/Projects/RL_control/boptest_model/boptest_handler/data/merged_data/coils_outlet_water_temperature.csv'
     },
     {
+        'component_id': 'core_supply_airflow_sensor',
+        'output_value': 'airFlowRate',
+        'csv_path': 'C:/Users/asces/OneDriveUni/Projects/RL_control/boptest_model/boptest_handler/data/merged_data/hvac_reaZonCor_V_flow_y_processed.csv'
+    },
+    {
         'component_id': 'north_supply_damper_position_sensor',
         'output_value': 'north_supplyDamperPosition',
         'csv_path': 'C:/Users/asces/OneDriveUni/Projects/RL_control/boptest_model/boptest_handler/data/merged_data/hvac_reaZonNor_damper_position_y_processed.csv'
@@ -54,6 +59,11 @@ model_output_points = [
         'component_id': 'north_reheat_coil_return_water_temperature',
         'output_value': 'north_inletWaterTemperature',
         'csv_path': 'C:/Users/asces/OneDriveUni/Projects/RL_control/boptest_model/boptest_handler/data/merged_data/coils_outlet_water_temperature.csv'
+    },
+    {
+        'component_id': 'north_supply_airflow_sensor',
+        'output_value': 'airFlowRate',
+        'csv_path': 'C:/Users/asces/OneDriveUni/Projects/RL_control/boptest_model/boptest_handler/data/merged_data/hvac_reaZonNor_V_flow_y_processed.csv'
     },
     {
         'component_id': 'south_supply_damper_position_sensor',
@@ -76,6 +86,11 @@ model_output_points = [
         'csv_path': 'C:/Users/asces/OneDriveUni/Projects/RL_control/boptest_model/boptest_handler/data/merged_data/coils_outlet_water_temperature.csv'
     },
     {
+        'component_id': 'south_supply_airflow_sensor',
+        'output_value': 'airFlowRate',
+        'csv_path': 'C:/Users/asces/OneDriveUni/Projects/RL_control/boptest_model/boptest_handler/data/merged_data/hvac_reaZonSou_V_flow_y_processed.csv'
+    },
+    {
         'component_id': 'east_supply_damper_position_sensor',
         'output_value': 'east_supplyDamperPosition',
         'csv_path': 'C:/Users/asces/OneDriveUni/Projects/RL_control/boptest_model/boptest_handler/data/merged_data/hvac_reaZonEas_damper_position_y_processed.csv'
@@ -96,6 +111,11 @@ model_output_points = [
         'csv_path': 'C:/Users/asces/OneDriveUni/Projects/RL_control/boptest_model/boptest_handler/data/merged_data/coils_outlet_water_temperature.csv'
     },
     {
+        'component_id': 'east_supply_airflow_sensor',
+        'output_value': 'airFlowRate',
+        'csv_path': 'C:/Users/asces/OneDriveUni/Projects/RL_control/boptest_model/boptest_handler/data/merged_data/hvac_reaZonEas_V_flow_y_processed.csv'
+    },
+    {
         'component_id': 'west_supply_damper_position_sensor',
         'output_value': 'west_supplyDamperPosition',
         'csv_path': 'C:/Users/asces/OneDriveUni/Projects/RL_control/boptest_model/boptest_handler/data/merged_data/hvac_reaZonWes_damper_position_y_processed.csv'
@@ -114,6 +134,11 @@ model_output_points = [
         'component_id': 'west_reheat_coil_return_water_temperature',
         'output_value': 'west_inletWaterTemperature',
         'csv_path': 'C:/Users/asces/OneDriveUni/Projects/RL_control/boptest_model/boptest_handler/data/merged_data/coils_outlet_water_temperature.csv'
+    },
+    {
+        'component_id': 'west_supply_airflow_sensor',
+        'output_value': 'airFlowRate',
+        'csv_path': 'C:/Users/asces/OneDriveUni/Projects/RL_control/boptest_model/boptest_handler/data/merged_data/hvac_reaZonWes_V_flow_y_processed.csv'
     }
 ]
 
@@ -590,10 +615,10 @@ def parameter_evaluation(data_points, parameter_filename, save_plots=False):
     print_parameter_results(model)
 
     
-
+    """
     # Set west reheat coil parameters the results from the param estimation for west break the FMU
-    # Results: C:/Users/asces/OneDriveUni/Projects/RL_control/boptest_model/generated_files/models/vav_controllers_param_est/model_parameters/estimation_results/LS_result/20250416_122059_ls.pickle
-
+    # Results: C:/Users/asces/OneDriveUni/Projects/RL_control/boptest_model/generated_files/models/vav_controllers_param_est/model_parameters/estimation_results/LS_result/20250506_095811_ls.pickle
+    
     west_coil = model.components["west_reheat_coil"]
     west_coil.m1_flow_nominal = 2.489581121812883
     west_coil.m2_flow_nominal = 1.10274451
@@ -613,7 +638,7 @@ def parameter_evaluation(data_points, parameter_filename, save_plots=False):
     west_coil.tau_w_outlet = 1.0
     west_coil.tau_air_outlet = 1.0
 
-    
+    """
     
     simulator = run(model)
     stepSize = simulator.stepSize
@@ -681,6 +706,6 @@ def parameter_evaluation(data_points, parameter_filename, save_plots=False):
  
 
 if __name__ == "__main__":
-    parameter_filename = parameter_estimation()
-    #parameter_filename = r"C:\Users\asces\OneDriveUni\Projects\RL_control\boptest_model\generated_files\models\vav_controllers_param_est\model_parameters\estimation_results\LS_result\20250416_122059_ls.pickle"
+    #parameter_filename = parameter_estimation()
+    parameter_filename = r"C:\Users\asces\OneDriveUni\Projects\RL_control\boptest_model\generated_files\models\vav_controllers_param_est\model_parameters\estimation_results\LS_result\20250506_095811_ls.pickle"
     parameter_evaluation(model_output_points, parameter_filename, save_plots=True)

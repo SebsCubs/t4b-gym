@@ -165,7 +165,7 @@ def envelope_fcn(self):
 
 
     #Occupancy profiles
-    core_occupancy_profile = tb.ScheduleSystem(id="core_occupancy_profile", saveSimulationResult=True) 
+    core_occupancy_profile = tb.ScheduleSystem(id="core_occupancy_profile", saveSimulationResult=True)
     self.add_connection(core_occupancy_profile, core, "scheduleValue", "numberOfPeople")
     north_occupancy_profile = tb.ScheduleSystem(id="north_occupancy_profile", saveSimulationResult=True)
     self.add_connection(north_occupancy_profile, north, "scheduleValue", "numberOfPeople")
@@ -733,7 +733,7 @@ def parameter_evaluation(data_points, parameter_filenames:dict, save_plots=False
     model.load_estimation_result(parameter_filenames["vavs"])
 
     
-
+    """
     west_coil = model.components["west_reheat_coil"]
     west_coil.m1_flow_nominal = 2.489581121812883
     west_coil.m2_flow_nominal = 1.10274451
@@ -752,7 +752,7 @@ def parameter_evaluation(data_points, parameter_filenames:dict, save_plots=False
     west_coil.tau_w_inlet = 1.0
     west_coil.tau_w_outlet = 1.0
     west_coil.tau_air_outlet = 1.0
-
+    """
 
     print("Resulting parameters:")
     print_parameter_results(model)
@@ -824,7 +824,7 @@ def parameter_evaluation(data_points, parameter_filenames:dict, save_plots=False
 if __name__ == "__main__":
     #parameter_filename = parameter_estimation()
     envelope_filepath = r"C:\Users\asces\OneDriveUni\Projects\RL_control\boptest_model\generated_files\models\only_rooms_estimation\model_parameters\estimation_results\LS_result\mix_day_most_accurate_08042025.pickle"
-    vavs_filepath = r"C:\Users\asces\OneDriveUni\Projects\RL_control\boptest_model\generated_files\models\vav_controllers_param_est\model_parameters\estimation_results\LS_result\20250416_122059_ls.pickle"
+    vavs_filepath = r"C:\Users\asces\OneDriveUni\Projects\RL_control\boptest_model\generated_files\models\vav_controllers_param_est\model_parameters\estimation_results\LS_result\20250506_095811_ls.pickle"
     parameter_filenames = {"envelope": envelope_filepath, "vavs": vavs_filepath}
     parameter_evaluation(model_output_points, parameter_filenames, save_plots=True)
 
