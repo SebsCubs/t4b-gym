@@ -1,5 +1,5 @@
 import torch
-from RL_Algos.networks import PolicyNetwork, ValueNetwork
+from t4b_gym.networks import PolicyNetwork, ValueNetwork
 
 class PPOAgent:
     def __init__(self, state_dim, action_dim, action_bound, lr=1e-4, gamma=0.99, eps_clip=0.2, K_epochs=10):
