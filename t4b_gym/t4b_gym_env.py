@@ -19,6 +19,7 @@ from twin4build.saref.device.sensor.sensor import Sensor
 from twin4build.saref.device.meter.meter import Meter
 import logging
 import json
+from dateutil.tz import gettz 
 
 # Set up logging
 logger = logging.getLogger(__name__)
@@ -265,6 +266,7 @@ class gym_simulator(tb.Simulator):
         
         # Get observations and check if done
         observations = self.get_observations()
+        #TODO: Calculate how to define done based on the defined episode lenght in the gym env
         done = self.current_step >= len(self.secondTimeSteps)
         
         return observations, done
@@ -276,30 +278,67 @@ class t4b_gym_env(gym.Env):
     
     This environment provides a standard gym interface for interacting with
     Twin4Build simulation models, allowing for reinforcement learning applications.
+
+    Things to be defined by the user:
+    - start_time (conditional on the model data available)
+    - end_time (conditional on the model data available)
+    - episode_length (can be smaller than the total simulation time)
+    - random_start (boolean to define if the start time is random or not (only used if episode_length is smaller than the total simulation time))
+    - excluding_periods (list of tuples defining periods of the simulation that should be excluded from the training data)
+    - stepSize
+    - io_config_file (this is defining action and observation spaces)
+    - warmup_period (not implemented yet, but would be a period of the simulation that runs before the training starts)
+    - reward_function (implemented by inheriting from the class and overriding the method)
+
     """
     
-    def __init__(self, model, io_config_file: str = None):
+    def __init__(self, 
+                 model, 
+                 io_config_file: str = None,
+                 start_time: datetime = None,
+                 end_time: datetime = None,
+                 episode_length: int = None,
+                 random_start: bool = False,
+                 excluding_periods: List[Tuple[datetime, datetime]] = None,
+                 step_size: int = 600,
+                 warmup_period: int = 0):
         """Initialize the gym environment.
         
         Args:
             model: Twin4Build model instance
-            control_inputs: Dictionary mapping component IDs to list of input names to control
-            observation_outputs: Dictionary mapping component IDs to list of output names to observe
+            io_config_file: Path to the JSON file containing actions and observations
+            start_time: Start time of the simulation (must have timezone)
+            end_time: End time of the simulation (must have timezone)
+            episode_length: Length of each episode in steps (can be smaller than total simulation time)
+            random_start: Whether to start episodes at random times within the simulation period
+            excluding_periods: List of (start, end) datetime tuples defining periods to exclude from training
+            step_size: Simulation step size in seconds
+            warmup_period: Number of steps to run before starting the episode (not implemented yet)
         """
         super().__init__()
         self.simulator = gym_simulator(model)
-        
+
+        # Set simulation parameters
+        #TODO: Take into account all parameters in the reset and step functions
+        self.step_size = step_size
+        self.start_time = start_time or datetime.datetime(year=2024, month=1, day=10, hour=0, minute=0, second=0, tzinfo=gettz("Europe/Copenhagen"))
+        self.end_time = end_time or datetime.datetime(year=2024, month=1, day=12, hour=0, minute=0, second=0, tzinfo=gettz("Europe/Copenhagen"))
+        self.episode_length = episode_length
+        self.random_start = random_start
+        self.excluding_periods = excluding_periods or []
+        self.warmup_period = warmup_period
+
         # Set up control inputs and observation outputs if io_config_file is provided
-        # This is the main definition of the observation and action spaces
         if io_config_file is not None:
             self.simulator.populate_actions_and_obs_from_json(io_config_file)
     
+        self.simulator.initialize_simulation(self.start_time, self.end_time, self.step_size)
     
     def reset(self, seed=None, options=None):
         """Reset the environment to initial state.
         
         Args:
-            seed: Random seed for reproducibility
+            seed: Random seed for reproducibility (unused)
             options: Additional options for reset (unused)
             
         Returns:
@@ -307,10 +346,11 @@ class t4b_gym_env(gym.Env):
                 observations: Initial state observations
                 info: Additional information
         """
-        super().reset(seed=seed)
-        
+
+        #TODO: At some point, the simulation time should be defined during training of the RL agent
+
         # Reset simulator state
-        self.simulator.current_step = 0
+        self.simulator.initialize_simulation(self.start_time, self.end_time, self.step_size)
         
         # Get initial observations
         observations = self.simulator.get_observations()
@@ -332,11 +372,16 @@ class t4b_gym_env(gym.Env):
                 truncated: Whether episode was artificially terminated
                 info: Additional information
         """
+        #Assert the format of the action
+        assert isinstance(action, dict), "The action must be a dictionary"
+        assert isinstance(list(action.values())[0], dict), "The action must contain a dictionary of input names and values"
+        assert len(list(action.values())[0]) > 0, "The action must contain at least one input name and value"
+
         # Apply action and get new observations
         observations, done = self.simulator.step_simulation(action)
         
         # Calculate reward (placeholder - should be implemented based on specific task)
-        reward = 0.0
+        reward = self.calculate_reward(observations, action, self.simulator.model)
         
         # Check if episode is done (placeholder)
         terminated = done
@@ -347,4 +392,14 @@ class t4b_gym_env(gym.Env):
         
         return observations, reward, terminated, truncated, info
     
-
+    def calculate_reward(self, observations: Dict[str, Dict[str, float]], action: Dict[str, Dict[str, float]]) -> float:
+        """Calculate the reward based on the observations and action.
+        
+        Args:
+            observations: Current state observations
+            action: Control actions applied
+        Returns:
+            float: Reward value
+        """
+        #Placeholder for the reward function, meant to be implemented by the user
+        return 0.0
