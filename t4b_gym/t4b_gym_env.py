@@ -18,6 +18,7 @@ import pandas as pd
 from twin4build.saref.device.sensor.sensor import Sensor
 from twin4build.saref.device.meter.meter import Meter
 import logging
+import json
 
 # Set up logging
 logger = logging.getLogger(__name__)
@@ -34,7 +35,7 @@ class gym_simulator(tb.Simulator):
         self.control_inputs: Dict[str, Dict[str, Any]] = {}  # Maps component_id to {input_name: current_value}
         self.observation_outputs: Dict[str, Dict[str, Any]] = {}  # Maps component_id to {output_name: current_value}
         self.current_step = 0
-        
+        self.model = model
         # Configure logging
         self.enable_logging = enable_logging
         if enable_logging:
@@ -118,6 +119,37 @@ class gym_simulator(tb.Simulator):
                     self.observation_outputs[component.id][output_name] = value
                     if self.enable_logging:
                         logger.debug(f"Observation recorded: {component.id}.{output_name} = {value}")
+
+    def _do_system_time_step(self, model: tb.Model) -> None:
+        """
+        Override of the parent class _do_system_time_step method, to use the local
+        _do_component_timestep method.
+        Execute a time step for all components in the model.
+
+        This method executes components in the order specified by the model's execution
+        order, ensuring proper propagation of information through the system. It:
+        1. Executes components in groups based on dependencies
+        2. Updates component states after all executions
+        3. Handles both FMU and non-FMU components
+
+        Args:
+            model (model.Model): The model containing components to simulate.
+
+        Notes:
+            - Components are executed sequentially based on their dependencies
+            - Results are updated after all components have been stepped
+            - Component execution order is determined by the model's execution_order attribute
+            - Updates are propagated through the flat_execution_order after main execution
+        """
+        for component_group in self.model.execution_order:
+            for component in component_group:
+                self._do_component_timestep(component)
+
+        for component in self.model.flat_execution_order:
+            component.update_results()
+
+        
+       
         
     def add_control_input(self, component_id: str, input_name: str) -> None:
         """Add a control input to the simulator.
@@ -141,6 +173,29 @@ class gym_simulator(tb.Simulator):
             self.observation_outputs[component_id] = {}
         self.observation_outputs[component_id][output_name] = 0.0  # Initialize with default value
                         
+    def populate_actions_and_obs_from_json(self, json_file: str) -> None:
+        """Populate actions and observations from a JSON file.
+        
+        Args:
+            json_file: Path to the JSON file containing actions and observations
+        """
+        with open(json_file, 'r') as f:
+            config = json.load(f)
+
+        #assert the format of the json file
+        assert 'actions' in config, "The JSON file must contain an 'actions' key"
+        assert 'observations' in config, "The JSON file must contain an 'observations' key"
+  
+        # Add control inputs from actions
+        for component_id, action_config in config['actions'].items():
+            for input_name in action_config['signal_key']:
+                self.add_control_input(component_id, input_name)
+            
+        # Add observation outputs from observations
+        for component_id, obs_config in config['observations'].items():
+            for output_name in obs_config['signal_key']:
+                self.add_observation_output(component_id, output_name)
+    
     def get_observations(self) -> Dict[str, Dict[str, float]]:
         """Get current observations from monitored outputs.
         
@@ -156,11 +211,13 @@ class gym_simulator(tb.Simulator):
                 for output_name in outputs:
                     if output_name in component.output:
                         value = component.output[output_name].get()
+                        if value is None:
+                            value = 0.0
                         observations[component_id][output_name] = value
                         self.observation_outputs[component_id][output_name] = value
         return observations
     
-    def step_simulation(self, actions: Dict[str, Dict[str, float]]) -> Tuple[Dict[str, Dict[str, float]], bool]:
+    def step_simulation(self, actions: Optional[Dict[str, Dict[str, float]]] = None) -> Tuple[Dict[str, Dict[str, float]], bool]:
         """Perform one simulation step with the given actions.
         
         This method advances the simulation by one timestep, similar to the original
@@ -188,10 +245,13 @@ class gym_simulator(tb.Simulator):
         if self.enable_logging:
             logger.info(f"Step {self.current_step + 1}/{len(self.secondTimeSteps)}")
             logger.debug(f"Time: {self.dateTimeSteps[self.current_step]}")
-            
-        for component_id, inputs in actions.items():
-            if component_id in self.control_inputs:
-                self.control_inputs[component_id].update(inputs)
+        
+        if actions is not None:
+            for component_id, inputs in actions.items():
+                if component_id in self.control_inputs:
+                    self.control_inputs[component_id].update(inputs)
+        elif self.enable_logging:
+            logger.info("No actions provided, using default values")
         
         # Get current timestep values
         self.secondTime = self.secondTimeSteps[self.current_step]
@@ -218,7 +278,7 @@ class t4b_gym_env(gym.Env):
     Twin4Build simulation models, allowing for reinforcement learning applications.
     """
     
-    def __init__(self, model, control_inputs: Dict[str, List[str]], observation_outputs: Dict[str, List[str]]):
+    def __init__(self, model, io_config_file: str = None):
         """Initialize the gym environment.
         
         Args:
@@ -229,30 +289,11 @@ class t4b_gym_env(gym.Env):
         super().__init__()
         self.simulator = gym_simulator(model)
         
-        # Set up control inputs and observation outputs
-        for component_id, input_names in control_inputs.items():
-            for input_name in input_names:
-                self.simulator.add_control_input(component_id, input_name)
-                
-        for component_id, output_names in observation_outputs.items():
-            for output_name in output_names:
-                self.simulator.add_observation_output(component_id, output_name)
-        
-        # Define action and observation spaces
-        # This is a placeholder - actual spaces should be defined based on the specific model
-        self.action_space = gym.spaces.Dict({
-            component_id: gym.spaces.Dict({
-                input_name: gym.spaces.Box(low=-np.inf, high=np.inf, shape=(1,), dtype=np.float32)
-                for input_name in input_names
-            }) for component_id, input_names in control_inputs.items()
-        })
-        
-        self.observation_space = gym.spaces.Dict({
-            component_id: gym.spaces.Dict({
-                output_name: gym.spaces.Box(low=-np.inf, high=np.inf, shape=(1,), dtype=np.float32)
-                for output_name in output_names
-            }) for component_id, output_names in observation_outputs.items()
-        })
+        # Set up control inputs and observation outputs if io_config_file is provided
+        # This is the main definition of the observation and action spaces
+        if io_config_file is not None:
+            self.simulator.populate_actions_and_obs_from_json(io_config_file)
+    
     
     def reset(self, seed=None, options=None):
         """Reset the environment to initial state.

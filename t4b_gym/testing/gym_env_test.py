@@ -11,60 +11,179 @@ import unittest
 import gymnasium as gym
 import numpy as np
 from datetime import timezone, timedelta
-from t4b_gym_env import t4b_gym_env
+import sys
+import os
+import logging
+
+# Configure logging to write to a file
+log_file = os.path.join(os.path.dirname(__file__), 'simulation_tests.log')
+logging.basicConfig(
+    level=logging.DEBUG,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+    handlers=[
+        logging.FileHandler(log_file),
+        #logging.StreamHandler()  # Keep console output as well
+    ]
+)
+
+uppath = lambda _path, n: os.sep.join(_path.split(os.sep)[:-n])
+file_path = os.path.join(uppath(os.path.abspath(__file__), 3), "t4b_gym")
+sys.path.append(file_path)
+from t4b_gym_env import t4b_gym_env, gym_simulator
+from tqdm import tqdm
 
 def fcn(self):
-    supply_water_schedule = tb.ScheduleSystem(
-    weekDayRulesetDict = { 
-        "ruleset_default_value": 60,
-        "ruleset_start_minute": [],
-        "ruleset_end_minute": [],
-        "ruleset_start_hour": [],
-        "ruleset_end_hour": [],
-        "ruleset_value": []
-    },
-    id="supply_water_schedule"
-    )
-    self.add_connection(supply_water_schedule, self.component_dict["[020B][020B_space_heater]"], "scheduleValue", "supplyWaterTemperature") # Add missing input
-    self.component_dict["020B_temperature_sensor"].filename = utils.get_path(["parameter_estimation_example", "temperature_sensor.csv"])
-    self.component_dict["020B_co2_sensor"].filename = utils.get_path(["parameter_estimation_example", "co2_sensor.csv"])
-    self.component_dict["020B_valve_position_sensor"].filename = utils.get_path(["parameter_estimation_example", "valve_position_sensor.csv"])
-    self.component_dict["020B_damper_position_sensor"].filename = utils.get_path(["parameter_estimation_example", "damper_position_sensor.csv"])
-    self.component_dict["BTA004"].filename = utils.get_path(["parameter_estimation_example", "supply_air_temperature.csv"])
-    self.component_dict["020B_co2_setpoint"].weekDayRulesetDict = {"ruleset_default_value": 900,
-                                                                    "ruleset_start_minute": [],
-                                                                    "ruleset_end_minute": [],
-                                                                    "ruleset_start_hour": [],
-                                                                    "ruleset_end_hour": [],
-                                                                    "ruleset_value": []}
-    self.component_dict["020B_temperature_heating_setpoint"].useFile = True
-    self.component_dict["020B_temperature_heating_setpoint"].filename = utils.get_path(["parameter_estimation_example", "temperature_heating_setpoint.csv"])
-    self.component_dict["outdoor_environment"].filename = utils.get_path(["parameter_estimation_example", "outdoor_environment.csv"])
+    ##############################################################
+    ################## First, define components ##################
+    ##############################################################
+    occupancy_schedule = tb.ScheduleSystem(
+        weekDayRulesetDict={
+            "ruleset_default_value": 0,
+            "ruleset_start_minute": [0, 0, 0, 0, 0, 0, 0],
+            "ruleset_end_minute": [0, 0, 0, 0, 0, 0, 0],
+            "ruleset_start_hour": [6, 7, 8, 12, 14, 16, 18],
+            "ruleset_end_hour": [7, 8, 12, 14, 16, 18, 22],
+            "ruleset_value": [3, 5, 20, 25, 27, 7, 3]},
+        add_noise=True,
+        saveSimulationResult=True,
+        id="Occupancy schedule")
+    
+    co2_setpoint_schedule = tb.ScheduleSystem(
+        weekDayRulesetDict={
+            "ruleset_default_value": 900,
+            "ruleset_start_minute": [],
+            "ruleset_end_minute": [],
+            "ruleset_start_hour": [],
+            "ruleset_end_hour": [],
+            "ruleset_value": []},
+        saveSimulationResult=True,
+        id="CO2 setpoint schedule")
 
+    co2_controller = tb.PIDControllerSystem(
+        K_p=-0.001,
+        K_i=-0.001,
+        K_d=0,
+        saveSimulationResult=True,
+        id="CO2 controller")
+
+    supply_damper = tb.DamperSystem(
+        nominalAirFlowRate=tb.PropertyValue(hasValue=1.6),
+        a=5,
+        saveSimulationResult=True,
+        id="Supply damper")
+
+    return_damper = tb.DamperSystem(
+        nominalAirFlowRate=tb.PropertyValue(hasValue=1.6),
+        a=5,
+        saveSimulationResult=True,
+        id="Return damper")
+
+    space = tb.BuildingSpaceCo2System(
+        airVolume=466.54,
+        outdoorCo2Concentration=500,
+        infiltration=0.005,
+        generationCo2Concentration=0.0042*1000*1.225,
+        saveSimulationResult=True,
+        id="Space")
+
+    #################################################################
+    ################## Add connections to the model #################
+    #################################################################
+    self.add_connection(co2_controller, supply_damper,
+                         "inputSignal", "damperPosition")
+    self.add_connection(co2_controller, return_damper,
+                         "inputSignal", "damperPosition")
+    self.add_connection(supply_damper, space,
+                         "airFlowRate", "supplyAirFlowRate")
+    self.add_connection(return_damper, space,
+                         "airFlowRate", "returnAirFlowRate")
+    self.add_connection(occupancy_schedule, space,
+                         "scheduleValue", "numberOfPeople")
+    self.add_connection(space, co2_controller,
+                         "indoorCo2Concentration", "actualValue")
+    self.add_connection(co2_setpoint_schedule, co2_controller,
+                         "scheduleValue", "setpointValue")
+    
 def load_test_model():
-    model = tb.Model(id="neural_policy_example")
-    filename = utils.get_path(["parameter_estimation_example", "one_room_example_model.xlsm"])
-    model.load(semantic_model_filename=filename, fcn=fcn, verbose=False)
+    model = tb.Model(id="simple_co2_control")
+    model.load(fcn=fcn, verbose=False)
     return model
 
+
+class TestCustomGymSimulator(unittest.TestCase):
+    def setUp(self):
+        self.model = load_test_model()
+        self.simulator = gym_simulator(self.model, enable_logging=True)
+        self.stepSize = 600 #Seconds
+        self.start_time = datetime.datetime(year=2024, month=1, day=10, hour=0, minute=0, second=0, tzinfo=gettz("Europe/Copenhagen"))
+        self.end_time = datetime.datetime(year=2024, month=1, day=12, hour=0, minute=0, second=0, tzinfo=gettz("Europe/Copenhagen"))
+
+        self.simulator.initialize_simulation(self.start_time, self.end_time, self.stepSize)
+        self.show_progress_bar = True
+
+
+    def test_non_controlled_simulation(self):
+        """Test that the simulation runs without any control actions"""
+        #SecondTime is the timesteps in seconds, dateTime is the timesteps in datetime
+        #They are generated by the initialize_simulation method
+        if self.show_progress_bar:
+            for self.secondTime, self.dateTime in tqdm(zip(self.simulator.secondTimeSteps,self.simulator.dateTimeSteps), total=len(self.simulator.dateTimeSteps)):
+                self.simulator.step_simulation()
+        else:
+            for self.secondTime, self.dateTime in zip(self.simulator.secondTimeSteps,self.simulator.dateTimeSteps):
+                self.simulator.step_simulation()
+        #Check that the current_step is correct
+        self.assertEqual(self.simulator.current_step, len(self.simulator.dateTimeSteps))
+
+    def test_controlled_simulation(self):
+        """Test that the simulation runs with control actions"""
+        #Create a controlled simulation
+        self.simulator.add_control_input("Supply damper", "damperPosition")
+        self.simulator.add_control_input("Return damper", "damperPosition")
+        self.simulator.add_observation_output("CO2 setpoint schedule", "scheduleValue")
+        self.simulator.add_observation_output("Space", "indoorCo2Concentration")
+        
+        def control_action_function(observation):
+            #Get the setpoint value
+            setpoint_value = observation["CO2 setpoint schedule"]["scheduleValue"]
+            #Get the actual value
+            actual_value = observation["Space"]["indoorCo2Concentration"]
+            #Calculate the error
+            error = setpoint_value - actual_value
+            #Calculate the control action with a simple P controller
+            control_action = error * 0.001
+            #Return the control action with the correct format
+            return {"Supply damper": {"damperPosition": control_action}, "Return damper": {"damperPosition": control_action}}
+
+        #Run the simulation
+        if self.show_progress_bar:
+            for self.secondTime, self.dateTime in tqdm(zip(self.simulator.secondTimeSteps,self.simulator.dateTimeSteps), total=len(self.simulator.dateTimeSteps)):
+                control_action = control_action_function(self.simulator.get_observations())
+                self.simulator.step_simulation(control_action)
+        else:
+            for self.secondTime, self.dateTime in zip(self.simulator.secondTimeSteps,self.simulator.dateTimeSteps):
+                control_action = control_action_function(self.simulator.get_observations())
+                self.simulator.step_simulation(control_action)
+        
+        #Check that the current_step is correct
+        self.assertEqual(self.simulator.current_step, len(self.simulator.dateTimeSteps))
 
 class TestT4BGymEnv(unittest.TestCase):
     def setUp(self):
         # Load any T4B model for testing
         self.model = load_test_model()  # You define this based on your needs
-        
-        # Load I/O configuration
-        with open("path/to/io_config.json") as f:
-            self.io_config = json.load(f)
-            
         # Create environment
         self.env = t4b_gym_env(
             model=self.model,
-            io_config=self.io_config,
-            start_time=datetime.now(timezone.utc),
-            end_time=datetime.now(timezone.utc) + timedelta(days=1),
-            step_size=300  # 5 minutes
+            io_config_file='t4b_gym/testing/policy_input_output.json',
         )
+        #TODO: At some point, the simulation time should be defined during training of the RL agent
+        self.stepSize = 600 #Seconds
+        self.start_time = datetime.datetime(year=2024, month=1, day=10, hour=0, minute=0, second=0, tzinfo=gettz("Europe/Copenhagen"))
+        self.end_time = datetime.datetime(year=2024, month=1, day=12, hour=0, minute=0, second=0, tzinfo=gettz("Europe/Copenhagen"))
+
+        self.env.simulator.initialize_simulation(self.start_time, self.end_time, self.stepSize)
+        self.show_progress_bar = True
 
     def test_space_creation(self):
         """Test if observation and action spaces are created correctly"""
@@ -242,4 +361,13 @@ class TestT4BGymEnv(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+    """
+    # Create an instance of the test class and run the specific test
+    test_case = TestCustomGymSimulator()
+    test_case.setUp()
+    #test_case.test_non_controlled_simulation()
+    test_case.test_controlled_simulation()
+    """
     
+ 
