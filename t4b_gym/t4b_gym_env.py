@@ -492,9 +492,14 @@ class T4BGymEnv(gym.Env):
         if 'time_embeddings' in self.io_config_dict:
             time_embedding_keys = list(self.io_config_dict['time_embeddings'].keys())
             for key in time_embedding_keys:
-                observations.append(self.io_config_dict['time_embeddings'][key]["signal_key"])
-                low_bounds.append(self.io_config_dict['time_embeddings'][key]['min'])
-                upper_bounds.append(self.io_config_dict['time_embeddings'][key]['max'])
+                #Using sin and cos embeddings for the time of day, day of week, month of year
+                #Therefore there are two observations for each time embedding
+                observations.append(self.io_config_dict['time_embeddings'][key]["signal_key"] + "_sin")
+                observations.append(self.io_config_dict['time_embeddings'][key]["signal_key"] + "_cos")
+                low_bounds.append(-1)
+                low_bounds.append(-1)
+                upper_bounds.append(1)
+                upper_bounds.append(1)
 
         elif 'forecasts' in self.io_config_dict:
             forecast_keys = list(self.io_config_dict['forecasts'].keys())
@@ -506,6 +511,40 @@ class T4BGymEnv(gym.Env):
         #Define the observation space
         self.observation_space = spaces.Box(low=np.array(low_bounds), high=np.array(upper_bounds), dtype=np.float32)
 
+    def _get_obs(self):
+        """Get the current observations from the simulator.
+        
+        Returns:
+            numpy.ndarray: Current observations
+        """
+        model_obs = self.simulator.get_observations()
+
+        #Check if config file contains "time_embeddings" or "forecasts" keys
+        if 'time_embeddings' in self.io_config_dict:
+            current_time = self.simulator.dateTime
+            time_embedding_keys = list(self.io_config_dict['time_embeddings'].keys())
+            if "time_of_day" in time_embedding_keys:
+                # Use sin cos embeddings for the time of day
+                model_obs["time_of_day_sin"] = np.sin(2 * np.pi * current_time.hour / 24)
+                model_obs["time_of_day_cos"] = np.cos(2 * np.pi * current_time.hour / 24)
+            if "day_of_week" in time_embedding_keys:
+                model_obs["day_of_week_sin"] = np.sin(2 * np.pi * current_time.weekday() / 7)
+                model_obs["day_of_week_cos"] = np.cos(2 * np.pi * current_time.weekday() / 7)
+            if "month_of_year" in time_embedding_keys:
+                model_obs["month_of_year_sin"] = np.sin(2 * np.pi * current_time.month / 12)
+                model_obs["month_of_year_cos"] = np.cos(2 * np.pi * current_time.month / 12)
+        elif 'forecasts' in self.io_config_dict:
+            #TODO: Forecast would need to be loaded and preprocessed from i.e. a csv file
+            forecast_keys = list(self.io_config_dict['forecasts'].keys())
+            for key in forecast_keys:
+                model_obs[key] = self.io_config_dict['forecasts'][key]["signal_key"]
+
+        #Return the observations as a numpy array
+        obs = []
+        for key in model_obs.keys():
+            obs.append(model_obs[key])
+
+        return np.array(obs)
 
 class NormalizedObservationWrapper(gym.ObservationWrapper):
     '''This wrapper normalizes the values of the observation space to lie
