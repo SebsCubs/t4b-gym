@@ -13,13 +13,12 @@ import gymnasium as gym
 import numpy as np
 from typing import Dict, List, Tuple, Any, Optional
 from twin4build.saref4syst.system import System
-from datetime import datetime, timedelta
-import pandas as pd
-from twin4build.saref.device.sensor.sensor import Sensor
-from twin4build.saref.device.meter.meter import Meter
+from datetime import datetime
+from gymnasium import spaces
 import logging
 import json
 from dateutil.tz import gettz 
+import os
 
 # Set up logging
 logger = logging.getLogger(__name__)
@@ -193,6 +192,17 @@ class gym_simulator(tb.Simulator):
         for component_id, obs_config in config['observations'].items():
             for output_name in obs_config['signal_key']:
                 self.add_observation_output(component_id, output_name)
+
+        #Add the max and min values for the action and observation spaces
+        for component_id, action_config in config['actions'].items():
+            for input_name in action_config['signal_key']:
+                self.control_inputs[component_id][input_name]['max'] = action_config['max']
+                self.control_inputs[component_id][input_name]['min'] = action_config['min']
+
+        for component_id, obs_config in config['observations'].items():
+            for output_name in obs_config['signal_key']:
+                self.observation_outputs[component_id][output_name]['max'] = obs_config['max']
+                self.observation_outputs[component_id][output_name]['min'] = obs_config['min']
     
     def get_observations(self) -> Dict[str, Dict[str, float]]:
         """Get current observations from monitored outputs.
@@ -269,7 +279,7 @@ class gym_simulator(tb.Simulator):
         return observations, done
     
 
-class t4b_gym_env(gym.Env):
+class T4BGymEnv(gym.Env):
     """
     Gymnasium environment wrapper for Twin4Build models.
     
@@ -290,15 +300,15 @@ class t4b_gym_env(gym.Env):
     """
     
     def __init__(self, 
-                 model, 
-                 io_config_file: str = None,
+                 model: tb.Model, 
+                 io_config_file: str, # Mandatory for now
                  start_time: datetime = None,
                  end_time: datetime = None,
                  episode_length: int = None,
-                 random_start: bool = False,
+                 random_start = False,
                  excluding_periods: List[Tuple[datetime, datetime]] = None,
                  step_size: int = 600,
-                 warmup_period: int = 0):
+                 warmup_period = 0):
         """Initialize the gym environment.
         
         Args:
@@ -325,10 +335,45 @@ class t4b_gym_env(gym.Env):
         self.excluding_periods = excluding_periods or []
         self.warmup_period = warmup_period
 
+
+
         # Set up control inputs and observation outputs if io_config_file is provided
-        if io_config_file is not None:
-            self.simulator.populate_actions_and_obs_from_json(io_config_file)
-    
+        assert io_config_file is not None, """io_config_file is mandatory. The JSON file should have this format:
+                            {
+                                "actions": {
+                                    "Component_ID": {
+                                        "signal_key": "input_name",
+                                        "min": float,
+                                        "max": float,
+                                        "description": "string"
+                                    }
+                                },
+                                "observations": {
+                                    "Component_ID": {
+                                        "signal_key": "output_name",
+                                        "min": float,
+                                        "max": float,
+                                        "description": "string"
+                                    }
+                                }
+                            }"""
+        
+        #Assert that the io_config_file has the correct format
+        assert os.path.exists(io_config_file), "The io_config_file does not exist"
+        assert os.path.isfile(io_config_file), "The io_config_file is not a file"   
+        assert os.path.splitext(io_config_file)[1] == '.json', "The io_config_file must be a JSON file"
+        
+        io_dict = json.load(open(io_config_file))
+        assert 'actions' in io_dict, "The io_config_file must contain an 'actions' key"
+        assert 'observations' in io_dict, "The io_config_file must contain an 'observations' key"
+        
+        self.io_config_dict = io_dict
+
+        #Populate the simulator with the actions and observations
+        self.simulator.populate_actions_and_obs_from_json(io_config_file)        
+        self.create_observation_space()
+        self.create_action_space()
+
         self.simulator.initialize_simulation(self.start_time, self.end_time, self.step_size)
     
     def reset(self, seed=None, options=None):
@@ -378,7 +423,7 @@ class t4b_gym_env(gym.Env):
         observations, done = self.simulator.step_simulation(action)
         
         # Calculate reward (placeholder - should be implemented based on specific task)
-        reward = self.calculate_reward(observations, action, self.simulator.model)
+        reward = self.get_reward(observations, action, self.simulator.model)
         
         # Check if episode is done (placeholder)
         terminated = done
@@ -389,7 +434,7 @@ class t4b_gym_env(gym.Env):
         
         return observations, reward, terminated, truncated, info
     
-    def calculate_reward(self, observations: Dict[str, Dict[str, float]], action: Dict[str, Dict[str, float]]) -> float:
+    def get_reward(self, observations: Dict[str, Dict[str, float]], action: Dict[str, Dict[str, float]]) -> float:
         """Calculate the reward based on the observations and action.
         
         Args:
@@ -400,3 +445,190 @@ class t4b_gym_env(gym.Env):
         """
         #Placeholder for the reward function, meant to be implemented by the user
         return 0.0
+
+    def create_action_space(self):
+        """Create the action space based on the control inputs defined in the simulator.
+        
+        Returns:
+            spaces.Dict: Action space
+        """
+        
+        #Define the action and observation spaces, if io_config_file is provided, max and min values are defined in the json file
+        action_keys = []
+        low_bounds = []
+        upper_bounds = []
+
+        for component_id, inputs in self.simulator.control_inputs.items():
+            for input_name in inputs:
+                action_keys.append(input_name)
+                low_bounds.append(self.simulator.control_inputs[component_id][input_name]['min'])
+                upper_bounds.append(self.simulator.control_inputs[component_id][input_name]['max'])
+
+        #Define the action space
+        self.action_space = spaces.Box(low=np.array(low_bounds), high=np.array(upper_bounds), dtype=np.float32)
+    
+    def create_observation_space(self):
+        """Create the observation space based on the observations defined in the simulator and the io_config_file.
+        1. Gets the populated component outputs from the simulator
+        2. Checks if config file contains "time_embeddings" or "forecasts" keys
+        3. If "time_embeddings" key is present, the observation space is extended based on the time embeddings
+        4. If "forecasts" key is present, the observation space is extended based on the forecasts
+        5. If neither key is present, the observation space is defined based on only the component outputs
+        Returns:
+            spaces.Dict: Observation space
+        """
+        #Get the populated component outputs from the simulator
+        observations = []
+        low_bounds = []
+        upper_bounds = []
+
+        for component_id, outputs in self.simulator.observation_outputs.items():
+            for output_name in outputs:
+                observations.append(outputs[output_name])
+                low_bounds.append(self.simulator.observation_outputs[component_id][output_name]['min'])
+                upper_bounds.append(self.simulator.observation_outputs[component_id][output_name]['max'])
+
+        #Check if config file contains "time_embeddings" or "forecasts" keys
+        if 'time_embeddings' in self.io_config_dict:
+            time_embedding_keys = list(self.io_config_dict['time_embeddings'].keys())
+            for key in time_embedding_keys:
+                observations.append(self.io_config_dict['time_embeddings'][key]["signal_key"])
+                low_bounds.append(self.io_config_dict['time_embeddings'][key]['min'])
+                upper_bounds.append(self.io_config_dict['time_embeddings'][key]['max'])
+
+        elif 'forecasts' in self.io_config_dict:
+            forecast_keys = list(self.io_config_dict['forecasts'].keys())
+            for key in forecast_keys:
+                observations.append(self.io_config_dict['forecasts'][key]["signal_key"])
+                low_bounds.append(self.io_config_dict['forecasts'][key]['min'])
+                upper_bounds.append(self.io_config_dict['forecasts'][key]['max'])
+
+        #Define the observation space
+        self.observation_space = spaces.Box(low=np.array(low_bounds), high=np.array(upper_bounds), dtype=np.float32)
+
+
+class NormalizedObservationWrapper(gym.ObservationWrapper):
+    '''This wrapper normalizes the values of the observation space to lie
+    between -1 and 1. Normalization can significantly help with convergence
+    speed. 
+    
+    Notes
+    -----
+    The concept of wrappers is very powerful, with which we are capable 
+    to customize observation, action, step function, etc. of an env. 
+    No matter how many wrappers are applied, `env.unwrapped` always gives 
+    back the internal original environment object. Typical use:
+    `env = BoptestGymEnv()`
+    `env = NormalizedObservationWrapper(env)`
+    
+    '''
+    
+    def __init__(self, env):
+        '''
+        Constructor
+        
+        Parameters
+        ----------
+        env: gym.Env
+            Original gym environment
+        
+        '''
+        
+        # Construct from parent class
+        super().__init__(env)
+        
+    def observation(self, observation):
+        '''
+        This method accepts a single parameter (the 
+        observation to be modified) and returns the modified observation.
+        
+        Parameters
+        ----------
+        observation: 
+            Observation in the original environment observation space format 
+            to be modified. 
+        
+        Returns
+        -------
+            Modified observation returned by the wrapped environment. 
+        
+        Notes
+        -----
+        To better understand what this method needs to do, see how the 
+        `gym.ObservationWrapper` parent class is doing in `gym.core`:
+        
+        '''
+        
+        # Convert to one number for the wrapped environment
+        observation_wrapper = 2*(observation - self.observation_space.low)/\
+            (self.observation_space.high-self.observation_space.low)-1
+        
+        return observation_wrapper
+     
+class NormalizedActionWrapper(gym.ActionWrapper):
+    '''This wrapper normalizes the values of the action space to lie
+    between -1 and 1. Normalization can significantly help with convergence
+    speed. 
+    
+    Notes
+    -----
+    The concept of wrappers is very powerful, with which we are capable 
+    to customize observation, action, step function, etc. of an env. 
+    No matter how many wrappers are applied, `env.unwrapped` always gives 
+    back the internal original environment object. Typical use:
+    `env = BoptestGymEnv()`
+    `env = NormalizedActionWrapper(env)`
+    
+    '''
+    
+    def __init__(self, env):
+        '''
+        Constructor
+        
+        Parameters
+        ----------
+        env: gym.Env
+            Original gym environment
+        
+        '''
+        
+        # Construct from parent class
+        super().__init__(env)
+        
+        # Assert that original observation space is a Box space
+        assert isinstance(self.unwrapped.action_space, spaces.Box), 'This wrapper only works with continuous action space (spaces.Box)'
+        
+        # Store low and high bounds of action space
+        self.low    = self.unwrapped.action_space.low
+        self.high   = self.unwrapped.action_space.high
+        
+        # Redefine action space to lie between [-1,1]
+        self.action_space = spaces.Box(low = -1, 
+                                       high = 1,
+                                       shape=self.unwrapped.action_space.shape, 
+                                       dtype= np.float32)        
+        
+    def action(self, action_wrapper):
+        '''This method accepts a single parameter (the modified action
+        in the wrapper format) and returns the action to be passed to the 
+        original environment. Thus, this method basically rescales the  
+        action inside the environment.
+        
+        Parameters
+        ----------
+        action_wrapper: 
+            Action in the modified environment action space format 
+            to be reformulated back to the original environment format.
+        
+        Returns
+        -------
+            Action in the original environment format.  
+        
+        Notes
+        -----
+        To better understand what this method needs to do, see how the 
+        `gym.ActionWrapper` parent class is doing in `gym.core`:
+        
+        '''
+        
+        return self.low + (0.5*(action_wrapper+1.0)*(self.high-self.low))

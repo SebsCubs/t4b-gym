@@ -26,6 +26,52 @@
             "max": 5000,
             "description": "CO2 concentration in the space"
         }
+    },
+    "time_embeddings": {
+        "time_of_day": {
+            "signal_key" : "timeOfDay",
+            "min": 0,
+            "max": 24,
+            "description": "Time of day in hours"
+        },
+        "day_of_week": {
+            "signal_key" : "dayOfWeek",
+            "min": 0,
+            "max": 7,
+            "description": "Day of week"
+        },
+        "month_of_year": {
+            "signal_key" : "monthOfYear",
+            "min": 1,
+            "max": 12,
+            "description": "Month of year"
+        }
+    },
+    "forecasts": {
+        "forecast_horizon": {
+            "signal_key" : "forecast_horizon",
+            "min": 0,
+            "max": 1000,
+            "description": "Forecast horizon in timesteps"
+        },
+        "outdoor_temperature": {
+            "signal_key" : "outdoorTemperature",
+            "min": -20,
+            "max": 50,
+            "description": "Outdoor temperature forecast"
+        },
+        "global_irradiance": {
+            "signal_key" : "globalIrradiance",
+            "min": 0,
+            "max": 1000,
+            "description": "Global irradiance forecast"
+        },
+        "occupancy": {
+            "signal_key" : "occupancy",
+            "min": 0,
+            "max": 500,
+            "description": "Occupancy schedule value"
+        }
     }
 }
   

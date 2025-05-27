@@ -29,7 +29,7 @@ logging.basicConfig(
 uppath = lambda _path, n: os.sep.join(_path.split(os.sep)[:-n])
 file_path = os.path.join(uppath(os.path.abspath(__file__), 3), "t4b_gym")
 sys.path.append(file_path)
-from t4b_gym_env import t4b_gym_env, gym_simulator
+from t4b_gym_env import T4BGymEnv, gym_simulator
 from tqdm import tqdm
 
 def fcn(self):
@@ -121,7 +121,6 @@ class TestCustomGymSimulator(unittest.TestCase):
         self.simulator.initialize_simulation(self.start_time, self.end_time, self.stepSize)
         self.show_progress_bar = True
 
-
     def test_non_controlled_simulation(self):
         """Test that the simulation runs without any control actions"""
         #SecondTime is the timesteps in seconds, dateTime is the timesteps in datetime
@@ -173,17 +172,23 @@ class TestT4BGymEnv(unittest.TestCase):
         # Load any T4B model for testing
         self.model = load_test_model()  # You define this based on your needs
         # Create environment
-        self.env = t4b_gym_env(
-            model=self.model,
-            io_config_file='t4b_gym/testing/policy_input_output.json',
-        )
-        #TODO: At some point, the simulation time should be defined during training of the RL agent
+
         self.stepSize = 600 #Seconds
         self.start_time = datetime.datetime(year=2024, month=1, day=10, hour=0, minute=0, second=0, tzinfo=gettz("Europe/Copenhagen"))
-        self.end_time = datetime.datetime(year=2024, month=1, day=12, hour=0, minute=0, second=0, tzinfo=gettz("Europe/Copenhagen"))
-
-        self.env.simulator.initialize_simulation(self.start_time, self.end_time, self.stepSize)
+        self.end_time = datetime.datetime(year=2024, month=1, day=12, hour=0, minute=0, second=0, tzinfo=gettz("Europe/Copenhagen"))        
         self.show_progress_bar = True
+
+        self.env = T4BGymEnv(                 
+                 model = self.model, 
+                 io_config_file = 'policy_input_output.json',
+                 start_time = self.start_time,
+                 end_time = self.end_time,
+                 episode_length=None, #Not implemented yet
+                 random_start=False, #Not implemented yet
+                 excluding_periods=None, #Not implemented yet
+                 step_size=self.stepSize,
+                 warmup_period=0) #Not implemented yet
+
 
     def test_space_creation(self):
         """Test if observation and action spaces are created correctly"""
