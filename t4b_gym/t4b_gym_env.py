@@ -149,9 +149,6 @@ class gym_simulator(tb.Simulator):
         for component in self.model.flat_execution_order:
             component.update_results()
 
-        
-       
-        
     def add_control_input(self, component_id: str, input_name: str) -> None:
         """Add a control input to the simulator.
         

@@ -752,26 +752,21 @@ def parameter_evaluation(data_points, parameter_filenames:dict, save_plots=False
     model.load_estimation_result(parameter_filenames["vavs"])
     model.load_estimation_result(parameter_filenames["ahu"])
     
-    """
-    west_coil = model.components["west_reheat_coil"]
-    west_coil.m1_flow_nominal = 2.489581121812883
-    west_coil.m2_flow_nominal = 1.10274451
-    west_coil.tau1 = 11.740211593307396
-    west_coil.tau2 = 4.769272915298189
-    west_coil.tau_m = 16.072749602786455
-    west_coil.nominalUa.hasValue = 1637.3321140160149
-    west_coil.mFlowValve_nominal = 0.6770486544227082
-    west_coil.flowCoefficient.hasValue = 1.0000000000013491
-    west_coil.mFlowPump_nominal = 0.0026929261007314904
-    west_coil.KvCheckValve = 0.9999999999994005
-    west_coil.dp1_nominal = 32127.830691396135
-    west_coil.dpPump = 1347.484623168432
-    west_coil.dpSystem = 7198.204507093697
-    west_coil.dpFixedSystem = 34616.700590515815
-    west_coil.tau_w_inlet = 1.0
-    west_coil.tau_w_outlet = 1.0
-    west_coil.tau_air_outlet = 1.0
-    """
+    
+    north = model.components["north"]
+    north.C_boundary = 94407.559
+    north.Q_occ_gain = 150 #224.04964129088137
+
+    east = model.components["east"]
+    east.C_boundary = 31197951.98026053
+    east.Q_occ_gain = 150 #232.5238692961377
+
+    south = model.components["south"]
+    south.Q_occ_gain = 150 #232.5238692961377
+
+    west = model.components["west"]
+    west.Q_occ_gain = 150 #232.5238692961377
+    
     print("Resulting parameters:")
     print_parameter_results(model)
 
