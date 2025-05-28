@@ -48,12 +48,6 @@
         }
     },
     "forecasts": {
-        "forecast_horizon": {
-            "signal_key" : "forecast_horizon",
-            "min": 0,
-            "max": 1000,
-            "description": "Forecast horizon in timesteps"
-        },
         "outdoor_temperature": {
             "signal_key" : "outdoorTemperature",
             "min": -20,

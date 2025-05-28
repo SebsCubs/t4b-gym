@@ -23,7 +23,7 @@ import os
 # Set up logging
 logger = logging.getLogger(__name__)
 
-class gym_simulator(tb.Simulator):
+class GymSimulator(tb.Simulator):
     def __init__(self, model, enable_logging: bool = True):
         """Initialize the gym simulator with a twin4build model.
         
@@ -307,6 +307,7 @@ class T4BGymEnv(gym.Env):
                  episode_length: int = None,
                  random_start = False,
                  excluding_periods: List[Tuple[datetime, datetime]] = None,
+                 forecast_horizon: int = 0,
                  step_size: int = 600,
                  warmup_period = 0):
         """Initialize the gym environment.
@@ -323,10 +324,9 @@ class T4BGymEnv(gym.Env):
             warmup_period: Number of steps to run before starting the episode (not implemented yet)
         """
         super().__init__()
-        self.simulator = gym_simulator(model)
+        self.simulator = GymSimulator(model)
 
         # Set simulation parameters
-        #TODO: Take into account all parameters in the reset and step functions
         self.step_size = step_size
         self.start_time = start_time or datetime.datetime(year=2024, month=1, day=10, hour=0, minute=0, second=0, tzinfo=gettz("Europe/Copenhagen"))
         self.end_time = end_time or datetime.datetime(year=2024, month=1, day=12, hour=0, minute=0, second=0, tzinfo=gettz("Europe/Copenhagen"))
@@ -334,8 +334,7 @@ class T4BGymEnv(gym.Env):
         self.random_start = random_start
         self.excluding_periods = excluding_periods or []
         self.warmup_period = warmup_period
-
-
+        self.forecast_horizon = forecast_horizon
 
         # Set up control inputs and observation outputs if io_config_file is provided
         assert io_config_file is not None, """io_config_file is mandatory. The JSON file should have this format:
@@ -395,7 +394,7 @@ class T4BGymEnv(gym.Env):
         self.simulator.initialize_simulation(self.start_time, self.end_time, self.step_size)
         
         # Get initial observations
-        observations = self.simulator.get_observations()
+        observations = self._get_obs()
         
         return observations, {}
     
@@ -535,9 +534,7 @@ class T4BGymEnv(gym.Env):
                 model_obs["month_of_year_cos"] = np.cos(2 * np.pi * current_time.month / 12)
         elif 'forecasts' in self.io_config_dict:
             #TODO: Forecast would need to be loaded and preprocessed from i.e. a csv file
-            forecast_keys = list(self.io_config_dict['forecasts'].keys())
-            for key in forecast_keys:
-                model_obs[key] = self.io_config_dict['forecasts'][key]["signal_key"]
+            pass
 
         #Return the observations as a numpy array
         obs = []

@@ -29,7 +29,7 @@ logging.basicConfig(
 uppath = lambda _path, n: os.sep.join(_path.split(os.sep)[:-n])
 file_path = os.path.join(uppath(os.path.abspath(__file__), 3), "t4b_gym")
 sys.path.append(file_path)
-from t4b_gym_env import T4BGymEnv, gym_simulator
+from t4b_gym_env import T4BGymEnv, GymSimulator
 from tqdm import tqdm
 
 def fcn(self):
@@ -113,7 +113,7 @@ def load_test_model():
 class TestCustomGymSimulator(unittest.TestCase):
     def setUp(self):
         self.model = load_test_model()
-        self.simulator = gym_simulator(self.model, enable_logging=True)
+        self.simulator = GymSimulator(self.model, enable_logging=True)
         self.stepSize = 600 #Seconds
         self.start_time = datetime.datetime(year=2024, month=1, day=10, hour=0, minute=0, second=0, tzinfo=gettz("Europe/Copenhagen"))
         self.end_time = datetime.datetime(year=2024, month=1, day=12, hour=0, minute=0, second=0, tzinfo=gettz("Europe/Copenhagen"))
@@ -205,6 +205,11 @@ class TestT4BGymEnv(unittest.TestCase):
             space = self.env.action_space.spaces[comp_id]
             self.assertEqual(space.low[0], config['min'])
             self.assertEqual(space.high[0], config['max'])
+
+    def test_get_observations(self):
+        """Test get_observations method"""
+        obs = self.env.get_observations()
+        self.assertEqual(set(obs.keys()), set(self.io_config['input'].keys()))
 
     def test_reset(self):
         """Test environment reset functionality"""
