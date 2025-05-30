@@ -55,13 +55,13 @@
             "description": "Outdoor temperature forecast"
         },
         "global_irradiance": {
-            "signal_key" : "globalIrradiance",
+            "signal_key" : "globalIrradiation",
             "min": 0,
             "max": 1000,
             "description": "Global irradiance forecast"
         },
-        "occupancy": {
-            "signal_key" : "occupancy",
+        "Occupancy schedule": {
+            "signal_key" : "scheduleValue",
             "min": 0,
             "max": 500,
             "description": "Occupancy schedule value"

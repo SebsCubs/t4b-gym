@@ -19,6 +19,7 @@ import logging
 import json
 from dateutil.tz import gettz 
 import os
+import pandas as pd
 
 # Set up logging
 logger = logging.getLogger(__name__)
@@ -157,7 +158,7 @@ class GymSimulator(tb.Simulator):
         """
         if component_id not in self.control_inputs:
             self.control_inputs[component_id] = {}
-        self.control_inputs[component_id][input_name] = 0.0  # Initialize with default value
+        self.control_inputs[component_id][input_name] = {}  # Initialize with an empty dictionary
         
     def add_observation_output(self, component_id: str, output_name: str) -> None:
         """Add an observation output to monitor.
@@ -168,7 +169,7 @@ class GymSimulator(tb.Simulator):
         """
         if component_id not in self.observation_outputs:
             self.observation_outputs[component_id] = {}
-        self.observation_outputs[component_id][output_name] = 0.0  # Initialize with default value
+        self.observation_outputs[component_id][output_name] = {}  # Initialize with an empty dictionary
                         
     def populate_actions_and_obs_from_json(self, json_file: str) -> None:
         """Populate actions and observations from a JSON file.
@@ -185,24 +186,22 @@ class GymSimulator(tb.Simulator):
   
         # Add control inputs from actions
         for component_id, action_config in config['actions'].items():
-            for input_name in action_config['signal_key']:
-                self.add_control_input(component_id, input_name)
+            self.add_control_input(component_id, action_config['signal_key'])
             
         # Add observation outputs from observations
         for component_id, obs_config in config['observations'].items():
-            for output_name in obs_config['signal_key']:
-                self.add_observation_output(component_id, output_name)
+            self.add_observation_output(component_id, obs_config['signal_key'])
 
         #Add the max and min values for the action and observation spaces
         for component_id, action_config in config['actions'].items():
-            for input_name in action_config['signal_key']:
-                self.control_inputs[component_id][input_name]['max'] = action_config['max']
-                self.control_inputs[component_id][input_name]['min'] = action_config['min']
+            input_name = action_config['signal_key']
+            self.control_inputs[component_id][input_name]['max'] = action_config['max']
+            self.control_inputs[component_id][input_name]['min'] = action_config['min']
 
         for component_id, obs_config in config['observations'].items():
-            for output_name in obs_config['signal_key']:
-                self.observation_outputs[component_id][output_name]['max'] = obs_config['max']
-                self.observation_outputs[component_id][output_name]['min'] = obs_config['min']
+            output_name = obs_config['signal_key']
+            self.observation_outputs[component_id][output_name]['max'] = obs_config['max']
+            self.observation_outputs[component_id][output_name]['min'] = obs_config['min']
     
     def get_observations(self) -> Dict[str, Dict[str, float]]:
         """Get current observations from monitored outputs.
@@ -273,7 +272,7 @@ class GymSimulator(tb.Simulator):
         
         # Get observations and check if done
         observations = self.get_observations()
-        #TODO: Calculate how to define done based on the defined episode lenght in the gym env
+        
         done = self.current_step >= len(self.secondTimeSteps)
         
         return observations, done
@@ -328,8 +327,9 @@ class T4BGymEnv(gym.Env):
 
         # Set simulation parameters
         self.step_size = step_size
-        self.start_time = start_time or datetime.datetime(year=2024, month=1, day=10, hour=0, minute=0, second=0, tzinfo=gettz("Europe/Copenhagen"))
-        self.end_time = end_time or datetime.datetime(year=2024, month=1, day=12, hour=0, minute=0, second=0, tzinfo=gettz("Europe/Copenhagen"))
+
+        self.global_start_time = start_time 
+        self.global_end_time = end_time
         self.episode_length = episode_length
         self.random_start = random_start
         self.excluding_periods = excluding_periods or []
@@ -362,7 +362,8 @@ class T4BGymEnv(gym.Env):
         assert os.path.isfile(io_config_file), "The io_config_file is not a file"   
         assert os.path.splitext(io_config_file)[1] == '.json', "The io_config_file must be a JSON file"
         
-        io_dict = json.load(open(io_config_file))
+        with open(io_config_file) as f:
+            io_dict = json.load(f)
         assert 'actions' in io_dict, "The io_config_file must contain an 'actions' key"
         assert 'observations' in io_dict, "The io_config_file must contain an 'observations' key"
         
@@ -373,7 +374,7 @@ class T4BGymEnv(gym.Env):
         self.create_observation_space()
         self.create_action_space()
 
-        self.simulator.initialize_simulation(self.start_time, self.end_time, self.step_size)
+        #self.simulator.initialize_simulation(self.start_time, self.end_time, self.step_size)
     
     def reset(self, seed=None, options=None):
         """Reset the environment to initial state.
@@ -388,10 +389,10 @@ class T4BGymEnv(gym.Env):
                 info: Additional information
         """
 
-        #TODO: At some point, the simulation time should be defined during training of the RL agent
+        #TODO: The simulator should define its own start and end time based on the random_start and episode_length parameters
 
         # Reset simulator state
-        self.simulator.initialize_simulation(self.start_time, self.end_time, self.step_size)
+        self.simulator.initialize_simulation(self.global_start_time, self.global_end_time, self.step_size)
         
         # Get initial observations
         observations = self._get_obs()
@@ -500,7 +501,7 @@ class T4BGymEnv(gym.Env):
                 upper_bounds.append(1)
                 upper_bounds.append(1)
 
-        elif 'forecasts' in self.io_config_dict:
+        if 'forecasts' in self.io_config_dict:
             forecast_keys = list(self.io_config_dict['forecasts'].keys())
             for key in forecast_keys:
                 observations.append(self.io_config_dict['forecasts'][key]["signal_key"])
@@ -509,6 +510,27 @@ class T4BGymEnv(gym.Env):
 
         #Define the observation space
         self.observation_space = spaces.Box(low=np.array(low_bounds), high=np.array(upper_bounds), dtype=np.float32)
+
+    def _get_forecast(self, df: pd.DataFrame, column_name: str) -> pd.Series:
+        """Helper method to get forecast window for a given column.
+        
+        Args:
+            df: DataFrame containing the forecast data
+            column_name: Name of the column to get forecast for
+            
+        Returns:
+            pd.Series: Forecast window padded if needed
+        """
+        start_idx = self.simulator.current_step
+        end_idx = start_idx + self.forecast_horizon + 1
+        forecast = df[column_name].iloc[start_idx:min(end_idx, len(df))]
+        if len(forecast) < self.forecast_horizon + 1:
+            # Pad with last value to reach desired length
+            last_value = forecast.iloc[-1]
+            padding_length = self.forecast_horizon + 1 - len(forecast)
+            padding = pd.Series([last_value] * padding_length)
+            forecast = pd.concat([forecast, padding])
+        return forecast
 
     def _get_obs(self):
         """Get the current observations from the simulator.
@@ -533,8 +555,39 @@ class T4BGymEnv(gym.Env):
                 model_obs["month_of_year_sin"] = np.sin(2 * np.pi * current_time.month / 12)
                 model_obs["month_of_year_cos"] = np.cos(2 * np.pi * current_time.month / 12)
         elif 'forecasts' in self.io_config_dict:
-            #TODO: Forecast would need to be loaded and preprocessed from i.e. a csv file
-            pass
+            #Find the OutdoorEnvironment component
+            outdoor_env_component = None
+            for component in self.simulator.model.components:
+                if component.id == "OutdoorEnvironment":
+                    outdoor_env_component = component
+                    break
+            if outdoor_env_component is None:
+                raise ValueError("OutdoorEnvironment component not found in the model")
+            #get the df from the OutdoorEnvironment component
+            df = outdoor_env_component.df
+            forecast_keys = list(self.io_config_dict['forecasts'].keys())
+            
+            # Map forecast keys to their corresponding column names
+            global_forecast_columns = {
+                "outdoor_temperature": "outdoorTemperature",
+                "global_irradiance": "globalIrradiance",
+            }
+            
+            # Get forecasts for each requested key
+            for key in forecast_keys:
+                if key in global_forecast_columns:
+                    model_obs[key] = self._get_forecast(df, global_forecast_columns[key])
+
+            #Occupancy values vary from model to model, they are provided as a list of schedule components
+            #Go through all the remaining keys in the forecasts dictionary in the io_config_file
+            for key in forecast_keys:
+                if key not in global_forecast_columns:
+                    #Get the schedule component
+                    component = self.simulator.model.components[key]
+                    df = component.df
+                    signal_key = self.io_config_dict['forecasts'][key]["signal_key"]
+                    column_name = component.id + "_" + signal_key
+                    model_obs[column_name] = self._get_forecast(df, signal_key)
 
         #Return the observations as a numpy array
         obs = []
