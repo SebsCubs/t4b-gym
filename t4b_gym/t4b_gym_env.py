@@ -13,7 +13,7 @@ import gymnasium as gym
 import numpy as np
 from typing import Dict, List, Tuple, Any, Optional
 from twin4build.saref4syst.system import System
-from datetime import datetime
+from datetime import datetime, timedelta
 from gymnasium import spaces
 import logging
 import json
@@ -68,6 +68,9 @@ class GymSimulator(tb.Simulator):
         # Initialize model and generate timesteps
         self.model.initialize(startTime=startTime, endTime=endTime, stepSize=stepSize)
         self.get_simulation_timesteps(startTime, endTime, stepSize)
+
+        self.secondTime = self.secondTimeSteps[self.current_step]
+        self.dateTime = self.dateTimeSteps[self.current_step]
         
         if self.enable_logging:
             total_steps = len(self.secondTimeSteps)
@@ -220,7 +223,7 @@ class GymSimulator(tb.Simulator):
                         value = component.output[output_name].get()
                         if value is None:
                             value = 0.0
-                        observations[component_id][output_name] = value
+                        observations[component_id] = value
                         self.observation_outputs[component_id][output_name] = value
         return observations
     
@@ -504,9 +507,11 @@ class T4BGymEnv(gym.Env):
         if 'forecasts' in self.io_config_dict:
             forecast_keys = list(self.io_config_dict['forecasts'].keys())
             for key in forecast_keys:
-                observations.append(self.io_config_dict['forecasts'][key]["signal_key"])
-                low_bounds.append(self.io_config_dict['forecasts'][key]['min'])
-                upper_bounds.append(self.io_config_dict['forecasts'][key]['max'])
+                # For each forecast, we need forecast_horizon + 1 dimensions (current value + future values)
+                for _ in range(self.forecast_horizon + 1):
+                    observations.append(self.io_config_dict['forecasts'][key]["signal_key"])
+                    low_bounds.append(self.io_config_dict['forecasts'][key]['min'])
+                    upper_bounds.append(self.io_config_dict['forecasts'][key]['max'])
 
         #Define the observation space
         self.observation_space = spaces.Box(low=np.array(low_bounds), high=np.array(upper_bounds), dtype=np.float32)
@@ -554,12 +559,13 @@ class T4BGymEnv(gym.Env):
             if "month_of_year" in time_embedding_keys:
                 model_obs["month_of_year_sin"] = np.sin(2 * np.pi * current_time.month / 12)
                 model_obs["month_of_year_cos"] = np.cos(2 * np.pi * current_time.month / 12)
-        elif 'forecasts' in self.io_config_dict:
+        if 'forecasts' in self.io_config_dict:
             #Find the OutdoorEnvironment component
             outdoor_env_component = None
             for component in self.simulator.model.components:
-                if component.id == "OutdoorEnvironment":
-                    outdoor_env_component = component
+                #TODO: Make this more robust
+                if component == "Outdoor_environment":
+                    outdoor_env_component = self.simulator.model.components[component]
                     break
             if outdoor_env_component is None:
                 raise ValueError("OutdoorEnvironment component not found in the model")
@@ -570,13 +576,13 @@ class T4BGymEnv(gym.Env):
             # Map forecast keys to their corresponding column names
             global_forecast_columns = {
                 "outdoor_temperature": "outdoorTemperature",
-                "global_irradiance": "globalIrradiance",
+                "global_irradiation": "globalIrradiation",
             }
             
             # Get forecasts for each requested key
             for key in forecast_keys:
                 if key in global_forecast_columns:
-                    model_obs[key] = self._get_forecast(df, global_forecast_columns[key])
+                    model_obs[key] = self._get_forecast(df, global_forecast_columns[key]).values
 
             #Occupancy values vary from model to model, they are provided as a list of schedule components
             #Go through all the remaining keys in the forecasts dictionary in the io_config_file
@@ -584,15 +590,36 @@ class T4BGymEnv(gym.Env):
                 if key not in global_forecast_columns:
                     #Get the schedule component
                     component = self.simulator.model.components[key]
-                    df = component.df
                     signal_key = self.io_config_dict['forecasts'][key]["signal_key"]
+                    if hasattr(component, 'df'):
+                        df = component.df
+                    else:
+                        #Component has a schedule ruleset, not a dataframe, so we need to get the schedule values
+                        current_time = self.simulator.dateTime
+                        forecast_datetimes = [current_time + timedelta(seconds=i*self.step_size) for i in range(self.forecast_horizon + 1)]
+                        #Get the schedule values
+                        schedule_values = [component.get_schedule_value(dt) for dt in forecast_datetimes]
+                        
+                        df = pd.DataFrame({
+                            'datetime': forecast_datetimes,
+                            signal_key: schedule_values
+                        })
                     column_name = component.id + "_" + signal_key
-                    model_obs[column_name] = self._get_forecast(df, signal_key)
+                    if self.forecast_horizon > 0:
+                        forecast = self._get_forecast(df, signal_key)
+                        model_obs[column_name] = forecast.values
+                    else:
+                        model_obs[column_name] = df[signal_key].values
 
         #Return the observations as a numpy array
         obs = []
         for key in model_obs.keys():
-            obs.append(model_obs[key])
+            if isinstance(model_obs[key], np.ndarray):
+                # If it's a forecast array, append each value
+                obs.extend(model_obs[key])
+            else:
+                # If it's a single value, append it directly
+                obs.append(model_obs[key])
 
         return np.array(obs)
 

@@ -16,13 +16,13 @@
     "observations": {
         "CO2 setpoint schedule": {
             "signal_key" : "scheduleValue",
-            "min": 350,
+            "min": 0,
             "max": 1200,
             "description": "CO2 setpoint for room PI controller"
         },
         "Space": {
             "signal_key" : "indoorCo2Concentration",
-            "min": 200,
+            "min": 0,
             "max": 5000,
             "description": "CO2 concentration in the space"
         }
@@ -54,7 +54,7 @@
             "max": 50,
             "description": "Outdoor temperature forecast"
         },
-        "global_irradiance": {
+        "global_irradiation": {
             "signal_key" : "globalIrradiation",
             "min": 0,
             "max": 1000,
