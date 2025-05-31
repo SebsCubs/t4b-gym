@@ -208,7 +208,6 @@ class TestT4BGymEnv(unittest.TestCase):
                  step_size=self.stepSize,
                  warmup_period=0) #Not implemented yet
 
-
     def test_space_creation(self):
         """Test if observation and action spaces are created correctly"""
         io_config = self.env.io_config_dict
@@ -280,8 +279,7 @@ class TestT4BGymEnv(unittest.TestCase):
             self.assertEqual(self.env.action_space.low[current_dim], config['min'])
             self.assertEqual(self.env.action_space.high[current_dim], config['max'])
             current_dim += 1
-
-    
+ 
     def test_get_observations(self):
         """Test the _get_obs method for different observation types"""
         # Reset environment to get initial state
@@ -384,166 +382,183 @@ class TestT4BGymEnv(unittest.TestCase):
         self.assertTrue(np.all(obs >= self.env.observation_space.low))
         self.assertTrue(np.all(obs <= self.env.observation_space.high))
 
-
-"""
     def test_reset(self):
-        #Test reset method
-        obs, info = self.env.reset()
-        
-        # Check observation structure
-        self.assertEqual(set(obs.keys()), set(self.io_config['input'].keys()))
-        
-        # Check observation values are within bounds
-        for comp_id, value in obs.items():
-            config = self.io_config['input'][comp_id]
-            self.assertTrue(np.all(value >= config['min']))
-            self.assertTrue(np.all(value <= config['max']))
+        """Test reset method with various parameter combinations"""
+        # Test case 1: Fixed start time, no episode length
+        env1 = T4BGymEnv(
+            model=self.model,
+            io_config_file=r"C:\Users\asces\OneDriveUni\Projects\RL_control\t4b_gym\testing\policy_input_output.json",
+            start_time=self.start_time,
+            end_time=self.end_time,
+            episode_length=None,
+            random_start=False,
+            excluding_periods=None,
+            step_size=self.stepSize
+        )
+        env1.reset()
+        self.assertEqual(env1.sim_start_time, self.start_time)
+        self.assertEqual(env1.sim_end_time, self.end_time)
 
-    def test_step(self):
-        #Test step method
-        obs, _ = self.env.reset()
-        
-        # Create valid action
-        action = {
-            comp_id: np.array([
-                (config['max'] + config['min']) / 2  # middle of range
-            ])
-            for comp_id, config in self.io_config['output'].items()
-        }
-        
-        # Take step
-        next_obs, reward, terminated, truncated, info = self.env.step(action)
-        
-        # Check observation structure maintained
-        self.assertEqual(set(next_obs.keys()), set(self.io_config['input'].keys()))
-        
-        # Check values within bounds
-        for comp_id, value in next_obs.items():
-            config = self.io_config['input'][comp_id]
-            self.assertTrue(np.all(value >= config['min']))
-            self.assertTrue(np.all(value <= config['max']))
-        
-        # Check reward is finite
-        self.assertTrue(np.isfinite(reward))
+        # Test case 2: Fixed start time with episode length
+        episode_length = 24  # 24 steps
+        env2 = T4BGymEnv(
+            model=self.model,
+            io_config_file=r"C:\Users\asces\OneDriveUni\Projects\RL_control\t4b_gym\testing\policy_input_output.json",
+            start_time=self.start_time,
+            end_time=self.end_time,
+            episode_length=episode_length,
+            random_start=False,
+            excluding_periods=None,
+            step_size=self.stepSize
+        )
+        env2.reset()
+        self.assertEqual(env2.sim_start_time, self.start_time)
+        expected_end = self.start_time + timedelta(seconds=episode_length * self.stepSize)
+        self.assertEqual(env2.sim_end_time, expected_end)
 
-    def test_time_progression(self):
-        #Test that simulation time progresses correctly
-        initial_time = self.env.simulator.dateTime
-        
-        # Take multiple steps
-        for _ in range(5):
-            action = self.get_dummy_action()
-            _, _, _, _, _ = self.env.step(action)
-        
-        # Check time advanced correctly
-        expected_time = initial_time + timedelta(seconds=5 * self.env.simulator.stepSize)
-        self.assertEqual(self.env.simulator.dateTime, expected_time)
+        # Test case 3: Random start with episode length
+        env3 = T4BGymEnv(
+            model=self.model,
+            io_config_file=r"C:\Users\asces\OneDriveUni\Projects\RL_control\t4b_gym\testing\policy_input_output.json",
+            start_time=self.start_time,
+            end_time=self.end_time,
+            episode_length=episode_length,
+            random_start=True,
+            excluding_periods=None,
+            step_size=self.stepSize
+        )
+        env3.reset()
+        # Check that start time is within valid range
+        self.assertGreaterEqual(env3.sim_start_time, self.start_time)
+        self.assertLessEqual(env3.sim_start_time, self.end_time - timedelta(seconds=episode_length * self.stepSize))
+        # Check that end time is correct
+        self.assertEqual(env3.sim_end_time, env3.sim_start_time + timedelta(seconds=episode_length * self.stepSize))
 
-    def test_simulation_bounds(self):
-        #Test that simulation respects time bounds
-        # Run until end
-        done = False
-        while not done:
-            action = self.get_dummy_action()
-            _, _, terminated, truncated, _ = self.env.step(action)
-            done = terminated or truncated
-        
-        # Check we didn't exceed endTime
-        self.assertLessEqual(self.env.simulator.dateTime, self.env.simulator.endTime)
+        # Test case 4: Random start with excluding periods
+        excluding_periods = [
+            (self.start_time + timedelta(hours=2), self.start_time + timedelta(hours=4)),
+            (self.start_time + timedelta(hours=6), self.start_time + timedelta(hours=8))
+        ]
+        env4 = T4BGymEnv(
+            model=self.model,
+            io_config_file=r"C:\Users\asces\OneDriveUni\Projects\RL_control\t4b_gym\testing\policy_input_output.json",
+            start_time=self.start_time,
+            end_time=self.end_time,
+            episode_length=episode_length,
+            random_start=True,
+            excluding_periods=excluding_periods,
+            step_size=self.stepSize
+        )
+        env4.reset()
+        # Check that start time is not in excluding periods
+        for start, end in excluding_periods:
+            self.assertFalse(start <= env4.sim_start_time < end)
+            self.assertFalse(start < env4.sim_end_time <= end)
+            self.assertFalse(env4.sim_start_time <= start and env4.sim_end_time >= end)
+        # Check that end time is correct
+        self.assertEqual(env4.sim_end_time, env4.sim_start_time + timedelta(seconds=episode_length * self.stepSize))
 
-    def test_invalid_actions(self):
-        #Test that environment handles invalid actions appropriately
-        self.env.reset()
-        
-        # Test action too high
-        action = {
-            comp_id: np.array([config['max'] * 2])
-            for comp_id, config in self.io_config['output'].items()
-        }
-        next_obs, _, _, _, _ = self.env.step(action)
-        # Should still get valid observations
-        self.check_observations_valid(next_obs)
+        # Test case 5: Multiple resets with random start
+        env5 = T4BGymEnv(
+            model=self.model,
+            io_config_file=r"C:\Users\asces\OneDriveUni\Projects\RL_control\t4b_gym\testing\policy_input_output.json",
+            start_time=self.start_time,
+            end_time=self.end_time,
+            episode_length=episode_length,
+            random_start=True,
+            excluding_periods=excluding_periods,
+            step_size=self.stepSize
+        )
+        # Test multiple resets to ensure different random start times
+        start_times = set()
+        for _ in range(10):
+            env5.reset()
+            start_times.add(env5.sim_start_time)
+        # Check that we got different start times
+        self.assertGreater(len(start_times), 1, "Random start times should be different")
 
-        # Test action too low
-        action = {
-            comp_id: np.array([config['min'] - 1])
-            for comp_id, config in self.io_config['output'].items()
-        }
-        next_obs, _, _, _, _ = self.env.step(action)
-        self.check_observations_valid(next_obs)
+        # Test case 6: Episode length too long
+        with self.assertRaises(ValueError):
+            env6 = T4BGymEnv(
+                model=self.model,
+                io_config_file=r"C:\Users\asces\OneDriveUni\Projects\RL_control\t4b_gym\testing\policy_input_output.json",
+                start_time=self.start_time,
+                end_time=self.end_time,
+                episode_length=1000000,  # Too long
+                random_start=False,
+                excluding_periods=None,
+                step_size=self.stepSize
+            )
 
-    def test_component_failure(self):
-        #Test that environment handles component failures gracefully
-        self.env.reset()
+        # Test case 7: Fragmented time chunks
+        # Create excluding periods that fragment the time into chunks smaller than episode length
+        episode_length = 50  # 50 steps
+        excluding_periods = [
+            (self.start_time + timedelta(seconds=20*self.stepSize), self.start_time + timedelta(seconds=30*self.stepSize)),
+            (self.start_time + timedelta(seconds=50*self.stepSize), self.start_time + timedelta(seconds=60*self.stepSize))
+        ]
         
-        # Simulate component failure by setting invalid values
-        for component in self.env.simulator.model.components.values():
-            if hasattr(component, 'output'):
-                for output in component.output.values():
-                    output.set(float('nan'))
-        
-        # Environment should still function
-        action = self.get_dummy_action()
-        try:
-            next_obs, _, _, _, _ = self.env.step(action)
-            self.check_observations_valid(next_obs)
-        except Exception as e:
-            self.fail(f"Environment failed to handle component failure: {e}")
+        with self.assertRaises(ValueError):
+            env7 = T4BGymEnv(
+                model=self.model,
+                io_config_file=r"C:\Users\asces\OneDriveUni\Projects\RL_control\t4b_gym\testing\policy_input_output.json",
+                start_time=self.start_time,
+                end_time=self.start_time + timedelta(seconds=100*self.stepSize),  # 100 steps total
+                episode_length=episode_length,
+                random_start=True,
+                excluding_periods=excluding_periods,
+                step_size=self.stepSize
+            )
 
-    def test_step_timing(self):
-        #Test environment step execution time
-        import time
+        # Test case 8: Timeout scenario
+        # Create excluding periods that leave very little room for the episode
+        excluding_periods = [
+            (self.start_time + timedelta(seconds=0*self.stepSize), self.start_time + timedelta(seconds=45*self.stepSize)),
+            (self.start_time + timedelta(seconds=55*self.stepSize), self.start_time + timedelta(seconds=100*self.stepSize))
+        ]
         
-        self.env.reset()
-        action = self.get_dummy_action()
-        
-        # Measure average step time
-        n_steps = 100
-        start_time = time.time()
-        
-        for _ in range(n_steps):
-            self.env.step(action)
-        
-        avg_step_time = (time.time() - start_time) / n_steps
-        
-        # Assert reasonable performance (adjust threshold as needed)
-        self.assertLess(avg_step_time, 0.1)  # 100ms per step
+        # First test that initialization fails when excluding periods fragment time too much
+        with self.assertRaises(ValueError):
+            env8 = T4BGymEnv(
+                model=self.model,
+                io_config_file=r"C:\Users\asces\OneDriveUni\Projects\RL_control\t4b_gym\testing\policy_input_output.json",
+                start_time=self.start_time,
+                end_time=self.start_time + timedelta(seconds=100*self.stepSize),  # 100 steps total
+                episode_length=episode_length,
+                random_start=True,
+                excluding_periods=excluding_periods,
+                step_size=self.stepSize
+            )
 
-    def test_memory_usage(self):
-        #Test environment memory usage
-        import psutil
-        import os
+        # Test case 9: Verify random start time generation
+        # Create excluding periods that leave room at the end of the simulation
+        excluding_periods = [
+            (self.start_time + timedelta(seconds=0*self.stepSize), self.start_time + timedelta(seconds=30*self.stepSize))
+        ]
         
-        process = psutil.Process(os.getpid())
-        initial_memory = process.memory_info().rss
+        # Create environment with valid parameters
+        env9 = T4BGymEnv(
+            model=self.model,
+            io_config_file=r"C:\Users\asces\OneDriveUni\Projects\RL_control\t4b_gym\testing\policy_input_output.json",
+            start_time=self.start_time,
+            end_time=self.start_time + timedelta(seconds=100*self.stepSize),  # 100 steps total
+            episode_length=episode_length,
+            random_start=True,
+            excluding_periods=excluding_periods,
+            step_size=self.stepSize
+        )
         
-        # Run many steps
-        self.env.reset()
-        for _ in range(1000):
-            self.env.step(self.get_dummy_action())
+        # Test multiple resets to ensure we get start times in the later part of the simulation
+        start_times = set()
+        for _ in range(10):
+            env9.reset()
+            start_times.add(env9.sim_start_time)
         
-        final_memory = process.memory_info().rss
-        memory_increase = final_memory - initial_memory
-        
-        # Check memory growth is reasonable
-        self.assertLess(memory_increase / 1024 / 1024, 100)  # Less than 100MB growth
+        # Check that we got some start times after the excluding period
+        later_start_times = {t for t in start_times if t > self.start_time + timedelta(seconds=30*self.stepSize)}
+        self.assertGreater(len(later_start_times), 0, "Should get some start times after the excluding period")
 
-    def get_dummy_action(self):
-        #Create a valid dummy action
-        return {
-            comp_id: np.array([(config['max'] + config['min']) / 2])
-            for comp_id, config in self.io_config['output'].items()
-        }
 
-
-    def check_observations_valid(self, obs):
-        #Check if observations are valid
-        for comp_id, value in obs.items():
-            config = self.io_config['input'][comp_id]
-            self.assertTrue(np.all(np.isfinite(value)))
-            self.assertTrue(np.all(value >= config['min']))
-            self.assertTrue(np.all(value <= config['max']))
-"""
 
 if __name__ == "__main__":
     
@@ -552,7 +567,5 @@ if __name__ == "__main__":
     # Create an instance of the test class and run the specific test
     test_case = TestT4BGymEnv()
     test_case.setUp()
-    test_case.test_space_creation()
-    test_case.test_get_observations()
-    
+    test_case.test_reset()
     """

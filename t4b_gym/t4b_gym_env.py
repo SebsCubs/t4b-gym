@@ -11,6 +11,7 @@ Author: Sebastian Cubides @SebsCubs in github
 import twin4build as tb
 import gymnasium as gym
 import numpy as np
+import random
 from typing import Dict, List, Tuple, Any, Optional
 from twin4build.saref4syst.system import System
 from datetime import datetime, timedelta
@@ -319,7 +320,7 @@ class T4BGymEnv(gym.Env):
             io_config_file: Path to the JSON file containing actions and observations
             start_time: Start time of the simulation (must have timezone)
             end_time: End time of the simulation (must have timezone)
-            episode_length: Length of each episode in steps (can be smaller than total simulation time)
+            episode_length: Length of each episode in steps (must be smaller than total simulation time)
             random_start: Whether to start episodes at random times within the simulation period
             excluding_periods: List of (start, end) datetime tuples defining periods to exclude from training
             step_size: Simulation step size in seconds
@@ -372,6 +373,18 @@ class T4BGymEnv(gym.Env):
         
         self.io_config_dict = io_dict
 
+        if self.episode_length is not None:
+            #Assert that the episode length is smaller than the total simulation time, raise a value error if not
+            if self.episode_length > (self.global_end_time - self.global_start_time).total_seconds()/self.step_size:
+                raise ValueError("Episode length must be smaller than the total simulation time")
+        if self.random_start and self.excluding_periods is not None:
+            #Assert that there is at least one chunk of available time >= episode_length
+            if self.excluding_periods is not None and not self._check_available_time_chunks():
+                raise ValueError("Excluding periods fragment the available time into chunks smaller than episode_length")
+            for start, end in self.excluding_periods:
+                    if start < self.global_start_time or end > self.global_end_time:
+                        raise ValueError("Excluding periods must be within the total simulation time")
+        
         #Populate the simulator with the actions and observations
         self.simulator.populate_actions_and_obs_from_json(io_config_file)        
         self.create_observation_space()
@@ -379,6 +392,29 @@ class T4BGymEnv(gym.Env):
 
         #self.simulator.initialize_simulation(self.start_time, self.end_time, self.step_size)
     
+    def _check_available_time_chunks(self):
+        """Check if excluding periods fragment the available time into chunks smaller than episode length.
+        
+        Returns:
+            bool: True if there is at least one chunk of available time >= episode_length
+        """
+        # Sort excluding periods by start time
+        sorted_periods = sorted(self.excluding_periods, key=lambda x: x[0])
+        
+        # Get all time boundaries
+        boundaries = [self.global_start_time] + [t for period in sorted_periods for t in period] + [self.global_end_time]
+        
+        # Find available chunks between excluding periods
+        available_chunks = []
+        for i in range(0, len(boundaries)-1, 2):
+            chunk_start = boundaries[i]
+            chunk_end = boundaries[i+1]
+            chunk_duration = (chunk_end - chunk_start).total_seconds() / self.step_size
+            available_chunks.append(chunk_duration)
+        
+        # Check if any chunk is large enough for the episode
+        return any(chunk >= self.episode_length for chunk in available_chunks)
+
     def reset(self, seed=None, options=None):
         """Reset the environment to initial state.
         
@@ -392,10 +428,42 @@ class T4BGymEnv(gym.Env):
                 info: Additional information
         """
 
-        #TODO: The simulator should define its own start and end time based on the random_start and episode_length parameters
+        if self.episode_length is not None:
+            self.sim_start_time = self.global_start_time
+            self.sim_end_time = self.global_start_time + timedelta(seconds=self.episode_length*self.step_size)
 
+        if self.random_start:
+
+            #Generate a random start time
+            max_start_time = self.global_end_time - timedelta(seconds=self.episode_length*self.step_size)
+            random_start_time = self.global_start_time + timedelta(seconds=random.randint(0, int((max_start_time - self.global_start_time).total_seconds())))
+            
+            #Check that end time is not beyond the global end time
+            episode_end_time = min(random_start_time + timedelta(seconds=self.episode_length*self.step_size), self.global_end_time)
+            
+            #Check if any part of the episode overlaps with excluding periods
+            if self.excluding_periods is not None:
+                max_attempts = 1000  # Maximum number of attempts to find a valid time slot
+                attempts = 0
+                while any((start <= random_start_time < end) or 
+                         (start < episode_end_time <= end) or
+                         (random_start_time <= start and episode_end_time >= end) 
+                         for start, end in self.excluding_periods):
+                    random_start_time = self.global_start_time + timedelta(seconds=random.randint(0, int((max_start_time - self.global_start_time).total_seconds())))
+                    episode_end_time = min(random_start_time + timedelta(seconds=self.episode_length*self.step_size), self.global_end_time)
+                    attempts += 1
+                    if attempts >= max_attempts:
+                        raise ValueError("Could not find a valid time slot after maximum attempts. The excluding periods may leave no room for the episode length.")
+
+            self.sim_start_time = random_start_time
+            self.sim_end_time = episode_end_time
+            
+        if self.episode_length is None:
+            self.sim_start_time = self.global_start_time
+            self.sim_end_time = self.global_end_time
+        
         # Reset simulator state
-        self.simulator.initialize_simulation(self.global_start_time, self.global_end_time, self.step_size)
+        self.simulator.initialize_simulation(self.sim_start_time, self.sim_end_time, self.step_size)
         
         # Get initial observations
         observations = self._get_obs()
