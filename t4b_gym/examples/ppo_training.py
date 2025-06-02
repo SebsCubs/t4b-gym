@@ -1,21 +1,12 @@
 import twin4build as tb
 import datetime
 import twin4build.examples.utils as utils
-import torch.nn as nn
-import torch
-import json
 from dateutil.tz import gettz 
-import twin4build.utils.plot.plot as plot
-import twin4build.utils.input_output_types as tps
-import unittest
-import gymnasium as gym
-import numpy as np
-from datetime import timezone, timedelta
 import sys
 import os
 import logging
 from stable_baselines3 import PPO
-from stable_baselines3.common.callbacks import EvalCallback, BaseCallback
+from stable_baselines3.common.callbacks import EvalCallback
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 MAIN_DIR = os.path.dirname(SCRIPT_DIR)  # This will point to t4b_gym folder
 #Add testing directory to sys.path
