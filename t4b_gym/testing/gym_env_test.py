@@ -15,8 +15,13 @@ import sys
 import os
 import logging
 
+# Get the directory where this test file is located
+TEST_DIR = os.path.dirname(os.path.abspath(__file__))
+# Construct path to the policy input/output config file
+POLICY_CONFIG_PATH = os.path.join(TEST_DIR, "policy_input_output.json")
+
 # Configure logging to write to a file
-log_file = os.path.join(os.path.dirname(__file__), 'simulation_tests.log')
+log_file = os.path.join(TEST_DIR, 'simulation_tests.log')
 logging.basicConfig(
     level=logging.DEBUG,
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
@@ -87,7 +92,7 @@ def fcn(self):
         id="Space")
     
     outdoor_environment = tb.OutdoorEnvironmentSystem(
-        filename=r"C:/Users/asces/OneDriveUni/Projects/RL_control/boptest_model/boptest_handler/data/merged_data/outdoor_env_data.csv",
+        filename=r"outdoor_env_data.csv", #Needs to be in the same directory as the model
         saveSimulationResult=True,
         id="Outdoor_environment")
     
@@ -198,7 +203,7 @@ class TestT4BGymEnv(unittest.TestCase):
 
         self.env = T4BGymEnv(                 
                  model = self.model, 
-                 io_config_file = r"C:\Users\asces\OneDriveUni\Projects\RL_control\t4b_gym\testing\policy_input_output.json",
+                 io_config_file = POLICY_CONFIG_PATH,
                  start_time = self.start_time,
                  end_time = self.end_time,
                  episode_length=None, #Not implemented yet
@@ -387,7 +392,7 @@ class TestT4BGymEnv(unittest.TestCase):
         # Test case 1: Fixed start time, no episode length
         env1 = T4BGymEnv(
             model=self.model,
-            io_config_file=r"C:\Users\asces\OneDriveUni\Projects\RL_control\t4b_gym\testing\policy_input_output.json",
+            io_config_file=POLICY_CONFIG_PATH,
             start_time=self.start_time,
             end_time=self.end_time,
             episode_length=None,
@@ -403,7 +408,7 @@ class TestT4BGymEnv(unittest.TestCase):
         episode_length = 24  # 24 steps
         env2 = T4BGymEnv(
             model=self.model,
-            io_config_file=r"C:\Users\asces\OneDriveUni\Projects\RL_control\t4b_gym\testing\policy_input_output.json",
+            io_config_file=POLICY_CONFIG_PATH,
             start_time=self.start_time,
             end_time=self.end_time,
             episode_length=episode_length,
@@ -419,7 +424,7 @@ class TestT4BGymEnv(unittest.TestCase):
         # Test case 3: Random start with episode length
         env3 = T4BGymEnv(
             model=self.model,
-            io_config_file=r"C:\Users\asces\OneDriveUni\Projects\RL_control\t4b_gym\testing\policy_input_output.json",
+            io_config_file=POLICY_CONFIG_PATH,
             start_time=self.start_time,
             end_time=self.end_time,
             episode_length=episode_length,
@@ -441,7 +446,7 @@ class TestT4BGymEnv(unittest.TestCase):
         ]
         env4 = T4BGymEnv(
             model=self.model,
-            io_config_file=r"C:\Users\asces\OneDriveUni\Projects\RL_control\t4b_gym\testing\policy_input_output.json",
+            io_config_file=POLICY_CONFIG_PATH,
             start_time=self.start_time,
             end_time=self.end_time,
             episode_length=episode_length,
@@ -461,7 +466,7 @@ class TestT4BGymEnv(unittest.TestCase):
         # Test case 5: Multiple resets with random start
         env5 = T4BGymEnv(
             model=self.model,
-            io_config_file=r"C:\Users\asces\OneDriveUni\Projects\RL_control\t4b_gym\testing\policy_input_output.json",
+            io_config_file=POLICY_CONFIG_PATH,
             start_time=self.start_time,
             end_time=self.end_time,
             episode_length=episode_length,
@@ -481,7 +486,7 @@ class TestT4BGymEnv(unittest.TestCase):
         with self.assertRaises(ValueError):
             env6 = T4BGymEnv(
                 model=self.model,
-                io_config_file=r"C:\Users\asces\OneDriveUni\Projects\RL_control\t4b_gym\testing\policy_input_output.json",
+                io_config_file=POLICY_CONFIG_PATH,
                 start_time=self.start_time,
                 end_time=self.end_time,
                 episode_length=1000000,  # Too long
@@ -501,7 +506,7 @@ class TestT4BGymEnv(unittest.TestCase):
         with self.assertRaises(ValueError):
             env7 = T4BGymEnv(
                 model=self.model,
-                io_config_file=r"C:\Users\asces\OneDriveUni\Projects\RL_control\t4b_gym\testing\policy_input_output.json",
+                io_config_file=POLICY_CONFIG_PATH,
                 start_time=self.start_time,
                 end_time=self.start_time + timedelta(seconds=100*self.stepSize),  # 100 steps total
                 episode_length=episode_length,
@@ -521,7 +526,7 @@ class TestT4BGymEnv(unittest.TestCase):
         with self.assertRaises(ValueError):
             env8 = T4BGymEnv(
                 model=self.model,
-                io_config_file=r"C:\Users\asces\OneDriveUni\Projects\RL_control\t4b_gym\testing\policy_input_output.json",
+                io_config_file=POLICY_CONFIG_PATH,
                 start_time=self.start_time,
                 end_time=self.start_time + timedelta(seconds=100*self.stepSize),  # 100 steps total
                 episode_length=episode_length,
@@ -539,7 +544,7 @@ class TestT4BGymEnv(unittest.TestCase):
         # Create environment with valid parameters
         env9 = T4BGymEnv(
             model=self.model,
-            io_config_file=r"C:\Users\asces\OneDriveUni\Projects\RL_control\t4b_gym\testing\policy_input_output.json",
+            io_config_file=POLICY_CONFIG_PATH,
             start_time=self.start_time,
             end_time=self.start_time + timedelta(seconds=100*self.stepSize),  # 100 steps total
             episode_length=episode_length,

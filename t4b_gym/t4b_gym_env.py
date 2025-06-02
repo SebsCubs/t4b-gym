@@ -274,12 +274,9 @@ class GymSimulator(tb.Simulator):
         # Increment step counter
         self.current_step += 1
         
-        # Get observations and check if done
-        observations = self.get_observations()
-        
         done = self.current_step >= len(self.secondTimeSteps)
         
-        return observations, done
+        return done
     
 
 class T4BGymEnv(gym.Env):
@@ -360,12 +357,10 @@ class T4BGymEnv(gym.Env):
                                     }
                                 }
                             }"""
-        
         #Assert that the io_config_file has the correct format
         assert os.path.exists(io_config_file), "The io_config_file does not exist"
         assert os.path.isfile(io_config_file), "The io_config_file is not a file"   
         assert os.path.splitext(io_config_file)[1] == '.json', "The io_config_file must be a JSON file"
-        
         with open(io_config_file) as f:
             io_dict = json.load(f)
         assert 'actions' in io_dict, "The io_config_file must contain an 'actions' key"
@@ -491,10 +486,12 @@ class T4BGymEnv(gym.Env):
         assert len(list(action.values())[0]) > 0, "The action must contain at least one input name and value"
 
         # Apply action and get new observations
-        observations, done = self.simulator.step_simulation(action)
+        done = self.simulator.step_simulation(action)
         
+        observations = self._get_obs()
+
         # Calculate reward (placeholder - should be implemented based on specific task)
-        reward = self.get_reward(observations, action, self.simulator.model)
+        reward = self.get_reward(observations, action)
         
         # Check if episode is done (placeholder)
         terminated = done
