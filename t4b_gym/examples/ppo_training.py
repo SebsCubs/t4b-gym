@@ -14,14 +14,18 @@ from datetime import timezone, timedelta
 import sys
 import os
 import logging
+from stable_baselines3 import PPO
+from stable_baselines3.common.callbacks import EvalCallback, BaseCallback
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 MAIN_DIR = os.path.dirname(SCRIPT_DIR)  # This will point to t4b_gym folder
 #Add testing directory to sys.path
 sys.path.append(MAIN_DIR)
-from t4b_gym_env import T4BGymEnv
-
+from t4b_gym_env import T4BGymEnv, NormalizedObservationWrapper, NormalizedActionWrapper
+from stable_baselines3.common.monitor import Monitor
 # Configure logging to write to a file
-log_file = os.path.join(SCRIPT_DIR, 'ppo_training.log')
+log_dir = os.path.join(SCRIPT_DIR, 'logs')
+os.makedirs(log_dir, exist_ok=True)
+log_file = os.path.join(log_dir, 'ppo_training.log')
 logging.basicConfig(
     level=logging.DEBUG,
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
@@ -30,11 +34,30 @@ logging.basicConfig(
     ]
 )
 
-POLICY_CONFIG_PATH = os.path.join(MAIN_DIR, "testing", "policy_input_output.json")
+POLICY_CONFIG_PATH = os.path.join(SCRIPT_DIR, "policy_input_output.json")
 OUTDOOR_DATA_PATH = os.path.join(MAIN_DIR, "testing", "outdoor_data.csv")
-
+device = 'cpu'
 
 def fcn(self):
+
+
+    self.remove_component(self.components["020B_occupancy_profile"])
+
+    occupancy_schedule = tb.ScheduleSystem(
+        weekDayRulesetDict={
+            "ruleset_default_value": 0,
+            "ruleset_start_minute": [0, 0, 0, 0, 0, 0, 0],
+            "ruleset_end_minute": [0, 0, 0, 0, 0, 0, 0],
+            "ruleset_start_hour": [6, 7, 8, 12, 14, 16, 18],
+            "ruleset_end_hour": [7, 8, 12, 14, 16, 18, 22],
+            "ruleset_value": [3, 5, 20, 25, 27, 7, 3]},
+        add_noise=True,
+        saveSimulationResult=True,
+        id="020B_occupancy_profile")
+    
+    self.add_connection(occupancy_schedule, self.components["[020B][020B_space_heater]"], "scheduleValue", "numberOfPeople")
+
+        
     supply_water_schedule = tb.ScheduleSystem(
     weekDayRulesetDict = {
         "ruleset_default_value": 60,
@@ -118,18 +141,74 @@ def PPO_training():
         end_time = datetime.datetime(year=2024, month=1, day=15, hour=0, minute=0, second=0, tzinfo=gettz("Europe/Copenhagen"))        
 
         class T4BGymEnvCustomReward(T4BGymEnv):
+            def __init__(self, *args, **kwargs):
+                super().__init__(*args, **kwargs)
+                self.previous_objective = 0.0
+                
             def get_reward(self, action, observation):
-                return 0
+                # Difference between indoor temperature and setpoint
+                indoor_temperature = self.simulator.model.components["[020B][020B_space_heater]"].output["indoorTemperature"]
+                indoor_temperature_setpoint = self.simulator.model.components["020B_temperature_heating_setpoint"].output["scheduleValue"]
+                temperature_difference = abs(indoor_temperature - indoor_temperature_setpoint)
+
+                # Difference between CO2 concentration and setpoint
+                co2_concentration = self.simulator.model.components["020B_co2_sensor"].output["measuredValue"]
+                co2_concentration_setpoint = self.simulator.model.components["020B_co2_setpoint"].output["scheduleValue"]
+                # Only penalize when CO2 is above setpoint
+                co2_difference = max(0, co2_concentration - co2_concentration_setpoint)
+
+                # Power consumption of space heater
+                space_heater_power = self.simulator.model.components["[020B][020B_space_heater]"].output["spaceHeaterPower"]
+
+                # Calculate current objective value (integrand)
+                current_objective = (
+                    0.01 * space_heater_power +  # Energy cost
+                    10 * temperature_difference +  # Comfort violation
+                    10 * co2_difference  # IAQ violation
+                )
+
+                # Calculate reward as negative change in objective
+                reward = -(current_objective - self.previous_objective)
+                
+                # Store current objective for next step
+                self.previous_objective = current_objective
+
+                return reward
 
         env = T4BGymEnvCustomReward(                 
                  model = model, 
                  io_config_file = POLICY_CONFIG_PATH,
                  start_time = start_time,
                  end_time = end_time,
-                 episode_length=None, 
-                 random_start=False, 
+                 episode_length= int(3600*24*3 / stepSize),  # 3 days
+                 random_start=True, 
                  excluding_periods=None, 
-                 forecast_horizon=20,
+                 forecast_horizon=10,
                  step_size=stepSize,
                  warmup_period=0) 
   
+        env = NormalizedObservationWrapper(env)
+        env = NormalizedActionWrapper(env)  
+
+        # Modify the environment to include the callback
+        env = Monitor(env=env, filename=os.path.join(log_dir,'monitor.csv'))
+
+        # Save the model
+        model = PPO('MlpPolicy', env, verbose=1, gamma=0.99,      
+            learning_rate=5e-4, batch_size=int(50), n_steps=int(200),      
+            n_epochs=10, clip_range=0.2, tensorboard_log=log_dir, device=device)
+
+        # Create the callback
+        callback = EvalCallback(env, best_model_save_path=log_dir, log_path=log_dir, eval_freq=1000, n_eval_episodes=5)
+
+        # Train the model
+        model.learn(total_timesteps=10000, callback=callback)
+
+        # Save the model
+        model.save("ppo_model")
+
+        # Close the environment
+        env.close()
+
+if __name__ == "__main__":
+    PPO_training()

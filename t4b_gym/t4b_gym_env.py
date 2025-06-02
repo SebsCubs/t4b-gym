@@ -221,11 +221,11 @@ class GymSimulator(tb.Simulator):
                         value = component.output[output_name].get()
                         if value is None:
                             value = 0.0
-                        observations[component_id] = value
+                        observations[component_id][output_name] = value
                         self.observation_outputs[component_id][output_name] = value
         return observations
     
-    def step_simulation(self, actions: Optional[Dict[str, Dict[str, float]]] = None) -> Tuple[Dict[str, Dict[str, float]], bool]:
+    def step_simulation(self, actions: Optional[np.ndarray] = None) -> Tuple[Dict[str, Dict[str, float]], bool]:
         """Perform one simulation step with the given actions.
         
         This method advances the simulation by one timestep, similar to the original
@@ -236,7 +236,7 @@ class GymSimulator(tb.Simulator):
         4. Returns current observations and done status
         
         Args:
-            actions: Control actions to apply
+            actions: Control actions as a numpy array, ordered according to self.control_inputs
             
         Returns:
             Tuple containing:
@@ -255,9 +255,12 @@ class GymSimulator(tb.Simulator):
             logger.debug(f"Time: {self.dateTimeSteps[self.current_step]}")
         
         if actions is not None:
-            for component_id, inputs in actions.items():
-                if component_id in self.control_inputs:
-                    self.control_inputs[component_id].update(inputs)
+            # Convert array action to dictionary using control_inputs order
+            action_idx = 0
+            for component_id, inputs in self.control_inputs.items():
+                for input_name in inputs:
+                    self.control_inputs[component_id][input_name] = actions[action_idx]
+                    action_idx += 1
         elif self.enable_logging:
             logger.info("No actions provided, using default values")
         
@@ -478,9 +481,9 @@ class T4BGymEnv(gym.Env):
                 info: Additional information
         """
         #Assert the format of the action
-        assert isinstance(action, dict), "The action must be a dictionary"
-        assert isinstance(list(action.values())[0], dict), "The action must contain a dictionary of input names and values"
-        assert len(list(action.values())[0]) > 0, "The action must contain at least one input name and value"
+        assert isinstance(action, np.ndarray), "The action must be a numpy array"
+        assert action.shape == self.action_space.shape, f"Action shape {action.shape} must match action space shape {self.action_space.shape}"
+        assert np.all(action >= self.action_space.low) and np.all(action <= self.action_space.high), "Action values must be within action space bounds"
 
         # Apply action and get new observations
         done = self.simulator.step_simulation(action)
@@ -499,7 +502,7 @@ class T4BGymEnv(gym.Env):
         
         return observations, reward, terminated, truncated, info
     
-    def get_reward(self, observations: Dict[str, Dict[str, float]], action: Dict[str, Dict[str, float]]) -> float:
+    def get_reward(self, observations, action) -> float:
         """Calculate the reward based on the observations and action.
         
         Args:
@@ -592,13 +595,23 @@ class T4BGymEnv(gym.Env):
         """
         start_idx = self.simulator.current_step
         end_idx = start_idx + self.forecast_horizon + 1
+        
+        # Get available forecast values
         forecast = df[column_name].iloc[start_idx:min(end_idx, len(df))]
+        
         if len(forecast) < self.forecast_horizon + 1:
+            # If we're at the end of the episode, use the last known value for padding
+            if start_idx >= len(df) - 1:
+                last_value = df[column_name].iloc[-1]
+            else:
+                # Otherwise use the last value from our current forecast window
+                last_value = forecast.iloc[-1]
+                
             # Pad with last value to reach desired length
-            last_value = forecast.iloc[-1]
             padding_length = self.forecast_horizon + 1 - len(forecast)
             padding = pd.Series([last_value] * padding_length)
             forecast = pd.concat([forecast, padding])
+            
         return forecast
 
     def _get_obs(self):
@@ -658,6 +671,8 @@ class T4BGymEnv(gym.Env):
                         component = self.simulator.model.components[component_id]
                         if hasattr(component, 'df'):
                             df = component.df
+                            forecast = self._get_forecast(df, signal_name)
+                            model_obs[signal_name] = forecast.values
                         else:
                             #Component has a schedule ruleset, not a dataframe, so we need to get the schedule values
                             current_time = self.simulator.dateTime
@@ -665,26 +680,28 @@ class T4BGymEnv(gym.Env):
                             #Get the schedule values
                             schedule_values = [component.get_schedule_value(dt) for dt in forecast_datetimes]
                             
-                            df = pd.DataFrame({
-                                'datetime': forecast_datetimes,
-                                signal_name: schedule_values
-                            })
-                        column_name = component_id + "_" + signal_name
-                        if self.forecast_horizon > 0:
-                            forecast = self._get_forecast(df, signal_name)
-                            model_obs[column_name] = forecast.values
-                        else:
-                            model_obs[column_name] = df[signal_name].values
+                            # For schedule components, we already have the exact forecast array we need
+                            column_name = component_id + "_" + signal_name
+                            model_obs[column_name] = np.array(schedule_values)
 
         #Return the observations as a numpy array
         obs = []
         for key in model_obs.keys():
-            if isinstance(model_obs[key], np.ndarray):
-                # If it's a forecast array, append each value
-                obs.extend(model_obs[key])
+            if isinstance(model_obs[key], dict):
+                for output_name in model_obs[key].keys():
+                    if isinstance(model_obs[key][output_name], np.ndarray):
+                        # If it's a forecast array, append each value
+                        obs.extend(model_obs[key][output_name])
+                    else:
+                        # If it's a single value, append it directly
+                        obs.append(model_obs[key][output_name])
             else:
-                # If it's a single value, append it directly
-                obs.append(model_obs[key])
+                if isinstance(model_obs[key], np.ndarray):
+                    # If it's a forecast array, append each value
+                    obs.extend(model_obs[key])
+                else:
+                    # If it's a single value, append it directly
+                    obs.append(model_obs[key])
 
         return np.array(obs)
 

@@ -1,36 +1,82 @@
 {
     "actions": {
         "020B_temperature_heating_setpoint": {
-            "signal_key" : "scheduleValue",
-            "min": 10,
-            "max": 35,
-            "description": "Heating setpoint"
+            "scheduleValue": {
+                "signal_key" : "scheduleValue",
+                "min": 10,
+                "max": 35,
+                "description": "Heating setpoint"
+            }
         },
         "020B_co2_setpoint": {
-            "signal_key" : "scheduleValue",
-            "min": 400,
-            "max": 1200,
-            "description": "CO2 setpoint"
+            "scheduleValue": {
+                "signal_key" : "scheduleValue",
+                "min": 400,
+                "max": 1200,
+                "description": "CO2 setpoint"
+            }
         }
     },
     "observations": {
         "020B_temperature_heating_setpoint": {
-            "signal_key" : "scheduleValue",
-            "min": 10,
-            "max": 35,
-            "description": "Heating setpoint"
+            "scheduleValue": {
+                "signal_key" : "scheduleValue",
+                "min": 10,
+                "max": 35,
+                "description": "Heating setpoint"
+            }
         },
         "020B_co2_setpoint": {
-            "signal_key" : "scheduleValue",
-            "min": 400,
-            "max": 1200,
-            "description": "CO2 setpoint"
+            "scheduleValue": {
+                "signal_key" : "scheduleValue",
+                "min": 400,
+                "max": 1200,
+                "description": "CO2 setpoint"
+            }
         },
         "[020B][020B_space_heater]": {
-            "signal_key" : "spaceHeaterPower",
-            "min": 0,
-            "max": 1000,
-            "description": "Space heater power"
+            "indoorTemperature": {   
+                "signal_key" : "indoorTemperature",
+                "min": 10,
+                "max": 35,
+                "description": "Indoor temperature"
+            },
+            "indoorCo2Concentration": {
+                "signal_key" : "indoorCo2Concentration",
+                "min": 400,
+                "max": 5000,
+                "description": "CO2 concentration"
+            },
+            "spaceHeaterPower": {
+                "signal_key" : "spaceHeaterPower",
+                "min": 0,
+                "max": 1000,
+                "description": "Space heater power"
+            }
+        },
+        "BTA004": {
+            "measuredValue": {
+                "signal_key" : "measuredValue",
+                "min": 10,
+                "max": 35,
+                "description": "Supply air temperature"
+            }
+        },
+        "020B_damper_position_sensor": {
+            "measuredValue": {
+                "signal_key" : "measuredValue",
+                "min": 0,
+                "max": 1,
+                "description": "Air damper position"
+            }
+        },
+        "020B_valve_position_sensor": {
+            "measuredValue": {
+                "signal_key" : "measuredValue",
+                "min": 0,
+                "max": 1,
+                "description": "Water valve position"
+            }
         }
     },
     "time_embeddings": {
@@ -55,22 +101,28 @@
     },
     "forecasts": {
         "outdoor_temperature": {
-            "signal_key" : "outdoorTemperature",
-            "min": -20,
-            "max": 50,
-            "description": "Outdoor temperature forecast"
+            "outdoorTemperature": {
+                "signal_key" : "outdoorTemperature",
+                "min": -20,
+                "max": 50,
+                "description": "Outdoor temperature forecast"
+            }
         },
         "global_irradiation": {
-            "signal_key" : "globalIrradiation",
-            "min": 0,
-            "max": 1000,
-            "description": "Global irradiance forecast"
+            "globalIrradiation": {
+                "signal_key" : "globalIrradiation",
+                "min": 0,
+                "max": 1000,
+                "description": "Global irradiance forecast"
+            }
         },
         "020B_occupancy_profile": {
-            "signal_key" : "scheduleValue",
-            "min": 0,
-            "max": 500,
-            "description": "Occupancy schedule value"
+            "scheduleValue": {
+                "signal_key" : "scheduleValue",
+                "min": 0,
+                "max": 500,
+                "description": "Occupancy schedule value"
+            }
         }
     }
 }

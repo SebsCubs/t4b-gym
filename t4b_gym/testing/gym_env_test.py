@@ -166,15 +166,15 @@ class TestCustomGymSimulator(unittest.TestCase):
         
         def control_action_function(observation):
             #Get the setpoint value
-            setpoint_value = observation["CO2 setpoint schedule"]
+            setpoint_value = observation["CO2 setpoint schedule"]["scheduleValue"]
             #Get the actual value
-            actual_value = observation["Space"]
+            actual_value = observation["Space"]["indoorCo2Concentration"]
             #Calculate the error
             error = setpoint_value - actual_value
             #Calculate the control action with a simple P controller
             control_action = error * 0.001
             #Return the control action with the correct format
-            return {"Supply damper": {"damperPosition": control_action}, "Return damper": {"damperPosition": control_action}}
+            return np.array([control_action, control_action])
 
         #Run the simulation
         if self.show_progress_bar:
@@ -307,7 +307,7 @@ class TestT4BGymEnv(unittest.TestCase):
         current_dim = 0
         for component_id, signals in self.env.simulator.observation_outputs.items():
             for signal_name in signals:
-                expected_value = model_obs[component_id]
+                expected_value = model_obs[component_id][signal_name]
                 self.assertEqual(obs[current_dim], expected_value)
                 current_dim += 1
         
@@ -574,8 +574,7 @@ if __name__ == "__main__":
     unittest.main()
     """
     # Create an instance of the test class and run the specific test
-    test_case = TestT4BGymEnv()
+    test_case = TestCustomGymSimulator()
     test_case.setUp()
-    test_case.test_get_observations()
-    
+    test_case.test_controlled_simulation()
     """
