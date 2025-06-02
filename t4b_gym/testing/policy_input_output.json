@@ -1,30 +1,38 @@
 {
     "actions": {
         "Supply damper": {
-            "signal_key" : "damperPosition",
-            "min": 0,
-            "max": 1,
-            "description": "Damper position"
+            "damperPosition": {
+                "signal_key" : "damperPosition",
+                "min": 0,
+                "max": 1,
+                "description": "Damper position"
+            }
         },
         "Return damper": {
-            "signal_key" : "damperPosition",
-            "min": 0,
-            "max": 1,
-            "description": "Damper position"
+            "damperPosition": {
+                "signal_key" : "damperPosition",
+                "min": 0,
+                "max": 1,
+                "description": "Damper position"
+            }
         }
     },
     "observations": {
         "CO2 setpoint schedule": {
-            "signal_key" : "scheduleValue",
-            "min": 0,
-            "max": 1200,
-            "description": "CO2 setpoint for room PI controller"
+            "scheduleValue": {
+                "signal_key" : "scheduleValue",
+                "min": 0,
+                "max": 1200,
+                "description": "CO2 setpoint for room PI controller"
+            }
         },
         "Space": {
-            "signal_key" : "indoorCo2Concentration",
-            "min": 0,
-            "max": 5000,
-            "description": "CO2 concentration in the space"
+            "indoorCo2Concentration": {
+                "signal_key" : "indoorCo2Concentration",
+                "min": 0,
+                "max": 5000,
+                "description": "CO2 concentration in the space"
+            }
         }
     },
     "time_embeddings": {
@@ -49,22 +57,28 @@
     },
     "forecasts": {
         "outdoor_temperature": {
-            "signal_key" : "outdoorTemperature",
-            "min": -20,
-            "max": 50,
-            "description": "Outdoor temperature forecast"
+            "outdoorTemperature": {
+                "signal_key" : "outdoorTemperature",
+                "min": -20,
+                "max": 50,
+                "description": "Outdoor temperature forecast"
+            }
         },
         "global_irradiation": {
-            "signal_key" : "globalIrradiation",
-            "min": 0,
-            "max": 1000,
-            "description": "Global irradiance forecast"
+            "globalIrradiation": {
+                "signal_key" : "globalIrradiation",
+                "min": 0,
+                "max": 1000,
+                "description": "Global irradiance forecast"
+            }
         },
         "Occupancy schedule": {
-            "signal_key" : "scheduleValue",
-            "min": 0,
-            "max": 500,
-            "description": "Occupancy schedule value"
+            "scheduleValue": {
+                "signal_key" : "scheduleValue",
+                "min": 0,
+                "max": 500,
+                "description": "Occupancy schedule value"
+            }
         }
     }
 }

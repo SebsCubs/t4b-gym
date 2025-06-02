@@ -94,7 +94,7 @@ def fcn(self):
     outdoor_environment = tb.OutdoorEnvironmentSystem(
         filename=r"outdoor_env_data.csv", #Needs to be in the same directory as the model
         saveSimulationResult=True,
-        id="Outdoor_environment")
+        id="outdoor_environment")
     
     outdoor_temp_sensor = tb.SensorSystem(
         saveSimulationResult=True,
@@ -206,12 +206,12 @@ class TestT4BGymEnv(unittest.TestCase):
                  io_config_file = POLICY_CONFIG_PATH,
                  start_time = self.start_time,
                  end_time = self.end_time,
-                 episode_length=None, #Not implemented yet
-                 random_start=False, #Not implemented yet
-                 excluding_periods=None, #Not implemented yet
+                 episode_length=None, 
+                 random_start=False, 
+                 excluding_periods=None, 
                  forecast_horizon=20,
                  step_size=self.stepSize,
-                 warmup_period=0) #Not implemented yet
+                 warmup_period=0) 
 
     def test_space_creation(self):
         """Test if observation and action spaces are created correctly"""
@@ -225,8 +225,9 @@ class TestT4BGymEnv(unittest.TestCase):
         expected_dims = 0
         
         # Count observations from components
-        for key, config in io_config['observations'].items():
-            expected_dims += 1  # One dimension per observation
+        for component_id, signals in io_config['observations'].items():
+            for signal_name, signal_config in signals.items():
+                expected_dims += 1  # One dimension per signal
         
         # Count time embeddings (each has sin and cos components)
         if 'time_embeddings' in io_config:
@@ -235,8 +236,9 @@ class TestT4BGymEnv(unittest.TestCase):
         
         # Count forecasts
         if 'forecasts' in io_config:
-            for key, config in io_config['forecasts'].items():
-                expected_dims += (self.env.forecast_horizon + 1)  # Current value + forecast_horizon future values
+            for component_id, signals in io_config['forecasts'].items():
+                for signal_name, signal_config in signals.items():
+                    expected_dims += (self.env.forecast_horizon + 1)  # Current value + forecast_horizon future values
         
         # Check total dimensions
         self.assertEqual(self.env.observation_space.shape[0], expected_dims)
@@ -245,10 +247,11 @@ class TestT4BGymEnv(unittest.TestCase):
         current_dim = 0
         
         # Check component observation bounds
-        for key, config in io_config['observations'].items():
-            self.assertEqual(self.env.observation_space.low[current_dim], config['min'])
-            self.assertEqual(self.env.observation_space.high[current_dim], config['max'])
-            current_dim += 1
+        for component_id, signals in io_config['observations'].items():
+            for signal_name, signal_config in signals.items():
+                self.assertEqual(self.env.observation_space.low[current_dim], signal_config['min'])
+                self.assertEqual(self.env.observation_space.high[current_dim], signal_config['max'])
+                current_dim += 1
         
         # Check time embedding bounds
         if 'time_embeddings' in io_config:
@@ -263,28 +266,30 @@ class TestT4BGymEnv(unittest.TestCase):
         
         # Check forecast bounds
         if 'forecasts' in io_config:
-            for key, config in io_config['forecasts'].items():
-                # Check bounds for each forecast value (current + future)
-                for _ in range(self.env.forecast_horizon + 1):
-                    self.assertEqual(self.env.observation_space.low[current_dim], config['min'])
-                    self.assertEqual(self.env.observation_space.high[current_dim], config['max'])
-                    current_dim += 1
+            for component_id, signals in io_config['forecasts'].items():
+                for signal_name, signal_config in signals.items():
+                    # Check bounds for each forecast value (current + future)
+                    for _ in range(self.env.forecast_horizon + 1):
+                        self.assertEqual(self.env.observation_space.low[current_dim], signal_config['min'])
+                        self.assertEqual(self.env.observation_space.high[current_dim], signal_config['max'])
+                        current_dim += 1
 
         # Test action space
         # The action space should be a single Box space with dimensions matching the total number of actions
         self.assertIsInstance(self.env.action_space, gym.spaces.Box)
         
         # Calculate expected number of action dimensions
-        expected_action_dims = len(io_config['actions'])
+        expected_action_dims = sum(len(signals) for signals in io_config['actions'].values())
         self.assertEqual(self.env.action_space.shape[0], expected_action_dims)
         
         # Check action bounds
         current_dim = 0
-        for comp_id, config in io_config['actions'].items():
-            self.assertEqual(self.env.action_space.low[current_dim], config['min'])
-            self.assertEqual(self.env.action_space.high[current_dim], config['max'])
-            current_dim += 1
- 
+        for component_id, signals in io_config['actions'].items():
+            for signal_name, signal_config in signals.items():
+                self.assertEqual(self.env.action_space.low[current_dim], signal_config['min'])
+                self.assertEqual(self.env.action_space.high[current_dim], signal_config['max'])
+                current_dim += 1
+
     def test_get_observations(self):
         """Test the _get_obs method for different observation types"""
         # Reset environment to get initial state
@@ -300,8 +305,8 @@ class TestT4BGymEnv(unittest.TestCase):
         # Test 2: Check component observations
         model_obs = self.env.simulator.get_observations()
         current_dim = 0
-        for component_id, outputs in self.env.simulator.observation_outputs.items():
-            for output_name in outputs:
+        for component_id, signals in self.env.simulator.observation_outputs.items():
+            for signal_name in signals:
                 expected_value = model_obs[component_id]
                 self.assertEqual(obs[current_dim], expected_value)
                 current_dim += 1
@@ -337,8 +342,7 @@ class TestT4BGymEnv(unittest.TestCase):
             # Find OutdoorEnvironment component
             outdoor_env_component = None
             for component in self.env.simulator.model.components:
-                #TODO: Make this more robust
-                if component == "Outdoor_environment": 
+                if component == "outdoor_environment": 
                     outdoor_env_component = self.env.simulator.model.components[component]
                     break
             
@@ -352,36 +356,36 @@ class TestT4BGymEnv(unittest.TestCase):
                     "global_irradiation": "globalIrradiation",
                 }
                 
-                for key in forecast_keys:
-                    if key in global_forecast_columns:
-                        # Get the forecast values for the current horizon
-                        forecast = self.env._get_forecast(df, global_forecast_columns[key])
-                        # Check each value in the forecast
-                        for i in range(self.env.forecast_horizon + 1):
-                            self.assertEqual(obs[current_dim + i], forecast.iloc[i])
-                        current_dim += self.env.forecast_horizon + 1
+                for component_id, signals in self.env.io_config_dict['forecasts'].items():
+                    if component_id in global_forecast_columns:
+                        for signal_name, signal_config in signals.items():
+                            # Get the forecast values for the current horizon
+                            forecast = self.env._get_forecast(df, global_forecast_columns[component_id])
+                            # Check each value in the forecast
+                            for i in range(self.env.forecast_horizon + 1):
+                                self.assertEqual(obs[current_dim + i], forecast.iloc[i])
+                            current_dim += self.env.forecast_horizon + 1
         
         # Test 5: Check component-specific forecasts if present
         if 'forecasts' in self.env.io_config_dict:
-            forecast_keys = list(self.env.io_config_dict['forecasts'].keys())
-            for key in forecast_keys:
-                if key not in global_forecast_columns:
-                    component = self.env.simulator.model.components[key]
-                    signal_key = self.env.io_config_dict['forecasts'][key]["signal_key"]
-                    
-                    if hasattr(component, 'df'):
-                        df = component.df
-                        forecast = self.env._get_forecast(df, signal_key)
-                        for i in range(self.env.forecast_horizon + 1):
-                            self.assertEqual(obs[current_dim + i], forecast.iloc[i])
-                    else:
-                        # For schedule components, check each forecast value
-                        current_time = self.env.simulator.dateTime
-                        for i in range(self.env.forecast_horizon + 1):
-                            forecast_time = current_time + timedelta(seconds=i*self.env.step_size)
-                            expected_value = component.get_schedule_value(forecast_time)
-                            self.assertEqual(obs[current_dim + i], expected_value)
-                    current_dim += self.env.forecast_horizon + 1
+            for component_id, signals in self.env.io_config_dict['forecasts'].items():
+                if component_id not in global_forecast_columns:
+                    for signal_name, signal_config in signals.items():
+                        component = self.env.simulator.model.components[component_id]
+                        
+                        if hasattr(component, 'df'):
+                            df = component.df
+                            forecast = self.env._get_forecast(df, signal_name)
+                            for i in range(self.env.forecast_horizon + 1):
+                                self.assertEqual(obs[current_dim + i], forecast.iloc[i])
+                        else:
+                            # For schedule components, check each forecast value
+                            current_time = self.env.simulator.dateTime
+                            for i in range(self.env.forecast_horizon + 1):
+                                forecast_time = current_time + timedelta(seconds=i*self.env.step_size)
+                                expected_value = component.get_schedule_value(forecast_time)
+                                self.assertEqual(obs[current_dim + i], expected_value)
+                        current_dim += self.env.forecast_horizon + 1
         
         # Test 6: Check all values are within observation space bounds
         self.assertTrue(np.all(obs >= self.env.observation_space.low))
@@ -572,5 +576,6 @@ if __name__ == "__main__":
     # Create an instance of the test class and run the specific test
     test_case = TestT4BGymEnv()
     test_case.setUp()
-    test_case.test_reset()
+    test_case.test_get_observations()
+    
     """

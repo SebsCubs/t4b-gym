@@ -1,0 +1,79 @@
+{
+    "actions": {
+        "020B_temperature_heating_setpoint": {
+            "signal_key" : "scheduleValue",
+            "min": 10,
+            "max": 35,
+            "description": "Heating setpoint"
+        },
+        "020B_co2_setpoint": {
+            "signal_key" : "scheduleValue",
+            "min": 400,
+            "max": 1200,
+            "description": "CO2 setpoint"
+        }
+    },
+    "observations": {
+        "020B_temperature_heating_setpoint": {
+            "signal_key" : "scheduleValue",
+            "min": 10,
+            "max": 35,
+            "description": "Heating setpoint"
+        },
+        "020B_co2_setpoint": {
+            "signal_key" : "scheduleValue",
+            "min": 400,
+            "max": 1200,
+            "description": "CO2 setpoint"
+        },
+        "[020B][020B_space_heater]": {
+            "signal_key" : "spaceHeaterPower",
+            "min": 0,
+            "max": 1000,
+            "description": "Space heater power"
+        }
+    },
+    "time_embeddings": {
+        "time_of_day": {
+            "signal_key" : "timeOfDay",
+            "min": 0,
+            "max": 24,
+            "description": "Time of day in hours"
+        },
+        "day_of_week": {
+            "signal_key" : "dayOfWeek",
+            "min": 0,
+            "max": 7,
+            "description": "Day of week"
+        },
+        "month_of_year": {
+            "signal_key" : "monthOfYear",
+            "min": 1,
+            "max": 12,
+            "description": "Month of year"
+        }
+    },
+    "forecasts": {
+        "outdoor_temperature": {
+            "signal_key" : "outdoorTemperature",
+            "min": -20,
+            "max": 50,
+            "description": "Outdoor temperature forecast"
+        },
+        "global_irradiation": {
+            "signal_key" : "globalIrradiation",
+            "min": 0,
+            "max": 1000,
+            "description": "Global irradiance forecast"
+        },
+        "020B_occupancy_profile": {
+            "signal_key" : "scheduleValue",
+            "min": 0,
+            "max": 500,
+            "description": "Occupancy schedule value"
+        }
+    }
+}
+  
+
+  

@@ -175,7 +175,7 @@ class GymSimulator(tb.Simulator):
             self.observation_outputs[component_id] = {}
         self.observation_outputs[component_id][output_name] = {}  # Initialize with an empty dictionary
                         
-    def populate_actions_and_obs_from_json(self, json_file: str) -> None:
+    def _populate_from_json(self, json_file):
         """Populate actions and observations from a JSON file.
         
         Args:
@@ -189,24 +189,21 @@ class GymSimulator(tb.Simulator):
         assert 'observations' in config, "The JSON file must contain an 'observations' key"
   
         # Add control inputs from actions
-        for component_id, action_config in config['actions'].items():
-            self.add_control_input(component_id, action_config['signal_key'])
+        for component_id, signals in config['actions'].items():
+            for signal_name, signal_config in signals.items():
+                self.add_control_input(component_id, signal_name)
+                # Add the max and min values for the action space
+                self.control_inputs[component_id][signal_name]['max'] = signal_config['max']
+                self.control_inputs[component_id][signal_name]['min'] = signal_config['min']
             
         # Add observation outputs from observations
-        for component_id, obs_config in config['observations'].items():
-            self.add_observation_output(component_id, obs_config['signal_key'])
+        for component_id, signals in config['observations'].items():
+            for signal_name, signal_config in signals.items():
+                self.add_observation_output(component_id, signal_name)
+                # Add the max and min values for the observation space
+                self.observation_outputs[component_id][signal_name]['max'] = signal_config['max']
+                self.observation_outputs[component_id][signal_name]['min'] = signal_config['min']
 
-        #Add the max and min values for the action and observation spaces
-        for component_id, action_config in config['actions'].items():
-            input_name = action_config['signal_key']
-            self.control_inputs[component_id][input_name]['max'] = action_config['max']
-            self.control_inputs[component_id][input_name]['min'] = action_config['min']
-
-        for component_id, obs_config in config['observations'].items():
-            output_name = obs_config['signal_key']
-            self.observation_outputs[component_id][output_name]['max'] = obs_config['max']
-            self.observation_outputs[component_id][output_name]['min'] = obs_config['min']
-    
     def get_observations(self) -> Dict[str, Dict[str, float]]:
         """Get current observations from monitored outputs.
         
@@ -381,7 +378,7 @@ class T4BGymEnv(gym.Env):
                         raise ValueError("Excluding periods must be within the total simulation time")
         
         #Populate the simulator with the actions and observations
-        self.simulator.populate_actions_and_obs_from_json(io_config_file)        
+        self.simulator._populate_from_json(io_config_file)        
         self.create_observation_space()
         self.create_action_space()
 
@@ -572,11 +569,13 @@ class T4BGymEnv(gym.Env):
         if 'forecasts' in self.io_config_dict:
             forecast_keys = list(self.io_config_dict['forecasts'].keys())
             for key in forecast_keys:
-                # For each forecast, we need forecast_horizon + 1 dimensions (current value + future values)
-                for _ in range(self.forecast_horizon + 1):
-                    observations.append(self.io_config_dict['forecasts'][key]["signal_key"])
-                    low_bounds.append(self.io_config_dict['forecasts'][key]['min'])
-                    upper_bounds.append(self.io_config_dict['forecasts'][key]['max'])
+                # For each forecast component, iterate through its signals
+                for signal_name, signal_config in self.io_config_dict['forecasts'][key].items():
+                    # For each signal, we need forecast_horizon + 1 dimensions (current value + future values)
+                    for _ in range(self.forecast_horizon + 1):
+                        observations.append(signal_name)
+                        low_bounds.append(signal_config['min'])
+                        upper_bounds.append(signal_config['max'])
 
         #Define the observation space
         self.observation_space = spaces.Box(low=np.array(low_bounds), high=np.array(upper_bounds), dtype=np.float32)
@@ -629,14 +628,13 @@ class T4BGymEnv(gym.Env):
             outdoor_env_component = None
             for component in self.simulator.model.components:
                 #TODO: Make this more robust
-                if component == "Outdoor_environment":
+                if component == "outdoor_environment":
                     outdoor_env_component = self.simulator.model.components[component]
                     break
             if outdoor_env_component is None:
                 raise ValueError("OutdoorEnvironment component not found in the model")
             #get the df from the OutdoorEnvironment component
             df = outdoor_env_component.df
-            forecast_keys = list(self.io_config_dict['forecasts'].keys())
             
             # Map forecast keys to their corresponding column names
             global_forecast_columns = {
@@ -645,36 +643,38 @@ class T4BGymEnv(gym.Env):
             }
             
             # Get forecasts for each requested key
-            for key in forecast_keys:
-                if key in global_forecast_columns:
-                    model_obs[key] = self._get_forecast(df, global_forecast_columns[key]).values
+            for component_id, signals in self.io_config_dict['forecasts'].items():
+                if component_id in global_forecast_columns:
+                    for signal_name, signal_config in signals.items():
+                        model_obs[signal_name] = self._get_forecast(df, global_forecast_columns[component_id]).values
+
 
             #Occupancy values vary from model to model, they are provided as a list of schedule components
             #Go through all the remaining keys in the forecasts dictionary in the io_config_file
-            for key in forecast_keys:
-                if key not in global_forecast_columns:
-                    #Get the schedule component
-                    component = self.simulator.model.components[key]
-                    signal_key = self.io_config_dict['forecasts'][key]["signal_key"]
-                    if hasattr(component, 'df'):
-                        df = component.df
-                    else:
-                        #Component has a schedule ruleset, not a dataframe, so we need to get the schedule values
-                        current_time = self.simulator.dateTime
-                        forecast_datetimes = [current_time + timedelta(seconds=i*self.step_size) for i in range(self.forecast_horizon + 1)]
-                        #Get the schedule values
-                        schedule_values = [component.get_schedule_value(dt) for dt in forecast_datetimes]
-                        
-                        df = pd.DataFrame({
-                            'datetime': forecast_datetimes,
-                            signal_key: schedule_values
-                        })
-                    column_name = component.id + "_" + signal_key
-                    if self.forecast_horizon > 0:
-                        forecast = self._get_forecast(df, signal_key)
-                        model_obs[column_name] = forecast.values
-                    else:
-                        model_obs[column_name] = df[signal_key].values
+            for component_id, signals in self.io_config_dict['forecasts'].items():
+                if component_id not in global_forecast_columns:
+                    for signal_name, signal_config in signals.items():
+                        #Get the schedule component
+                        component = self.simulator.model.components[component_id]
+                        if hasattr(component, 'df'):
+                            df = component.df
+                        else:
+                            #Component has a schedule ruleset, not a dataframe, so we need to get the schedule values
+                            current_time = self.simulator.dateTime
+                            forecast_datetimes = [current_time + timedelta(seconds=i*self.step_size) for i in range(self.forecast_horizon + 1)]
+                            #Get the schedule values
+                            schedule_values = [component.get_schedule_value(dt) for dt in forecast_datetimes]
+                            
+                            df = pd.DataFrame({
+                                'datetime': forecast_datetimes,
+                                signal_name: schedule_values
+                            })
+                        column_name = component_id + "_" + signal_name
+                        if self.forecast_horizon > 0:
+                            forecast = self._get_forecast(df, signal_name)
+                            model_obs[column_name] = forecast.values
+                        else:
+                            model_obs[column_name] = df[signal_name].values
 
         #Return the observations as a numpy array
         obs = []
