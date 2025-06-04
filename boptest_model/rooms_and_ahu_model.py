@@ -406,7 +406,7 @@ def ahu_fcn(self):
     vent_mixed_air_temp_sensor = tb.SensorSystem(id="vent_mixed_air_temp_sensor", saveSimulationResult=True)
     vent_airflow_sensor = tb.SensorSystem(id="vent_airflow_sensor", saveSimulationResult=True)
     vent_supply_damper_setpoint = tb.ScheduleSystem(id="vent_supply_damper_setpoint", saveSimulationResult=True)
-    vent_return_damper_setpoint = tb.ScheduleSystem(id="vent_return_damper_setpoint", saveSimulationResult=True)
+    #vent_return_damper_setpoint = tb.ScheduleSystem(id="vent_return_damper_setpoint", saveSimulationResult=True) #They have the same value
     vent_mixing_damper_setpoint = tb.ScheduleSystem(id="vent_mixing_damper_setpoint", saveSimulationResult=True)
     #vent_return_air_temp_sensor = tb.SensorSystem(id="vent_return_air_temp_sensor", saveSimulationResult=True)
     vent_return_airflow_sensor_ahu = tb.SensorSystem(id="vent_return_airflow_sensor_ahu", saveSimulationResult=True)
@@ -414,7 +414,7 @@ def ahu_fcn(self):
     vent_power_sensor = tb.SensorSystem(id="vent_power_sensor", saveSimulationResult=True)
 
     heating_coil_temperature_setpoint = tb.ScheduleSystem(id="heating_coil_temperature_setpoint", saveSimulationResult=True)
-    cooling_coil_temperature_setpoint = tb.ScheduleSystem(id="cooling_coil_temperature_setpoint", saveSimulationResult=True)
+    #cooling_coil_temperature_setpoint = tb.ScheduleSystem(id="cooling_coil_temperature_setpoint", saveSimulationResult=True) #They have the same value
 
     # Add AHU fan
     supply_fan = tb.FanSystem(id="supply_fan", saveSimulationResult=True)
@@ -431,21 +431,21 @@ def ahu_fcn(self):
     supply_cooling_coil = tb.CoilCoolingSystem(id="supply_cooling_coil", saveSimulationResult=True)
     self.add_connection(supply_heating_coil, supply_cooling_coil, "outletAirTemperature", "inletAirTemperature")
     self.add_connection(vent_airflow_sensor, supply_cooling_coil, "measuredValue", "airFlowRate")
-    self.add_connection(cooling_coil_temperature_setpoint, supply_cooling_coil, "scheduleValue", "outletAirTemperatureSetpoint")
+    self.add_connection(heating_coil_temperature_setpoint, supply_cooling_coil, "scheduleValue", "outletAirTemperatureSetpoint")
     self.add_connection(supply_cooling_coil, vent_supply_air_temp_sensor, "outletAirTemperature", "measuredValue")
 
     # Add main dampers
     main_supply_damper = tb.DamperSystem(id="main_supply_damper", saveSimulationResult=True)
     self.add_connection(vent_supply_damper_setpoint, main_supply_damper, "scheduleValue", "damperPosition")
     main_return_damper = tb.DamperSystem(id="main_return_damper", saveSimulationResult=True)
-    self.add_connection(vent_return_damper_setpoint, main_return_damper, "scheduleValue", "damperPosition")
+    self.add_connection(vent_supply_damper_setpoint, main_return_damper, "scheduleValue", "damperPosition")
     main_mixing_damper = tb.DamperSystem(id="main_mixing_damper", saveSimulationResult=True)
     self.add_connection(vent_mixing_damper_setpoint, main_mixing_damper, "scheduleValue", "damperPosition")
 
     # Add supply flow junction
     supply_flow_junction_for_return = tb.SupplyFlowJunctionSystem(id="supply_flow_junction_for_return", saveSimulationResult=True)
     self.add_connection(supply_flow_junction_for_return, vent_return_airflow_sensor_ahu, "airFlowRateIn", "measuredValue")
-    self.add_connection(main_return_damper, supply_flow_junction_for_return, "airFlowRate", "airFlowRateOut")
+    self.add_connection(main_supply_damper, supply_flow_junction_for_return, "airFlowRate", "airFlowRateOut")
     self.add_connection(main_mixing_damper, supply_flow_junction_for_return, "airFlowRate", "airFlowRateOut")
 
     # Add return flow junction
@@ -510,13 +510,16 @@ def fcn(self):
 def get_model(id=None, fcn_=None):
     if fcn_ is None:
         fcn_ = fcn
-    model = tb.Model(id="rooms_and_ahu_template", saveSimulationResult=True)
-    
-    model.load(fcn=fcn_, create_signature_graphs=False, validate_model=True, verbose=True, force_config_update=True)
 
     if id is not None:
-        model.id = id
+        model = tb.Model(id=id, saveSimulationResult=True)
+    else:
+        model = tb.Model(id="rooms_and_ahu_model_no_id", saveSimulationResult=True)
+    
+    model.load(fcn=fcn_, create_signature_graphs=False, validate_model=True, verbose=True, force_config_update=True)
     return model
+
+
 
 def run(model = None):
     stepSize = 60  # Seconds
@@ -833,6 +836,35 @@ def parameter_evaluation(data_points, parameter_filenames:dict, save_plots=False
             os.makedirs('plots', exist_ok=True)
             plt.savefig(f'plots/{component_id}_{output_value}_comparison.png')
         #plt.show()
+
+
+def load_model_and_params(model_id="rooms_and_ahu_model"):
+    envelope_filepath = r"C:\Users\asces\OneDriveUni\Projects\RL_control\boptest_model\generated_files\models\only_rooms_estimation\model_parameters\estimation_results\LS_result\mix_day_most_accurate_08042025.pickle"
+    vavs_filepath = r"C:\Users\asces\OneDriveUni\Projects\RL_control\boptest_model\generated_files\models\vav_controllers_param_est\model_parameters\estimation_results\LS_result\20250506_095811_ls.pickle"
+    ahu_filepath = r"C:\Users\asces\OneDriveUni\Projects\RL_control\boptest_model\generated_files\models\only_ahu_model\model_parameters\estimation_results\LS_result\20250314_163600_ls.pickle"
+    parameter_filenames = {"envelope": envelope_filepath, "vavs": vavs_filepath, "ahu": ahu_filepath}
+    # Load model with estimated parameters and run simulation
+    model = get_model(id=model_id)
+    model.load_estimation_result(parameter_filenames["envelope"])
+    model.load_estimation_result(parameter_filenames["vavs"])
+    model.load_estimation_result(parameter_filenames["ahu"])
+    
+    
+    north = model.components["north"]
+    north.C_boundary = 94407.559
+    north.Q_occ_gain = 150 #224.04964129088137
+
+    east = model.components["east"]
+    east.C_boundary = 31197951.98026053
+    east.Q_occ_gain = 150 #232.5238692961377
+
+    south = model.components["south"]
+    south.Q_occ_gain = 150 #232.5238692961377
+
+    west = model.components["west"]
+    west.Q_occ_gain = 150 #232.5238692961377
+
+    return model
 
 if __name__ == "__main__":
     envelope_filepath = r"C:\Users\asces\OneDriveUni\Projects\RL_control\boptest_model\generated_files\models\only_rooms_estimation\model_parameters\estimation_results\LS_result\mix_day_most_accurate_08042025.pickle"

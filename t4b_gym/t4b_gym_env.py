@@ -25,7 +25,7 @@ import pandas as pd
 logger = logging.getLogger(__name__)
 
 class GymSimulator(tb.Simulator):
-    def __init__(self, model, enable_logging: bool = True):
+    def __init__(self, model, enable_logging: bool = False):
         """Initialize the gym simulator with a twin4build model.
         
         Args:
@@ -668,8 +668,11 @@ class T4BGymEnv(gym.Env):
                     for signal_name, signal_config in signals.items():
                         #Get the schedule component
                         component = self.simulator.model.components[component_id]
-                        if hasattr(component, 'df'):
-                            df = component.df
+                        if hasattr(component, 'do_step_instance'):
+                            df = component.do_step_instance.df
+                            # Create a new DataFrame with the values and proper column name
+                            df = pd.DataFrame(df.values, index=df.index, columns=[signal_name])
+                            
                             forecast = self._get_forecast(df, signal_name)
                             model_obs[signal_name] = forecast.values
                         else:

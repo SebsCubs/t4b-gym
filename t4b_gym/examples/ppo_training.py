@@ -16,6 +16,7 @@ from stable_baselines3.common.monitor import Monitor
 # Configure logging to write to a file
 log_dir = os.path.join(SCRIPT_DIR, 'logs')
 os.makedirs(log_dir, exist_ok=True)
+#Loggin in the simulator is disabled by default, this will be used for logging the training process if enabled
 log_file = os.path.join(log_dir, 'ppo_training.log')
 logging.basicConfig(
     level=logging.DEBUG,
@@ -171,7 +172,7 @@ def PPO_training():
                  io_config_file = POLICY_CONFIG_PATH,
                  start_time = start_time,
                  end_time = end_time,
-                 episode_length= int(3600*24*3 / stepSize),  # 3 days
+                 episode_length= int(3600*24*5 / stepSize),  # 3 days
                  random_start=True, 
                  excluding_periods=None, 
                  forecast_horizon=10,
@@ -193,7 +194,7 @@ def PPO_training():
         callback = EvalCallback(env, best_model_save_path=log_dir, log_path=log_dir, eval_freq=1000, n_eval_episodes=5)
 
         # Train the model
-        model.learn(total_timesteps=10000, callback=callback)
+        model.learn(total_timesteps=100000, callback=callback)
 
         # Save the model
         model.save("ppo_model")

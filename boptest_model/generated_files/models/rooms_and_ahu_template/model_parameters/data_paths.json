@@ -21,6 +21,7 @@
         "west_supply_airflow_sensor.json": "C:/Users/asces/OneDriveUni/Projects/RL_control/boptest_model/boptest_handler/data/merged_data/hvac_reaZonWes_V_flow_y_processed.csv",
         "west_supply_air_temp_sensor.json": "C:/Users/asces/OneDriveUni/Projects/RL_control/boptest_model/boptest_handler/data/merged_data/hvac_reaZonWes_TSup_y_processed.csv",
         "reheat_coils_supply_air_temperature.json": "C:/Users/asces/OneDriveUni/Projects/RL_control/boptest_model/boptest_handler/data/merged_data/coils_inlet_water_temperature.csv",
+        "reheat_coils_supply_water_temperature.json": "C:/Users/asces/OneDriveUni/Projects/RL_control/boptest_model/boptest_handler/data/merged_data/coils_inlet_water_temperature.csv",
         "vent_outdoor_air_temp_sensor.json": "C:/Users/asces/OneDriveUni/Projects/RL_control/boptest_model/boptest_handler/data/merged_data/weaSta_reaWeaTWetBul_y_processed.csv"
     },
     "ScheduleSystem": {
