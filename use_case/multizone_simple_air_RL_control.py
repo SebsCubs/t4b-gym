@@ -20,6 +20,7 @@ MAIN_DIR = os.path.dirname(SCRIPT_DIR)
 sys.path.append(MAIN_DIR)
 from t4b_gym.t4b_gym_env import T4BGymEnv, NormalizedObservationWrapper, NormalizedActionWrapper
 from boptest_model.rooms_and_ahu_model import load_model_and_params
+from use_case.model_eval import test_model
 
 log_dir = os.path.join(SCRIPT_DIR, 'logs')
 os.makedirs(log_dir, exist_ok=True)
@@ -30,7 +31,7 @@ device = 'cpu'
 
 
 
-def PPO_training():
+def PPO_training(test_model_flag=False):
         
         # Create a new model
         model = load_model_and_params()
@@ -112,10 +113,10 @@ def PPO_training():
                  io_config_file = POLICY_CONFIG_PATH,
                  start_time = start_time,
                  end_time = end_time,
-                 episode_length= int(3600*24*5 / stepSize),  # 3 days
+                 episode_length= int(3600*24*5 / stepSize),  # 5 days
                  random_start=True, 
                  excluding_periods=None, 
-                 forecast_horizon=0,
+                 forecast_horizon=40,
                  step_size=stepSize,
                  warmup_period=0) 
   
@@ -124,6 +125,14 @@ def PPO_training():
 
         # Modify the environment to include the callback
         env = Monitor(env=env, filename=os.path.join(log_dir,'monitor.csv'))
+
+        if test_model_flag:
+            model_path = os.path.join(log_dir, "best_model.zip")
+            model = PPO.load(model_path, env=env, device=device)
+            #print training steps
+            print(f"Training steps: {model.num_timesteps}")
+            test_model(env, model)
+            return
 
         # Save the model
         model = PPO('MlpPolicy', env, verbose=1, gamma=0.99,      
@@ -134,13 +143,13 @@ def PPO_training():
         callback = EvalCallback(env, best_model_save_path=log_dir, log_path=log_dir, eval_freq=1000, n_eval_episodes=5)
 
         # Train the model
-        model.learn(total_timesteps=1000, callback=callback)
+        model.learn(total_timesteps=100000, callback=callback)
 
         # Save the model
         model.save("ppo_model")
 
-        # Close the environment
-        env.close()
+
+
 
 if __name__ == "__main__":
-    PPO_training()
+    PPO_training(test_model_flag=False)
