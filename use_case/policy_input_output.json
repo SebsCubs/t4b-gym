@@ -147,7 +147,7 @@
         "vent_supply_air_temp_sensor": {
             "measuredValue": {
                 "signal_key" : "measuredValue",
-                "min": 12,
+                "min": 0,
                 "max": 40,
                 "description": "Supply air temperature"
             }
@@ -163,14 +163,14 @@
         "core_indoor_temp_sensor": {
             "measuredValue": {
                 "signal_key" : "measuredValue",
-                "min": 12,
+                "min": 0,
                 "max": 40,
                 "description": "Core indoor temperature"
             }
         },
         "core_supply_damper_position_sensor": {
-            "damperPosition": {
-                "signal_key" : "damperPosition",
+            "measuredValue": {
+                "signal_key" : "measuredValue",
                 "min": 0,
                 "max": 1,
                 "description": "Core supply damper position"
@@ -187,14 +187,14 @@
         "north_indoor_temp_sensor": {
             "measuredValue": {
                 "signal_key" : "measuredValue",
-                "min": 12,
+                "min": 0,
                 "max": 40,
                 "description": "North indoor temperature"
             }
         },
         "north_supply_damper_position_sensor": {
-            "damperPosition": {
-                "signal_key" : "damperPosition",
+            "measuredValue": {
+                "signal_key" : "measuredValue",
                 "min": 0,
                 "max": 1,
                 "description": "North supply damper position"
@@ -211,14 +211,14 @@
         "east_indoor_temp_sensor": {
             "measuredValue": {
                 "signal_key" : "measuredValue",
-                "min": 12,
+                "min": 0,
                 "max": 40,
                 "description": "East indoor temperature"
             }
         },
         "east_supply_damper_position_sensor": {
-            "damperPosition": {
-                "signal_key" : "damperPosition",
+            "measuredValue": {
+                "signal_key" : "measuredValue",
                 "min": 0,
                 "max": 1,
                 "description": "East supply damper position"
@@ -235,14 +235,14 @@
         "south_indoor_temp_sensor": {
             "measuredValue": {
                 "signal_key" : "measuredValue",
-                "min": 12,
+                "min": 0,
                 "max": 40,
                 "description": "South indoor temperature"
             }
         },
         "south_supply_damper_position_sensor": {
-            "damperPosition": {
-                "signal_key" : "damperPosition",
+            "measuredValue": {
+                "signal_key" : "measuredValue",
                 "min": 0,
                 "max": 1,
                 "description": "South supply damper position"
@@ -259,14 +259,14 @@
         "west_indoor_temp_sensor": {
             "measuredValue": {
                 "signal_key" : "measuredValue",
-                "min": 12,
+                "min": 0,
                 "max": 40,
                 "description": "West indoor temperature"
             }
         },
         "west_supply_damper_position_sensor": {
-            "damperPosition": {
-                "signal_key" : "damperPosition",
+            "measuredValue": {
+                "signal_key" : "measuredValue",
                 "min": 0,
                 "max": 1,
                 "description": "West supply damper position"

@@ -212,16 +212,23 @@ class GymSimulator(tb.Simulator):
         """
         observations = {}
         for component_id, outputs in self.observation_outputs.items():
-            if component_id in self.model.components:
-                component = self.model.components[component_id]
-                observations[component_id] = {}
-                for output_name in outputs:
-                    if output_name in component.output:
-                        value = component.output[output_name].get()
-                        if value is None:
-                            value = 0.0
-                        observations[component_id][output_name] = value
-                        self.observation_outputs[component_id][output_name] = value
+            #Check that the component is in the model
+            if component_id not in self.model.components:
+                raise ValueError(f"Component {component_id} not found in the model")
+            
+    
+            component = self.model.components[component_id]
+            observations[component_id] = {}
+            for output_name in outputs:
+                #Check that the output is in the component
+                if output_name not in component.output:
+                    raise ValueError(f"Output {output_name} not found in component {component_id}")
+                
+                value = component.output[output_name].get()
+                if value is None:
+                    value = 0.0
+                observations[component_id][output_name] = value
+                self.observation_outputs[component_id][output_name] = value
         return observations
     
     def step_simulation(self, actions: Optional[np.ndarray] = None) -> Tuple[Dict[str, Dict[str, float]], bool]:
@@ -484,10 +491,16 @@ class T4BGymEnv(gym.Env):
         assert action.shape == self.action_space.shape, f"Action shape {action.shape} must match action space shape {self.action_space.shape}"
         assert np.all(action >= self.action_space.low) and np.all(action <= self.action_space.high), "Action values must be within action space bounds"
 
+        #if action contains NaN, set it to 0
+        if np.isnan(action).any():
+            action = np.nan_to_num(action, 0.0)
+
         # Apply action and get new observations
         done = self.simulator.step_simulation(action)
         
         observations = self._get_obs()
+        if np.isnan(observations).any():
+            raise ValueError("Observations contain NaN")
 
         # Calculate reward (placeholder - should be implemented based on specific task)
         reward = self.get_reward(observations, action)
@@ -674,7 +687,8 @@ class T4BGymEnv(gym.Env):
                             df = pd.DataFrame(df.values, index=df.index, columns=[signal_name])
                             
                             forecast = self._get_forecast(df, signal_name)
-                            model_obs[signal_name] = forecast.values
+                            column_name = component_id + "_" + signal_name
+                            model_obs[column_name] = forecast.values
                         else:
                             #Component has a schedule ruleset, not a dataframe, so we need to get the schedule values
                             current_time = self.simulator.dateTime
@@ -759,9 +773,25 @@ class NormalizedObservationWrapper(gym.ObservationWrapper):
         
         '''
         
+        # Check for NaN values
+        if np.isnan(observation).any():
+            raise ValueError("NaN values detected in observation before normalization")
+            
+        # Check if observation is within bounds
+        if not np.all(observation >= self.observation_space.low) or not np.all(observation <= self.observation_space.high):
+            raise ValueError("Observation values outside of observation space bounds")
+        
         # Convert to one number for the wrapped environment
         observation_wrapper = 2*(observation - self.observation_space.low)/\
             (self.observation_space.high-self.observation_space.low)-1
+            
+        # Check for NaN values after normalization
+        if np.isnan(observation_wrapper).any():
+            raise ValueError("NaN values detected in observation after normalization")
+            
+        # Check if normalized observation is within [-1, 1] bounds
+        if not np.all(observation_wrapper >= -1) or not np.all(observation_wrapper <= 1):
+            raise ValueError("Normalized observation values outside of [-1, 1] bounds")
         
         return observation_wrapper
      
@@ -802,6 +832,14 @@ class NormalizedActionWrapper(gym.ActionWrapper):
         self.low    = self.unwrapped.action_space.low
         self.high   = self.unwrapped.action_space.high
         
+        # Check for invalid action space bounds
+        if np.any(self.low >= self.high):
+            raise ValueError("Action space bounds are invalid: low >= high")
+            
+        # Check for NaN values in action space bounds
+        if np.isnan(self.low).any() or np.isnan(self.high).any():
+            raise ValueError("NaN values detected in action space bounds")
+        
         # Redefine action space to lie between [-1,1]
         self.action_space = spaces.Box(low = -1, 
                                        high = 1,
@@ -830,5 +868,22 @@ class NormalizedActionWrapper(gym.ActionWrapper):
         `gym.ActionWrapper` parent class is doing in `gym.core`:
         
         '''
+        # Check for NaN values in input action
+        if np.isnan(action_wrapper).any():
+            raise ValueError("NaN values detected in input action")
+            
+        # Check if input action is within [-1, 1] bounds
+        if not np.all(action_wrapper >= -1) or not np.all(action_wrapper <= 1):
+            raise ValueError("Input action values outside of [-1, 1] bounds")
+            
+        action = self.low + (0.5*(action_wrapper+1.0)*(self.high-self.low))
         
-        return self.low + (0.5*(action_wrapper+1.0)*(self.high-self.low))
+        # Check for NaN values in output action
+        if np.isnan(action).any():
+            raise ValueError("NaN values detected in output action")
+            
+        # Check if output action is within original bounds
+        if not np.all(action >= self.low) or not np.all(action <= self.high):
+            raise ValueError("Output action values outside of original action space bounds")
+            
+        return action

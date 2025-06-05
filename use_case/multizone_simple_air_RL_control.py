@@ -13,7 +13,7 @@ import logging
 from stable_baselines3 import PPO
 from stable_baselines3.common.callbacks import EvalCallback
 from stable_baselines3.common.monitor import Monitor
-
+import numpy as np
 
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 MAIN_DIR = os.path.dirname(SCRIPT_DIR)
@@ -71,14 +71,14 @@ def PPO_training():
                 west_cooling_temperature_setpoint = self.simulator.model.components["west_temperature_cooling_setpoint"].output["scheduleValue"]
                 west_temp_set_violation = max(0, west_heating_temperature_setpoint - west_temperature) + max(0, west_temperature - west_cooling_temperature_setpoint)
 
-                temp_violation_penalty = 1000 * (core_temp_set_violation + north_temp_set_violation + east_temp_set_violation + south_temp_set_violation + west_temp_set_violation)
+                temp_violation_penalty = 10 * (core_temp_set_violation + north_temp_set_violation + east_temp_set_violation + south_temp_set_violation + west_temp_set_violation)
 
                 #power consumption penalty
                 core_outlet_water_temperature = self.simulator.model.components["core_reheat_coil"].output["outletWaterTemperature"]
-                north_outlet_water_temperature = self.simulator.model.components["north_supply_damper"].output["outletWaterTemperature"]
-                east_outlet_water_temperature = self.simulator.model.components["east_supply_damper"].output["outletWaterTemperature"]
-                south_outlet_water_temperature = self.simulator.model.components["south_supply_damper"].output["outletWaterTemperature"]
-                west_outlet_water_temperature = self.simulator.model.components["west_supply_damper"].output["outletWaterTemperature"]
+                north_outlet_water_temperature = self.simulator.model.components["north_reheat_coil"].output["outletWaterTemperature"]
+                east_outlet_water_temperature = self.simulator.model.components["east_reheat_coil"].output["outletWaterTemperature"]
+                south_outlet_water_temperature = self.simulator.model.components["south_reheat_coil"].output["outletWaterTemperature"]
+                west_outlet_water_temperature = self.simulator.model.components["west_reheat_coil"].output["outletWaterTemperature"]
 
                 inlet_water_temperature = self.simulator.model.components["reheat_coils_supply_water_temperature"].output["measuredValue"]
                 
@@ -96,8 +96,16 @@ def PPO_training():
                 supply_cooling_coil_power = self.simulator.model.components["supply_cooling_coil"].output["Power"]
                 supply_heating_coil_power = self.simulator.model.components["supply_heating_coil"].output["Power"]
                 ahu_power_consumption_penalty = fan_power + supply_cooling_coil_power + supply_heating_coil_power
+                #reward
+                reward = - temp_violation_penalty - room_water_temp_difference_penalty - ahu_power_consumption_penalty
 
-                return - temp_violation_penalty - room_water_temp_difference_penalty - ahu_power_consumption_penalty
+                if reward > 0:
+                    print("Reward is positive")
+
+                if np.isnan(reward):
+                    raise ValueError("Reward is not a number")
+                #print(f"step: {self.simulator.current_step}, reward: {reward}")
+                return reward
 
         env = T4BGymEnvCustomReward(                 
                  model = model, 
@@ -119,8 +127,8 @@ def PPO_training():
 
         # Save the model
         model = PPO('MlpPolicy', env, verbose=1, gamma=0.99,      
-            learning_rate=5e-4, batch_size=int(50), n_steps=int(200),      
-            n_epochs=10, clip_range=0.2, tensorboard_log=log_dir, device=device)
+            learning_rate=1e-5, batch_size=int(50), n_steps=int(200),      
+            n_epochs=10, clip_range=0.2, max_grad_norm=0.5, tensorboard_log=log_dir, device=device)
 
         # Create the callback
         callback = EvalCallback(env, best_model_save_path=log_dir, log_path=log_dir, eval_freq=1000, n_eval_episodes=5)
