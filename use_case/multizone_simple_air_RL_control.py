@@ -98,7 +98,7 @@ def PPO_training(test_model_flag=False, reload_model_flag=False):
                 supply_heating_coil_power = self.simulator.model.components["supply_heating_coil"].output["Power"]
                 ahu_power_consumption_penalty = fan_power + supply_cooling_coil_power + supply_heating_coil_power
                 #reward
-                objective_integrand = - temp_violation_penalty - room_water_temp_difference_penalty - ahu_power_consumption_penalty
+                objective_integrand =  temp_violation_penalty + room_water_temp_difference_penalty + ahu_power_consumption_penalty
 
                 if objective_integrand > 0:
                     print("Reward is positive")
