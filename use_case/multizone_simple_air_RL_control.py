@@ -31,7 +31,7 @@ device = 'cpu'
 
 
 
-def PPO_training(test_model_flag=False):
+def PPO_training(test_model_flag=False, reload_model_flag=False):
         
         # Create a new model
         model = load_model_and_params()
@@ -72,7 +72,7 @@ def PPO_training(test_model_flag=False):
                 west_cooling_temperature_setpoint = self.simulator.model.components["west_temperature_cooling_setpoint"].output["scheduleValue"]
                 west_temp_set_violation = max(0, west_heating_temperature_setpoint - west_temperature) + max(0, west_temperature - west_cooling_temperature_setpoint)
 
-                temp_violation_penalty = 10 * (core_temp_set_violation + north_temp_set_violation + east_temp_set_violation + south_temp_set_violation + west_temp_set_violation)
+                temp_violation_penalty = 100 * (core_temp_set_violation + north_temp_set_violation + east_temp_set_violation + south_temp_set_violation + west_temp_set_violation)
 
                 #power consumption penalty
                 core_outlet_water_temperature = self.simulator.model.components["core_reheat_coil"].output["outletWaterTemperature"]
@@ -98,14 +98,21 @@ def PPO_training(test_model_flag=False):
                 supply_heating_coil_power = self.simulator.model.components["supply_heating_coil"].output["Power"]
                 ahu_power_consumption_penalty = fan_power + supply_cooling_coil_power + supply_heating_coil_power
                 #reward
-                reward = - temp_violation_penalty - room_water_temp_difference_penalty - ahu_power_consumption_penalty
+                objective_integrand = - temp_violation_penalty - room_water_temp_difference_penalty - ahu_power_consumption_penalty
 
-                if reward > 0:
+                if objective_integrand > 0:
                     print("Reward is positive")
 
-                if np.isnan(reward):
+                if np.isnan(objective_integrand):
                     raise ValueError("Reward is not a number")
-                #print(f"step: {self.simulator.current_step}, reward: {reward}")
+                
+                objective_integrand = objective_integrand/1000 #scale the reward to be more manageable
+
+                self.previous_objective = objective_integrand
+
+                #integrate the reward over the episode
+                reward = -(objective_integrand - self.previous_objective)
+            
                 return reward
 
         env = T4BGymEnvCustomReward(                 
@@ -116,7 +123,7 @@ def PPO_training(test_model_flag=False):
                  episode_length= int(3600*24*5 / stepSize),  # 5 days
                  random_start=True, 
                  excluding_periods=None, 
-                 forecast_horizon=40,
+                 forecast_horizon=20,
                  step_size=stepSize,
                  warmup_period=0) 
   
@@ -127,7 +134,7 @@ def PPO_training(test_model_flag=False):
         env = Monitor(env=env, filename=os.path.join(log_dir,'monitor.csv'))
 
         if test_model_flag:
-            model_path = os.path.join(log_dir, "best_model.zip")
+            model_path = os.path.join(log_dir, "ppo_model100k.zip")
             model = PPO.load(model_path, env=env, device=device)
             #print training steps
             print(f"Training steps: {model.num_timesteps}")
@@ -143,13 +150,16 @@ def PPO_training(test_model_flag=False):
         callback = EvalCallback(env, best_model_save_path=log_dir, log_path=log_dir, eval_freq=1000, n_eval_episodes=5)
 
         # Train the model
-        model.learn(total_timesteps=100000, callback=callback)
+        if reload_model_flag:
+            model_path = os.path.join(log_dir, "best_model.zip")
+            model = PPO.load(model_path, env=env, device=device)
+            model.learn(total_timesteps=100000, callback=callback, reset_num_timesteps=False)
+        else:
+            model.learn(total_timesteps=100000, callback=callback)
 
         # Save the model
         model.save("ppo_model")
 
 
-
-
 if __name__ == "__main__":
-    PPO_training(test_model_flag=False)
+    PPO_training(test_model_flag=False, reload_model_flag=False)
