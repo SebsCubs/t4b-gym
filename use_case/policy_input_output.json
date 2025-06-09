@@ -33,14 +33,14 @@
             }
         },
         "core_temperature_heating_controller": {
-            "heatingSetpointValue": {
-                "signal_key" : "heatingSetpointValue",
+            "heatingsetpointValue": {
+                "signal_key" : "heatingsetpointValue",
                 "min": 12,
                 "max": 40,
                 "description": "Core temperature heating setpoint"
             },
-            "coolingSetpointValue": {
-                "signal_key" : "coolingSetpointValue",
+            "coolingsetpointValue": {
+                "signal_key" : "coolingsetpointValue",
                 "min": 12,
                 "max": 40,
                 "description": "Core temperature cooling setpoint"
@@ -55,14 +55,14 @@
             }
         },
         "north_temperature_heating_controller": {
-            "heatingSetpointValue": {
-                "signal_key" : "heatingSetpointValue",
+            "heatingsetpointValue": {
+                "signal_key" : "heatingsetpointValue",
                 "min": 12,
                 "max": 40,
                 "description": "North temperature heating setpoint"
             },
-            "coolingSetpointValue": {
-                "signal_key" : "coolingSetpointValue",
+            "coolingsetpointValue": {
+                "signal_key" : "coolingsetpointValue",
                 "min": 12,
                 "max": 40,
                 "description": "North temperature cooling setpoint"
@@ -77,14 +77,14 @@
             }
         },
         "east_temperature_heating_controller": {
-            "heatingSetpointValue": {
-                "signal_key" : "heatingSetpointValue",
+            "heatingsetpointValue": {
+                "signal_key" : "heatingsetpointValue",
                 "min": 12,
                 "max": 40,
                 "description": "East temperature heating setpoint"
             },
-            "coolingSetpointValue": {  
-                "signal_key" : "coolingSetpointValue",
+            "coolingsetpointValue": {  
+                "signal_key" : "coolingsetpointValue",
                 "min": 12,
                 "max": 40,
                 "description": "East temperature cooling setpoint"
@@ -99,14 +99,14 @@
             }
         },
         "south_temperature_heating_controller": { 
-            "heatingSetpointValue": {
-                "signal_key" : "heatingSetpointValue",
+            "heatingsetpointValue": {
+                "signal_key" : "heatingsetpointValue",
                 "min": 12,
                 "max": 40,
                 "description": "South temperature heating setpoint"
             },
-            "coolingSetpointValue": {
-                "signal_key" : "coolingSetpointValue",
+            "coolingsetpointValue": {
+                "signal_key" : "coolingsetpointValue",
                 "min": 12,
                 "max": 40,
                 "description": "South temperature cooling setpoint"
@@ -120,15 +120,15 @@
                 "description": "South supply damper position"
             }
         },
-        "west_temperature_heating_setpoint": {
-            "heatingSetpointValue": {
-                "signal_key" : "heatingSetpointValue",
+        "west_temperature_heating_controller": {
+            "heatingsetpointValue": {
+                "signal_key" : "heatingsetpointValue",
                 "min": 12,
                 "max": 40,
                 "description": "West temperature heating setpoint"
             },
-            "coolingSetpointValue": {
-                "signal_key" : "coolingSetpointValue",
+            "coolingsetpointValue": {
+                "signal_key" : "coolingsetpointValue",
                 "min": 12,
                 "max": 40,
                 "description": "West temperature cooling setpoint"

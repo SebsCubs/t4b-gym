@@ -190,6 +190,9 @@ class GymSimulator(tb.Simulator):
         # Add control inputs from actions
         for component_id, signals in config['actions'].items():
             for signal_name, signal_config in signals.items():
+                #Check that the signal_name is a valid input for the component
+                if signal_name not in self.model.components[component_id].input:
+                    raise ValueError(f"Signal {signal_name} not found in component {component_id}")
                 self.add_control_input(component_id, signal_name)
                 # Add the max and min values for the action space
                 self.control_inputs[component_id][signal_name]['max'] = signal_config['max']
