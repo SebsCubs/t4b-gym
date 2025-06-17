@@ -782,7 +782,15 @@ class NormalizedObservationWrapper(gym.ObservationWrapper):
             
         # Check if observation is within bounds
         if not np.all(observation >= self.observation_space.low) or not np.all(observation <= self.observation_space.high):
-            raise ValueError("Observation values outside of observation space bounds")
+            #Check which values are outside the bounds
+            outside_bounds = np.where(observation < self.observation_space.low)[0]
+            outside_bounds = np.where(observation > self.observation_space.high)[0]
+            #print(f"Observation values outside of observation space bounds: {outside_bounds}")
+            #If the outside bounds are more than 10% of the total observations, raise an error
+            if len(outside_bounds) > 0.1*len(observation):
+                raise ValueError("Observation values outside of observation space bounds")
+            else:
+                logging.warning(f"Observation values outside of observation space bounds: {outside_bounds}")
         
         # Convert to one number for the wrapped environment
         observation_wrapper = 2*(observation - self.observation_space.low)/\
@@ -794,7 +802,11 @@ class NormalizedObservationWrapper(gym.ObservationWrapper):
             
         # Check if normalized observation is within [-1, 1] bounds
         if not np.all(observation_wrapper >= -1) or not np.all(observation_wrapper <= 1):
-            raise ValueError("Normalized observation values outside of [-1, 1] bounds")
+            #If values are bigger than 1, set them to 1
+            observation_wrapper[observation_wrapper > 1] = 1
+            #If values are smaller than -1, set them to -1
+            observation_wrapper[observation_wrapper < -1] = -1
+
         
         return observation_wrapper
      

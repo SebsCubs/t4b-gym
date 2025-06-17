@@ -247,6 +247,40 @@ def plot_results(simulator: tb.Simulator, rewards = None, plotting_stepSize=600,
                     plt.savefig(f'plots/{room}_co2.png')
             #plt.show()
 
+        #Calculate temperature violation penalty
+        core_temperature = np.array(simulator.model.components["core_indoor_temp_sensor"].savedOutput["measuredValue"])
+        core_heating_temperature_setpoint = np.array(simulator.model.components["core_temperature_heating_setpoint"].savedOutput["scheduleValue"])
+        core_cooling_temperature_setpoint = np.array(simulator.model.components["core_temperature_cooling_setpoint"].savedOutput["scheduleValue"])
+        core_temp_set_violation = np.sum(np.maximum(0, core_heating_temperature_setpoint - core_temperature)) + np.sum(np.maximum(0, core_temperature - core_cooling_temperature_setpoint))
+        print(f"Core temp set violation: {core_temp_set_violation/10}")
+
+        north_temperature = np.array(simulator.model.components["north_indoor_temp_sensor"].savedOutput["measuredValue"])
+        north_heating_temperature_setpoint = np.array(simulator.model.components["north_temperature_heating_setpoint"].savedOutput["scheduleValue"])
+        north_cooling_temperature_setpoint = np.array(simulator.model.components["north_temperature_cooling_setpoint"].savedOutput["scheduleValue"])
+        north_temp_set_violation = np.sum(np.maximum(0, north_heating_temperature_setpoint - north_temperature)) + np.sum(np.maximum(0, north_temperature - north_cooling_temperature_setpoint))
+        print(f"North temp set violation: {north_temp_set_violation/10}")
+
+        east_temperature = np.array(simulator.model.components["east_indoor_temp_sensor"].savedOutput["measuredValue"])
+        east_heating_temperature_setpoint = np.array(simulator.model.components["east_temperature_heating_setpoint"].savedOutput["scheduleValue"])
+        east_cooling_temperature_setpoint = np.array(simulator.model.components["east_temperature_cooling_setpoint"].savedOutput["scheduleValue"])
+        east_temp_set_violation = np.sum(np.maximum(0, east_heating_temperature_setpoint - east_temperature)) + np.sum(np.maximum(0, east_temperature - east_cooling_temperature_setpoint))
+        print(f"East temp set violation: {east_temp_set_violation/10}")
+
+        south_temperature = np.array(simulator.model.components["south_indoor_temp_sensor"].savedOutput["measuredValue"])
+        south_heating_temperature_setpoint = np.array(simulator.model.components["south_temperature_heating_setpoint"].savedOutput["scheduleValue"])
+        south_cooling_temperature_setpoint = np.array(simulator.model.components["south_temperature_cooling_setpoint"].savedOutput["scheduleValue"])
+        south_temp_set_violation = np.sum(np.maximum(0, south_heating_temperature_setpoint - south_temperature)) + np.sum(np.maximum(0, south_temperature - south_cooling_temperature_setpoint))
+        print(f"South temp set violation: {south_temp_set_violation/10}")
+
+        west_temperature = np.array(simulator.model.components["west_indoor_temp_sensor"].savedOutput["measuredValue"])
+        west_heating_temperature_setpoint = np.array(simulator.model.components["west_temperature_heating_setpoint"].savedOutput["scheduleValue"])
+        west_cooling_temperature_setpoint = np.array(simulator.model.components["west_temperature_cooling_setpoint"].savedOutput["scheduleValue"])
+        west_temp_set_violation = np.sum(np.maximum(0, west_heating_temperature_setpoint - west_temperature)) + np.sum(np.maximum(0, west_temperature - west_cooling_temperature_setpoint))
+        print(f"West temp set violation: {west_temp_set_violation/10}")
+
+        temp_violation_penalty = 10 * (core_temp_set_violation + north_temp_set_violation + east_temp_set_violation + south_temp_set_violation + west_temp_set_violation)
+        print(f"Temp violation penalty: {temp_violation_penalty}")
+
         # Calculate the energy consumption
         core_outlet_water_temperature = np.array(simulator.model.components["core_reheat_coil"].savedOutput["outletWaterTemperature"])
         north_outlet_water_temperature = np.array(simulator.model.components["north_reheat_coil"].savedOutput["outletWaterTemperature"])

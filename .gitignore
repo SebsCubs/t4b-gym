@@ -178,5 +178,6 @@ rooms_w_vav_plots/
 #Any folder that starts with 'plot'
 plot*/
 
-logs/
+logs*/
+
 *.zip

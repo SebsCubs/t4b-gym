@@ -102,7 +102,7 @@ def envelope_fcn(self):
     south = tb.BuildingSpaceNoSH1AdjBoundaryOutdoorFMUSystem(id="south", saveSimulationResult=True)
     east = tb.BuildingSpaceNoSH1AdjBoundaryOutdoorFMUSystem(id="east", saveSimulationResult=True)
     west = tb.BuildingSpaceNoSH1AdjBoundaryOutdoorFMUSystem(id="west", saveSimulationResult=True)
-    outdoor_environment = tb.OutdoorEnvironmentSystem(filename="C:/Users/asces/OneDriveUni/Projects/RL_control/boptest_model/boptest_handler/data/merged_data/outdoor_env_data.csv",id="outdoor_environment", saveSimulationResult=True)
+    outdoor_environment = tb.OutdoorEnvironmentSystem(filename=r"C:/Users/asces/OneDriveUni/Projects/RL_control/boptest_model/boptest_handler/data/merged_data/outdoor_env_data.csv",id="outdoor_environment", saveSimulationResult=True)
 
     #Outdoor environment connections
     self.add_connection(outdoor_environment, north, "outdoorTemperature", "outdoorTemperature")
@@ -415,23 +415,25 @@ def ahu_fcn(self):
 
     heating_coil_temperature_setpoint = tb.ScheduleSystem(id="heating_coil_temperature_setpoint", saveSimulationResult=True)
     #cooling_coil_temperature_setpoint = tb.ScheduleSystem(id="cooling_coil_temperature_setpoint", saveSimulationResult=True) #They have the same value
+    supply_air_temp_setpoint_sensor = tb.SensorSystem(id="supply_air_temp_setpoint_sensor", saveSimulationResult=True) # To allow the RL agent to override the setpoint
+    self.add_connection(heating_coil_temperature_setpoint, supply_air_temp_setpoint_sensor, "scheduleValue", "measuredValue")
 
     # Add AHU fan
     supply_fan = tb.FanSystem(id="supply_fan", saveSimulationResult=True)
-    self.add_connection(vent_airflow_sensor, supply_fan, "measuredValue", "airFlowRate")
+    self.add_connection(self.components["vent_return_airflow_sensor"], supply_fan, "measuredValue", "airFlowRate")
     self.add_connection(supply_fan, vent_power_sensor, "Power", "measuredValue")
 
     # Add AHU heating coil
     supply_heating_coil = tb.CoilHeatingSystem(id="supply_heating_coil", saveSimulationResult=True)
     self.add_connection(vent_mixed_air_temp_sensor, supply_heating_coil, "measuredValue", "inletAirTemperature")
     self.add_connection(vent_airflow_sensor, supply_heating_coil, "measuredValue", "airFlowRate")
-    self.add_connection(heating_coil_temperature_setpoint, supply_heating_coil, "scheduleValue", "outletAirTemperatureSetpoint")
+    self.add_connection(supply_air_temp_setpoint_sensor, supply_heating_coil, "measuredValue", "outletAirTemperatureSetpoint")
 
     # Add AHU cooling coil
     supply_cooling_coil = tb.CoilCoolingSystem(id="supply_cooling_coil", saveSimulationResult=True)
     self.add_connection(supply_heating_coil, supply_cooling_coil, "outletAirTemperature", "inletAirTemperature")
     self.add_connection(vent_airflow_sensor, supply_cooling_coil, "measuredValue", "airFlowRate")
-    self.add_connection(heating_coil_temperature_setpoint, supply_cooling_coil, "scheduleValue", "outletAirTemperatureSetpoint")
+    self.add_connection(supply_air_temp_setpoint_sensor, supply_cooling_coil, "measuredValue", "outletAirTemperatureSetpoint")
     self.add_connection(supply_cooling_coil, vent_supply_air_temp_sensor, "outletAirTemperature", "measuredValue")
 
     # Add main dampers
@@ -563,6 +565,15 @@ def print_parameter_results(model):
             value = getattr(model.components[room], param)
             print(f"{param}: {value}")
 
+    #Fan parameters
+    print("\nFAN PARAMETERS:")
+    print(f"c1: {model.components['supply_fan'].c1}")
+    print(f"c2: {model.components['supply_fan'].c2}")
+    print(f"c3: {model.components['supply_fan'].c3}")
+    print(f"c4: {model.components['supply_fan'].c4}")
+    print(f"nominalPowerRate.hasValue: {model.components['supply_fan'].nominalPowerRate.hasValue}")
+    print(f"nominalAirFlowRate.hasValue: {model.components['supply_fan'].nominalAirFlowRate.hasValue}")
+
 def parameter_estimation():
     """
     Checklist for the parameter estimation:
@@ -585,34 +596,58 @@ def parameter_estimation():
     endTime = datetime.datetime(year=2024, month=1, day=15, hour=0, minute=0, second=0,
                                 tzinfo=gettz("Europe/Copenhagen"))
 
-    model = get_model()
+    envelope_filepath = r"C:\Users\asces\OneDriveUni\Projects\RL_control\boptest_model\generated_files\models\only_rooms_estimation\model_parameters\estimation_results\LS_result\mix_day_most_accurate_08042025.pickle"
+    vavs_filepath = r"C:\Users\asces\OneDriveUni\Projects\RL_control\boptest_model\generated_files\models\vav_controllers_param_est\model_parameters\estimation_results\LS_result\20250506_095811_ls.pickle"
+    ahu_filepath = r"C:\Users\asces\OneDriveUni\Projects\RL_control\boptest_model\generated_files\models\only_ahu_model\model_parameters\estimation_results\LS_result\20250314_163600_ls.pickle"
+    parameter_filenames = {"envelope": envelope_filepath, "vavs": vavs_filepath, "ahu": ahu_filepath}
+    # Load model with estimated parameters and run simulation
+    model = get_model(id="rooms_and_ahu_estimation")
+    model.load_estimation_result(parameter_filenames["envelope"])
+    model.load_estimation_result(parameter_filenames["vavs"])
+    model.load_estimation_result(parameter_filenames["ahu"])
+    
+    
+    north = model.components["north"]
+    north.C_boundary = 94407.559
+    north.Q_occ_gain = 150 #224.04964129088137
+
+    east = model.components["east"]
+    east.C_boundary = 31197951.98026053
+    east.Q_occ_gain = 150 #232.5238692961377
+
+    south = model.components["south"]
+    south.Q_occ_gain = 150 #232.5238692961377
+
+    west = model.components["west"]
+    west.Q_occ_gain = 150 #232.5238692961377
 
     ## Target parameters definition
+    supply_fan = model.components["supply_fan"]
     #Space parameters are estimated separately
     #CORE
     core_supply_damper = model.components["core_supply_damper"]
-    core_exhaust_damper = model.components["core_exhaust_damper"]
     core_temp_controller = model.components["core_temperature_heating_controller"]
     #NORTH
     north_supply_damper = model.components["north_supply_damper"]
-    north_exhaust_damper = model.components["north_exhaust_damper"]
     north_temp_controller = model.components["north_temperature_heating_controller"]
     #SOUTH
     south_supply_damper = model.components["south_supply_damper"]
-    south_exhaust_damper = model.components["south_exhaust_damper"]
     south_temp_controller = model.components["south_temperature_heating_controller"]
     #EAST
     east_supply_damper = model.components["east_supply_damper"]
-    east_exhaust_damper = model.components["east_exhaust_damper"]
     east_temp_controller = model.components["east_temperature_heating_controller"]
     #WEST
-    west_supply_damper = model.components["west_supply_damper"]
-    west_exhaust_damper = model.components["west_exhaust_damper"]
+    west_supply_damper = model.components["west_supply_damper"] 
     west_temp_controller = model.components["west_temperature_heating_controller"]
 
-    dampers_list = [core_supply_damper, core_exhaust_damper, north_supply_damper, north_exhaust_damper, south_supply_damper, south_exhaust_damper, east_supply_damper, east_exhaust_damper, west_supply_damper, west_exhaust_damper]
+    dampers_list = [core_supply_damper, north_supply_damper, south_supply_damper, east_supply_damper, west_supply_damper]
 
     targetParameters = {"private": {
+                                    "nominalPowerRate.hasValue": {"components": [supply_fan], "x0": 3.5, "lb": 1e-2, "ub": 10},
+                                    "c1": {"components": [supply_fan], "x0": 0.5, "lb": -15, "ub": 15},
+                                    "c2": {"components": [supply_fan], "x0": 0.5, "lb": -15, "ub": 15},
+                                    "c3": {"components": [supply_fan], "x0": 0.5, "lb": -15, "ub": 15},
+                                    "c4": {"components": [supply_fan], "x0": 0.5, "lb": -15, "ub": 15},
                                     "k_coo": {"components": [core_temp_controller, north_temp_controller, south_temp_controller, east_temp_controller, west_temp_controller], "x0": 1, "lb": 1e-5, "ub": 10},
                                     "ti_coo": {"components": [core_temp_controller, north_temp_controller, south_temp_controller, east_temp_controller, west_temp_controller], "x0": 1, "lb": 1e-5, "ub": 10},
                                     "k_hea": {"components": [core_temp_controller, north_temp_controller, south_temp_controller, east_temp_controller, west_temp_controller], "x0": 1, "lb": 1e-5, "ub": 10},
@@ -621,73 +656,37 @@ def parameter_estimation():
                                     "a": {"components": dampers_list, "x0": 6.74, "lb": 0.5, "ub": 8}
                                     }
                         }
-    
-    """
-    Parameters for each room:
-    - Input & output damper:
-        - a (shared) 
-        - nominalAirFlowRate
-    - PI controller Kp, Ki constants
-    Required data points:
-    Common data points:
-    [x]Supply air temperature (hvac_reaAhu_TSup_y)
-    [x]Supply air flow rate (hvac_reaAhu_V_flow_sup_y) from supply junction
-    [x]Return air flow rate (hvac_reaAhu_V_flow_ret_y) from return junction
-    [x]Outdoor air temperature (weaSta_reaWeaTWetBul_y) Figure how to synchronize with the outdoor environment data
-    Per room data points:
-    [x]Supply air temperature (hvac_reaZonCor_TSup_y, hvac_reaZonNor_TSup_y, hvac_reaZonSou_TSup_y, hvac_reaZonEas_TSup_y, hvac_reaZonWes_TSup_y)
-    [x]Supply air flow rate (hvac_reaZonCor_V_flow_y, hvac_reaZonNor_V_flow_y, hvac_reaZonSou_V_flow_y, hvac_reaZonEas_V_flow_y, hvac_reaZonWes_V_flow_y)
-    [x]CO2 concentration (hvac_reaZonCor_CO2Zon_y, hvac_reaZonNor_CO2Zon_y, hvac_reaZonSou_CO2Zon_y, hvac_reaZonEas_CO2Zon_y, hvac_reaZonWes_CO2Zon_y)
-    [x]Indoor air temperature (hvac_reaZonCor_TZon_y, hvac_reaZonNor_TZon_y, hvac_reaZonSou_TZon_y, hvac_reaZonEas_TZon_y, hvac_reaZonWes_TZon_y)
-    [x]Supply damper position (hvac_oveZonActCor_yDam_u, hvac_oveZonActNor_yDam_u, hvac_oveZonActSou_yDam_u, hvac_oveZonActEas_yDam_u, hvac_oveZonActWes_yDam_u)
-    [x]Heating setpoint (hvac_oveZonSupCor_TZonHeaSet_u, hvac_oveZonSupNor_TZonHeaSet_u, hvac_oveZonSupSou_TZonHeaSet_u, hvac_oveZonSupEas_TZonHeaSet_u, hvac_oveZonSupWes_TZonHeaSet_u)
-    [x]Cooling setpoint (hvac_oveZonSupCor_TZonCooSet_u, hvac_oveZonSupNor_TZonCooSet_u, hvac_oveZonSupSou_TZonCooSet_u, hvac_oveZonSupEas_TZonCooSet_u, hvac_oveZonSupWes_TZonCooSet_u)
-    [x](Forecast values) Occupancy (Occupancy[cor], Occupancy[nor], Occupancy[sou], Occupancy[eas], Occupancy[wes]) 
-
-    Model outputs (measuring devices):
-    - Indoor air temperature (core_indoor_air_temp_sensor, north_indoor_air_temp_sensor, south_indoor_air_temp_sensor, east_indoor_air_temp_sensor, west_indoor_air_temp_sensor)
-    - Damper position (core_supply_damper_position, north_supply_damper_position, south_supply_damper_position, east_supply_damper_position, west_supply_damper_position)
-    - Room supply air flow rate (core_supply_airflow_sensor, north_supply_airflow_sensor, south_supply_airflow_sensor, east_supply_airflow_sensor, west_supply_airflow_sensor)
-    - CO2 concentration (core_co2_sensor, north_co2_sensor, south_co2_sensor, east_co2_sensor, west_co2_sensor)
-    - Total supply air flow rate (vent_supply_airflow_sensor)
-
-    """
-
 
     percentile = 2
     targetMeasuringDevices = {
                              model.components["vent_supply_airflow_sensor"]: {"standardDeviation": 0.1/percentile, "scale_factor": 10},
                              model.components["vent_return_airflow_sensor"]: {"standardDeviation": 0.1/percentile, "scale_factor": 10},
-                             model.components["vent_return_air_temp_sensor"]: {"standardDeviation": 0.1/percentile, "scale_factor": 20},
+                             model.components["vent_return_air_temp_sensor"]: {"standardDeviation": 1/percentile, "scale_factor": 20},
+                             model.components["vent_power_sensor"]: {"standardDeviation": 10/percentile, "scale_factor": 1000},
 
                              model.components["core_indoor_temp_sensor"]: {"standardDeviation": 0.1/percentile, "scale_factor": 20},
-                             model.components["core_supply_airflow_sensor"]: {"standardDeviation": 0.1/percentile, "scale_factor": 3},
+                             model.components["core_supply_damper_position_sensor"]: {"standardDeviation": 0.1/percentile, "scale_factor": 1},
                              model.components["core_co2_sensor"]: {"standardDeviation": 10/percentile, "scale_factor": 400},
-                             model.components["core_supply_damper_position"]: {"standardDeviation": 0.01/percentile, "scale_factor": 1},
                              model.components["core_supply_air_temp_sensor"]: {"standardDeviation": 0.1/percentile, "scale_factor": 20},
 
                              model.components["north_indoor_temp_sensor"]: {"standardDeviation": 0.1/percentile, "scale_factor": 20},
-                             model.components["north_supply_airflow_sensor"]: {"standardDeviation": 0.1/percentile, "scale_factor": 3},
+                             model.components["north_supply_damper_position_sensor"]: {"standardDeviation": 0.1/percentile, "scale_factor": 1},
                              model.components["north_co2_sensor"]: {"standardDeviation": 10/percentile, "scale_factor": 400},
-                             model.components["north_supply_damper_position"]: {"standardDeviation": 0.01/percentile, "scale_factor": 1}, 
                              model.components["north_supply_air_temp_sensor"]: {"standardDeviation": 0.1/percentile, "scale_factor": 20},
 
                              model.components["south_indoor_temp_sensor"]: {"standardDeviation": 0.1/percentile, "scale_factor": 20},
-                             model.components["south_supply_airflow_sensor"]: {"standardDeviation": 0.1/percentile, "scale_factor": 3},
+                             model.components["south_supply_damper_position_sensor"]: {"standardDeviation": 0.1/percentile, "scale_factor": 1},
                              model.components["south_co2_sensor"]: {"standardDeviation": 10/percentile, "scale_factor": 400},
-                             model.components["south_supply_damper_position"]: {"standardDeviation": 0.01/percentile, "scale_factor": 1},
                              model.components["south_supply_air_temp_sensor"]: {"standardDeviation": 0.1/percentile, "scale_factor": 20},
 
                              model.components["east_indoor_temp_sensor"]: {"standardDeviation": 0.1/percentile, "scale_factor": 20},
-                             model.components["east_supply_airflow_sensor"]: {"standardDeviation": 0.1/percentile, "scale_factor": 3},
+                             model.components["east_supply_damper_position_sensor"]: {"standardDeviation": 0.1/percentile, "scale_factor": 1},
                              model.components["east_co2_sensor"]: {"standardDeviation": 10/percentile, "scale_factor": 400},
-                             model.components["east_supply_damper_position"]: {"standardDeviation": 0.01/percentile, "scale_factor": 1},
                              model.components["east_supply_air_temp_sensor"]: {"standardDeviation": 0.1/percentile, "scale_factor": 20},
 
                              model.components["west_indoor_temp_sensor"]: {"standardDeviation": 0.1/percentile, "scale_factor": 20},
-                             model.components["west_supply_airflow_sensor"]: {"standardDeviation": 0.1/percentile, "scale_factor": 3},
+                             model.components["west_supply_damper_position_sensor"]: {"standardDeviation": 0.1/percentile, "scale_factor": 1},
                              model.components["west_co2_sensor"]: {"standardDeviation": 10/percentile, "scale_factor": 400},
-                             model.components["west_supply_damper_position"]: {"standardDeviation": 0.01/percentile, "scale_factor": 1},
                              model.components["west_supply_air_temp_sensor"]: {"standardDeviation": 0.1/percentile, "scale_factor": 20},
                              }  
 
@@ -717,6 +716,200 @@ def parameter_estimation():
     print_parameter_results(model)
 
     return estimator.result_savedir_pickle
+
+def fan_parameter_estimation():
+    stepSize = 60  # Seconds can go down to 30
+    # Then set the startTime and endTime to a valid range
+    startTime = datetime.datetime(year=2024, month=1, day=1, hour=0, minute=0, second=0,
+                                tzinfo=gettz("Europe/Copenhagen"))
+    endTime = datetime.datetime(year=2024, month=1, day=15, hour=0, minute=0, second=0,
+                                tzinfo=gettz("Europe/Copenhagen"))
+
+    envelope_filepath = r"C:\Users\asces\OneDriveUni\Projects\RL_control\boptest_model\generated_files\models\only_rooms_estimation\model_parameters\estimation_results\LS_result\mix_day_most_accurate_08042025.pickle"
+    vavs_filepath = r"C:\Users\asces\OneDriveUni\Projects\RL_control\boptest_model\generated_files\models\vav_controllers_param_est\model_parameters\estimation_results\LS_result\20250506_095811_ls.pickle"
+    ahu_filepath = r"C:\Users\asces\OneDriveUni\Projects\RL_control\boptest_model\generated_files\models\only_ahu_model\model_parameters\estimation_results\LS_result\20250314_163600_ls.pickle"
+    parameter_filenames = {"envelope": envelope_filepath, "vavs": vavs_filepath, "ahu": ahu_filepath}
+    # Load model with estimated parameters and run simulation
+    model = get_model(id="rooms_and_ahu_estimation")
+    model.load_estimation_result(parameter_filenames["envelope"])
+    model.load_estimation_result(parameter_filenames["vavs"])
+    model.load_estimation_result(parameter_filenames["ahu"])
+    
+    
+    north = model.components["north"]
+    north.C_boundary = 94407.559
+    north.Q_occ_gain = 150 #224.04964129088137
+
+    east = model.components["east"]
+    east.C_boundary = 31197951.98026053
+    east.Q_occ_gain = 150 #232.5238692961377
+
+    south = model.components["south"]
+    south.Q_occ_gain = 150 #232.5238692961377
+
+    west = model.components["west"]
+    west.Q_occ_gain = 150 #232.5238692961377
+
+    model.load_estimation_result(r"C:\Users\asces\OneDriveUni\Projects\RL_control\boptest_model\generated_files\models\rooms_and_ahu_estimation\model_parameters\estimation_results\LS_result\20250613_100157_ls.pickle")
+    
+    ## Target parameters definition
+    supply_fan = model.components["supply_fan"]
+    #Space parameters are estimated separately
+
+
+    targetParameters = {"private": {
+                                    "nominalPowerRate.hasValue": {"components": [supply_fan], "x0": 3.5, "lb": 1e-2, "ub": 10},
+                                    "c1": {"components": [supply_fan], "x0": 0.5, "lb": -30, "ub": 30},
+                                    "c2": {"components": [supply_fan], "x0": 0.5, "lb": -30, "ub": 30},
+                                    "c3": {"components": [supply_fan], "x0": 0.5, "lb": -30, "ub": 30},
+                                    "c4": {"components": [supply_fan], "x0": 0.5, "lb": -30, "ub": 30}
+                                    }
+                        }
+
+    percentile = 2
+    targetMeasuringDevices = {
+                             model.components["vent_supply_airflow_sensor"]: {"standardDeviation": 1/percentile, "scale_factor": 10},
+                             model.components["vent_power_sensor"]: {"standardDeviation": 100/percentile, "scale_factor": 1000},
+                             }  
+
+    
+    options = {
+            "n_cores": 8,
+            "ftol": 1e-10,
+            "xtol": 1e-10,
+            "gtol": 1e-10,
+            "max_nfev": 90,
+            "verbose": 2}
+    estimator = tb.Estimator(model)
+    estimator.estimate(targetParameters=targetParameters,
+                        targetMeasuringDevices=targetMeasuringDevices,
+                        startTime=startTime,
+                        endTime=endTime,
+                        stepSize=stepSize,
+                        method="LS", #Use Least Squares instead
+                        options=options,
+                        verbose=True
+                        )
+    model.load_estimation_result(estimator.result_savedir_pickle)
+
+    #Print the resulting parameters
+
+    print("Resulting parameters saved: ", estimator.result_savedir_pickle)
+    print_parameter_results(model)
+
+    return estimator.result_savedir_pickle
+    
+def rooms_parameter_estimation():
+    stepSize = 60  # Seconds can go down to 30
+    # Then set the startTime and endTime to a valid range
+    startTime = datetime.datetime(year=2024, month=1, day=1, hour=0, minute=0, second=0,
+                                tzinfo=gettz("Europe/Copenhagen"))
+    endTime = datetime.datetime(year=2024, month=1, day=15, hour=0, minute=0, second=0,
+                                tzinfo=gettz("Europe/Copenhagen"))
+
+    envelope_filepath = r"C:\Users\asces\OneDriveUni\Projects\RL_control\boptest_model\generated_files\models\only_rooms_estimation\model_parameters\estimation_results\LS_result\mix_day_most_accurate_08042025.pickle"
+    vavs_filepath = r"C:\Users\asces\OneDriveUni\Projects\RL_control\boptest_model\generated_files\models\vav_controllers_param_est\model_parameters\estimation_results\LS_result\20250506_095811_ls.pickle"
+    ahu_filepath = r"C:\Users\asces\OneDriveUni\Projects\RL_control\boptest_model\generated_files\models\only_ahu_model\model_parameters\estimation_results\LS_result\20250314_163600_ls.pickle"
+    parameter_filenames = {"envelope": envelope_filepath, "vavs": vavs_filepath, "ahu": ahu_filepath}
+    # Load model with estimated parameters and run simulation
+    model = get_model(id="rooms_and_ahu_estimation")
+    model.load_estimation_result(parameter_filenames["envelope"])
+    model.load_estimation_result(parameter_filenames["vavs"])
+    model.load_estimation_result(parameter_filenames["ahu"])
+    
+    
+    north = model.components["north"]
+    north.C_boundary = 94407.559
+    north.Q_occ_gain = 150 #224.04964129088137
+
+    east = model.components["east"]
+    east.C_boundary = 31197951.98026053
+    east.Q_occ_gain = 150 #232.5238692961377
+
+    south = model.components["south"]
+    south.Q_occ_gain = 150 #232.5238692961377
+
+    west = model.components["west"]
+    west.Q_occ_gain = 150 #232.5238692961377
+    
+    model.load_estimation_result(r"C:\Users\asces\OneDriveUni\Projects\RL_control\boptest_model\generated_files\models\rooms_and_ahu_estimation\model_parameters\estimation_results\LS_result\20250613_100157_ls.pickle")
+    
+    model.load_estimation_result(r"C:\Users\asces\OneDriveUni\Projects\RL_control\boptest_model\generated_files\models\rooms_and_ahu_estimation\model_parameters\estimation_results\LS_result\20250613_120447_ls.pickle")
+
+
+    ## Target parameters definition
+    #CORE
+    core_space = model.components["core"]
+    #NORTH
+    north_space = model.components["north"]
+    #SOUTH
+    south_space = model.components["south"]
+    #EAST
+    east_space = model.components["east"]
+    #WEST
+    west_space = model.components["west"]
+
+    targetParameters = {"private": {
+                                    "C_wall": {"components": [north_space, south_space, east_space, west_space], "x0": 5476780, "lb": 1e+4, "ub": 1e+8},
+                                    "C_air": {"components": [core_space, north_space, south_space, east_space, west_space], "x0": 3698995, "lb": 1e+4, "ub": 1e+8},                                    
+                                    "C_boundary": {"components": [core_space, north_space, south_space, east_space, west_space], "x0": 1e6, "lb": 1e+4, "ub": 1e+8},
+                                    "C_int": {"components": [core_space, north_space, south_space, east_space, west_space], "x0": 17381232, "lb": 1e+4, "ub": 1e+8},
+                                    "R_out": {"components": [north_space, south_space, east_space, west_space], "x0": 0.019, "lb": 1e-2, "ub": 0.5},
+                                    "R_in": {"components": [north_space, south_space, east_space, west_space], "x0": 0.015, "lb": 1e-4, "ub": 0.5},
+                                    "f_wall": {"components": [north_space, south_space, east_space, west_space], "x0": 0.75, "lb": 0, "ub": 6},
+                                    "f_air": {"components": [north_space, south_space, east_space, west_space], "x0": 0.45, "lb": 0, "ub": 6},
+                                    "R_int": {"components": [core_space, north_space, south_space, east_space, west_space], "x0": 0.015, "lb": 1e-5, "ub": 0.2},
+                                    "Q_occ_gain": {"components": [core_space, north_space, south_space, east_space, west_space], "x0": 200, "lb": 100, "ub": 350},
+                                    },
+                        "shared": {
+                                    "CO2_occ_gain": {"components": [core_space, north_space, south_space, east_space, west_space], "x0": 8.18e-6, "lb": 1e-10, "ub": 0.1},
+                                    "infiltration": {"components": [core_space, north_space, south_space, east_space, west_space], "x0": 1e-5, "lb": 1e-10, "ub": 0.01}
+                            }}
+     
+
+    percentile = 2
+    targetMeasuringDevices = {
+                             model.components["core_indoor_temp_sensor"]: {"standardDeviation": 0.1/percentile, "scale_factor": 20},
+                             model.components["core_co2_sensor"]: {"standardDeviation": 10/percentile, "scale_factor": 400},
+
+                             model.components["north_indoor_temp_sensor"]: {"standardDeviation": 0.1/percentile, "scale_factor": 20},
+                             model.components["north_co2_sensor"]: {"standardDeviation": 10/percentile, "scale_factor": 400},
+
+                             model.components["south_indoor_temp_sensor"]: {"standardDeviation": 0.1/percentile, "scale_factor": 20},
+                             model.components["south_co2_sensor"]: {"standardDeviation": 10/percentile, "scale_factor": 400},
+
+                             model.components["east_indoor_temp_sensor"]: {"standardDeviation": 0.1/percentile, "scale_factor": 20},
+                             model.components["east_co2_sensor"]: {"standardDeviation": 10/percentile, "scale_factor": 400},
+
+                             model.components["west_indoor_temp_sensor"]: {"standardDeviation": 0.1/percentile, "scale_factor": 20},
+                             model.components["west_co2_sensor"]: {"standardDeviation": 10/percentile, "scale_factor": 400},
+                             }  
+
+    
+    options = {
+                "n_cores": 8,
+                "ftol": 1e-10,
+                "xtol": 1e-10,
+                "gtol": 1e-10,
+                "max_nfev": 90,
+                "verbose": 2
+            }
+    estimator = tb.Estimator(model)
+    estimator.estimate(
+                        targetParameters=targetParameters,
+                        targetMeasuringDevices=targetMeasuringDevices,
+                        startTime=startTime,
+                        endTime=endTime,
+                        stepSize=stepSize,
+                        method="LS", #Use Least Squares instead
+                        options=options,
+                        verbose=True
+                    )
+    model.load_estimation_result(estimator.result_savedir_pickle)
+    print("Resulting parameters:")
+    print_parameter_results(model)
+    print("Results saved in: ", estimator.result_savedir_pickle)
+    return estimator.result_savedir_pickle    
 
 def load_and_print_parameters(filename):
     model = get_model()
@@ -770,6 +963,12 @@ def parameter_evaluation(data_points, parameter_filenames:dict, save_plots=False
     west = model.components["west"]
     west.Q_occ_gain = 150 #232.5238692961377
     
+    model.load_estimation_result(r"C:\Users\asces\OneDriveUni\Projects\RL_control\boptest_model\generated_files\models\rooms_and_ahu_estimation\model_parameters\estimation_results\LS_result\damper_params_13_06.pickle")
+    
+    model.load_estimation_result(r"C:\Users\asces\OneDriveUni\Projects\RL_control\boptest_model\generated_files\models\rooms_and_ahu_estimation\model_parameters\estimation_results\LS_result\fan_params_13_06.pickle")
+
+    model.load_estimation_result(r"C:\Users\asces\OneDriveUni\Projects\RL_control\boptest_model\generated_files\models\rooms_and_ahu_estimation\model_parameters\estimation_results\LS_result\20250613_122822_ls.pickle")
+
     print("Resulting parameters:")
     print_parameter_results(model)
 
@@ -872,5 +1071,5 @@ if __name__ == "__main__":
     ahu_filepath = r"C:\Users\asces\OneDriveUni\Projects\RL_control\boptest_model\generated_files\models\only_ahu_model\model_parameters\estimation_results\LS_result\20250314_163600_ls.pickle"
     parameter_filenames = {"envelope": envelope_filepath, "vavs": vavs_filepath, "ahu": ahu_filepath}
     parameter_evaluation(model_output_points, parameter_filenames, save_plots=True)
-
+    #rooms_parameter_estimation()
     
