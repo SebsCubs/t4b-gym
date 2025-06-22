@@ -46,12 +46,6 @@ def PPO_training(test_model_flag=False, reload_model_flag=False):
                 super().__init__(*args, **kwargs)
                 self.previous_objective = 0.0
                 
-                # Initialize violation tracking
-                self.core_temp_violations = []
-                self.north_temp_violations = []
-                self.east_temp_violations = []
-                self.south_temp_violations = []
-                self.west_temp_violations = []
                 
             def get_reward(self, action, observation):
                 core_temperature = self.simulator.model.components["core_indoor_temp_sensor"].output["measuredValue"]
@@ -59,49 +53,43 @@ def PPO_training(test_model_flag=False, reload_model_flag=False):
                 core_cooling_temperature_setpoint = self.simulator.model.components["core_temperature_cooling_setpoint"].output["scheduleValue"]
                 core_heating_violation = max(0, core_heating_temperature_setpoint - core_temperature)
                 core_cooling_violation = max(0, core_temperature - core_cooling_temperature_setpoint)
-                core_temp_set_violation = core_heating_violation + core_cooling_violation + np.exp(core_heating_violation) + np.exp(core_cooling_violation)
-                self.core_temp_violations.append(core_temp_set_violation)
+                core_temp_set_violation = core_heating_violation + core_cooling_violation + np.exp(1+core_heating_violation) + np.exp(1+core_cooling_violation)
+                
 
                 north_temperature = self.simulator.model.components["north_indoor_temp_sensor"].output["measuredValue"]
                 north_heating_temperature_setpoint = self.simulator.model.components["north_temperature_heating_setpoint"].output["scheduleValue"]
                 north_cooling_temperature_setpoint = self.simulator.model.components["north_temperature_cooling_setpoint"].output["scheduleValue"]
                 north_heating_violation = max(0, north_heating_temperature_setpoint - north_temperature)
                 north_cooling_violation = max(0, north_temperature - north_cooling_temperature_setpoint)
-                north_temp_set_violation = north_heating_violation + north_cooling_violation + np.exp(north_heating_violation) + np.exp(north_cooling_violation)
-                self.north_temp_violations.append(north_temp_set_violation)
+                north_temp_set_violation = north_heating_violation + north_cooling_violation + np.exp(1+north_heating_violation) + np.exp(1+north_cooling_violation)
+           
 
                 east_temperature = self.simulator.model.components["east_indoor_temp_sensor"].output["measuredValue"]
                 east_heating_temperature_setpoint = self.simulator.model.components["east_temperature_heating_setpoint"].output["scheduleValue"]
                 east_cooling_temperature_setpoint = self.simulator.model.components["east_temperature_cooling_setpoint"].output["scheduleValue"]
                 east_heating_violation = max(0, east_heating_temperature_setpoint - east_temperature)
                 east_cooling_violation = max(0, east_temperature - east_cooling_temperature_setpoint)
-                east_temp_set_violation = east_heating_violation + east_cooling_violation + np.exp(east_heating_violation) + np.exp(east_cooling_violation)
-                self.east_temp_violations.append(east_temp_set_violation)
+                east_temp_set_violation = east_heating_violation + east_cooling_violation + np.exp(1+east_heating_violation) + np.exp(1+east_cooling_violation)
+                
 
                 south_temperature = self.simulator.model.components["south_indoor_temp_sensor"].output["measuredValue"]
                 south_heating_temperature_setpoint = self.simulator.model.components["south_temperature_heating_setpoint"].output["scheduleValue"]
                 south_cooling_temperature_setpoint = self.simulator.model.components["south_temperature_cooling_setpoint"].output["scheduleValue"]
                 south_heating_violation = max(0, south_heating_temperature_setpoint - south_temperature)
                 south_cooling_violation = max(0, south_temperature - south_cooling_temperature_setpoint)
-                south_temp_set_violation = south_heating_violation + south_cooling_violation + np.exp(south_heating_violation) + np.exp(south_cooling_violation)
-                self.south_temp_violations.append(south_temp_set_violation)
+                south_temp_set_violation = south_heating_violation + south_cooling_violation + np.exp(1+south_heating_violation) + np.exp(1+south_cooling_violation)
+               
 
                 west_temperature = self.simulator.model.components["west_indoor_temp_sensor"].output["measuredValue"]
                 west_heating_temperature_setpoint = self.simulator.model.components["west_temperature_heating_setpoint"].output["scheduleValue"]
                 west_cooling_temperature_setpoint = self.simulator.model.components["west_temperature_cooling_setpoint"].output["scheduleValue"]
                 west_heating_violation = max(0, west_heating_temperature_setpoint - west_temperature)
                 west_cooling_violation = max(0, west_temperature - west_cooling_temperature_setpoint)
-                west_temp_set_violation = west_heating_violation + west_cooling_violation + np.exp(west_heating_violation) + np.exp(west_cooling_violation)
-                self.west_temp_violations.append(west_temp_set_violation)
+                west_temp_set_violation = west_heating_violation + west_cooling_violation + np.exp(1+west_heating_violation) + np.exp(1+west_cooling_violation)
+                
 
-                # Calculate cumulative violations
-                total_core_violation = sum(self.core_temp_violations)
-                total_north_violation = sum(self.north_temp_violations)
-                total_east_violation = sum(self.east_temp_violations)
-                total_south_violation = sum(self.south_temp_violations)
-                total_west_violation = sum(self.west_temp_violations)
-
-                temp_violation_penalty = 1000 * (total_core_violation + total_north_violation + total_east_violation + total_south_violation + total_west_violation)
+       
+                temp_violation_penalty = 100000 * (core_temp_set_violation + north_temp_set_violation + east_temp_set_violation + south_temp_set_violation + west_temp_set_violation)
 
                 #power consumption penalty
                 core_outlet_water_temperature = self.simulator.model.components["core_reheat_coil"].output["outletWaterTemperature"]
@@ -132,25 +120,11 @@ def PPO_training(test_model_flag=False, reload_model_flag=False):
                 if np.isnan(objective_integrand):
                     raise ValueError("Reward is not a number")
                 
-                objective_integrand = objective_integrand/1000 #scale the reward to be more manageable              
+                reward = - objective_integrand/1000 #scale the reward to be more manageable              
 
-                #integrate the reward over the episode
-                #reward = -(objective_integrand - self.previous_objective)
+                return reward
 
-                self.previous_objective = objective_integrand
 
-                return -objective_integrand
-
-            def reset(self, seed=None, options=None):
-                observation, info = super().reset(seed=seed, options=options)
-                # Reset violation tracking
-                self.core_temp_violations = []
-                self.north_temp_violations = []
-                self.east_temp_violations = []
-                self.south_temp_violations = []
-                self.west_temp_violations = []
-                
-                return observation, info
 
         env = T4BGymEnvCustomReward(                 
                  model = model, 
@@ -188,15 +162,15 @@ def PPO_training(test_model_flag=False, reload_model_flag=False):
 
         # Train the model
         if reload_model_flag:
-            model_path = os.path.join(log_dir, "inc_temp_weight_100k.zip")
+            model_path = os.path.join(log_dir, "b_300k.zip")
             model = PPO.load(model_path, env=env, device=device)
-            model.learn(total_timesteps=100000, callback=callback, reset_num_timesteps=False)
+            model.learn(total_timesteps=200000, callback=callback, reset_num_timesteps=False)
         else:
-            model.learn(total_timesteps=100000, callback=callback)
+            model.learn(total_timesteps=200000, callback=callback)
 
         # Save the model
         model.save(os.path.join(log_dir, "ppo_model"))
 
 
 if __name__ == "__main__":
-    PPO_training(test_model_flag=False, reload_model_flag=True)
+    PPO_training(test_model_flag=False, reload_model_flag=False)
