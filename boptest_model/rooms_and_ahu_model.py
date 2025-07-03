@@ -1,6 +1,7 @@
 import os
 os.environ['KMP_DUPLICATE_LIB_OK'] = 'True'  # Mac specific?
 import datetime
+from datetime import timedelta
 import pandas as pd
 from dateutil.tz import gettz
 import sys
@@ -535,10 +536,13 @@ def run(model = None):
 
     simulator = tb.Simulator()
 
-    simulator.simulate(model = model,
-                       startTime=startTime,
-                        endTime=endTime,
-                        stepSize=stepSize)
+    # Use keyword arguments to avoid type annotation issues
+    simulator.simulate(
+        model=model,
+        startTime=startTime,
+        endTime=endTime,
+        stepSize=stepSize
+    )
 
     print("Simulation completed successfully!")
 
@@ -963,11 +967,11 @@ def parameter_evaluation(data_points, parameter_filenames:dict, save_plots=False
     west = model.components["west"]
     west.Q_occ_gain = 150 #232.5238692961377
     
-    model.load_estimation_result(r"C:\Users\asces\OneDriveUni\Projects\RL_control\boptest_model\generated_files\models\rooms_and_ahu_estimation\model_parameters\estimation_results\LS_result\damper_params_13_06.pickle")
+    model.load_estimation_result(r"C:\repos\RL_control\boptest_model\generated_files\models\rooms_and_ahu_estimation\model_parameters\estimation_results\LS_result\damper_params_13_06.pickle")
     
-    model.load_estimation_result(r"C:\Users\asces\OneDriveUni\Projects\RL_control\boptest_model\generated_files\models\rooms_and_ahu_estimation\model_parameters\estimation_results\LS_result\fan_params_13_06.pickle")
+    model.load_estimation_result(r"C:\repos\RL_control\boptest_model\generated_files\models\rooms_and_ahu_estimation\model_parameters\estimation_results\LS_result\fan_params_13_06.pickle")
 
-    model.load_estimation_result(r"C:\Users\asces\OneDriveUni\Projects\RL_control\boptest_model\generated_files\models\rooms_and_ahu_estimation\model_parameters\estimation_results\LS_result\20250613_122822_ls.pickle")
+    model.load_estimation_result(r"C:\repos\RL_control\boptest_model\generated_files\models\rooms_and_ahu_estimation\model_parameters\estimation_results\LS_result\20250613_122822_ls.pickle")
 
     print("Resulting parameters:")
     print_parameter_results(model)
@@ -1038,9 +1042,9 @@ def parameter_evaluation(data_points, parameter_filenames:dict, save_plots=False
 
 
 def load_model_and_params(model_id="rooms_and_ahu_model"):
-    envelope_filepath = r"C:\Users\asces\OneDriveUni\Projects\RL_control\boptest_model\generated_files\models\only_rooms_estimation\model_parameters\estimation_results\LS_result\mix_day_most_accurate_08042025.pickle"
-    vavs_filepath = r"C:\Users\asces\OneDriveUni\Projects\RL_control\boptest_model\generated_files\models\vav_controllers_param_est\model_parameters\estimation_results\LS_result\20250506_095811_ls.pickle"
-    ahu_filepath = r"C:\Users\asces\OneDriveUni\Projects\RL_control\boptest_model\generated_files\models\only_ahu_model\model_parameters\estimation_results\LS_result\20250314_163600_ls.pickle"
+    envelope_filepath = r"C:\repos\RL_control\boptest_model\generated_files\models\only_rooms_estimation\model_parameters\estimation_results\LS_result\mix_day_most_accurate_08042025.pickle"
+    vavs_filepath = r"C:\repos\RL_control\boptest_model\generated_files\models\vav_controllers_param_est\model_parameters\estimation_results\LS_result\20250506_095811_ls.pickle"
+    ahu_filepath = r"C:\repos\RL_control\boptest_model\generated_files\models\only_ahu_model\model_parameters\estimation_results\LS_result\20250314_163600_ls.pickle"
     parameter_filenames = {"envelope": envelope_filepath, "vavs": vavs_filepath, "ahu": ahu_filepath}
     # Load model with estimated parameters and run simulation
     model = get_model(id=model_id)
@@ -1066,9 +1070,9 @@ def load_model_and_params(model_id="rooms_and_ahu_model"):
     return model
 
 if __name__ == "__main__":
-    envelope_filepath = r"C:\Users\asces\OneDriveUni\Projects\RL_control\boptest_model\generated_files\models\only_rooms_estimation\model_parameters\estimation_results\LS_result\mix_day_most_accurate_08042025.pickle"
-    vavs_filepath = r"C:\Users\asces\OneDriveUni\Projects\RL_control\boptest_model\generated_files\models\vav_controllers_param_est\model_parameters\estimation_results\LS_result\20250506_095811_ls.pickle"
-    ahu_filepath = r"C:\Users\asces\OneDriveUni\Projects\RL_control\boptest_model\generated_files\models\only_ahu_model\model_parameters\estimation_results\LS_result\20250314_163600_ls.pickle"
+    envelope_filepath = r"C:\repos\RL_control\boptest_model\generated_files\models\only_rooms_estimation\model_parameters\estimation_results\LS_result\mix_day_most_accurate_08042025.pickle"
+    vavs_filepath = r"C:\repos\RL_control\boptest_model\generated_files\models\vav_controllers_param_est\model_parameters\estimation_results\LS_result\20250506_095811_ls.pickle"
+    ahu_filepath = r"C:\repos\RL_control\boptest_model\generated_files\models\only_ahu_model\model_parameters\estimation_results\LS_result\20250314_163600_ls.pickle"
     parameter_filenames = {"envelope": envelope_filepath, "vavs": vavs_filepath, "ahu": ahu_filepath}
     parameter_evaluation(model_output_points, parameter_filenames, save_plots=True)
     #rooms_parameter_estimation()

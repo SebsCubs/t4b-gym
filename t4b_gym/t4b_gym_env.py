@@ -624,8 +624,11 @@ class T4BGymEnv(gym.Env):
                 
             # Pad with last value to reach desired length
             padding_length = self.forecast_horizon + 1 - len(forecast)
-            padding = pd.Series([last_value] * padding_length)
-            forecast = pd.concat([forecast, padding])
+            if padding_length > 0:  # Only pad if we actually need padding
+                # Create the full forecast array with padding
+                full_forecast_values = list(forecast.values) + [last_value] * padding_length
+                # Create a new Series with the complete data
+                forecast = pd.Series(full_forecast_values)
             
         return forecast
 

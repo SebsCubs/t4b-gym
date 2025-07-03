@@ -247,39 +247,117 @@ def plot_results(simulator: tb.Simulator, rewards = None, plotting_stepSize=600,
                     plt.savefig(f'plots/{room}_co2.png')
             #plt.show()
 
-        #Calculate temperature violation penalty
+
+        #Create plots for the AHU quantities
+        ahu_quantities = [
+            {
+                'component_id': 'vent_supply_air_temp_sensor',
+                'output_value': 'measuredValue'
+            },
+            {
+                'component_id': 'vent_mixed_air_temp_sensor',
+                'output_value': 'measuredValue'
+            },
+            {
+                'component_id': 'vent_airflow_sensor',
+                'output_value': 'measuredValue'
+            },
+            {
+                'component_id': 'vent_return_airflow_sensor_ahu',
+                'output_value': 'measuredValue'
+            },
+            {
+                'component_id': 'vent_power_sensor',
+                'output_value': 'measuredValue'
+            },
+            {
+                'component_id': 'vent_return_air_temp_sensor',
+                'output_value': 'measuredValue'
+            }
+        ]
+        for quantity in ahu_quantities:
+            plt.figure(figsize=(12, 6))
+            quantity_data = simulator.model.components[quantity['component_id']].savedOutput[quantity['output_value']]
+            quantity_df = pd.Series(data=quantity_data, index=sim_times)
+            quantity_df.index = quantity_df.index.tz_convert('Europe/Copenhagen')
+            quantity_df = quantity_df.resample(pd.Timedelta(seconds=plotting_stepSize)).mean()
+            plt.plot(quantity_df.index, quantity_df.values, label=quantity['component_id'], linewidth=2)
+            plt.title(f'{quantity["component_id"]} - {quantity["output_value"]}')
+            plt.xlabel('Time')
+            plt.ylabel(quantity['output_value'])
+            plt.legend()
+            plt.grid(True)
+            plt.xticks(rotation=45)
+            plt.tight_layout()
+            if save_plots:
+                os.makedirs('plots', exist_ok=True)
+                plt.savefig(f'plots/{quantity["component_id"]}_{quantity["output_value"]}.png')
+            #plt.show()
+
+        #Calculate temperature violation penalty with 1-degree deadband
+        step_size_seconds = 600  # Simulation step size in seconds
+        
+        # Core room temperature violations
         core_temperature = np.array(simulator.model.components["core_indoor_temp_sensor"].savedOutput["measuredValue"])
         core_heating_temperature_setpoint = np.array(simulator.model.components["core_temperature_heating_setpoint"].savedOutput["scheduleValue"])
         core_cooling_temperature_setpoint = np.array(simulator.model.components["core_temperature_cooling_setpoint"].savedOutput["scheduleValue"])
-        core_temp_set_violation = np.sum(np.maximum(0, core_heating_temperature_setpoint - core_temperature)) + np.sum(np.maximum(0, core_temperature - core_cooling_temperature_setpoint))
-        print(f"Core temp set violation: {core_temp_set_violation/10}")
+        
+        # Apply 1-degree deadband: upper bound = cooling_setpoint + 1, lower bound = heating_setpoint - 1
+        core_upper_bound = core_cooling_temperature_setpoint + 1
+        core_lower_bound = core_heating_temperature_setpoint - 1
+        core_violations = (core_temperature > core_upper_bound) | (core_temperature < core_lower_bound)
+        core_temp_set_violation_seconds = np.sum(core_violations) * step_size_seconds
+        print(f"Core temp set violation: {core_temp_set_violation_seconds} seconds")
 
+        # North room temperature violations
         north_temperature = np.array(simulator.model.components["north_indoor_temp_sensor"].savedOutput["measuredValue"])
         north_heating_temperature_setpoint = np.array(simulator.model.components["north_temperature_heating_setpoint"].savedOutput["scheduleValue"])
         north_cooling_temperature_setpoint = np.array(simulator.model.components["north_temperature_cooling_setpoint"].savedOutput["scheduleValue"])
-        north_temp_set_violation = np.sum(np.maximum(0, north_heating_temperature_setpoint - north_temperature)) + np.sum(np.maximum(0, north_temperature - north_cooling_temperature_setpoint))
-        print(f"North temp set violation: {north_temp_set_violation/10}")
+        
+        north_upper_bound = north_cooling_temperature_setpoint + 1
+        north_lower_bound = north_heating_temperature_setpoint - 1
+        north_violations = (north_temperature > north_upper_bound) | (north_temperature < north_lower_bound)
+        north_temp_set_violation_seconds = np.sum(north_violations) * step_size_seconds
+        print(f"North temp set violation: {north_temp_set_violation_seconds} seconds")
 
+        # East room temperature violations
         east_temperature = np.array(simulator.model.components["east_indoor_temp_sensor"].savedOutput["measuredValue"])
         east_heating_temperature_setpoint = np.array(simulator.model.components["east_temperature_heating_setpoint"].savedOutput["scheduleValue"])
         east_cooling_temperature_setpoint = np.array(simulator.model.components["east_temperature_cooling_setpoint"].savedOutput["scheduleValue"])
-        east_temp_set_violation = np.sum(np.maximum(0, east_heating_temperature_setpoint - east_temperature)) + np.sum(np.maximum(0, east_temperature - east_cooling_temperature_setpoint))
-        print(f"East temp set violation: {east_temp_set_violation/10}")
+        
+        east_upper_bound = east_cooling_temperature_setpoint + 1
+        east_lower_bound = east_heating_temperature_setpoint - 1
+        east_violations = (east_temperature > east_upper_bound) | (east_temperature < east_lower_bound)
+        east_temp_set_violation_seconds = np.sum(east_violations) * step_size_seconds
+        print(f"East temp set violation: {east_temp_set_violation_seconds} seconds")
 
+        # South room temperature violations
         south_temperature = np.array(simulator.model.components["south_indoor_temp_sensor"].savedOutput["measuredValue"])
         south_heating_temperature_setpoint = np.array(simulator.model.components["south_temperature_heating_setpoint"].savedOutput["scheduleValue"])
         south_cooling_temperature_setpoint = np.array(simulator.model.components["south_temperature_cooling_setpoint"].savedOutput["scheduleValue"])
-        south_temp_set_violation = np.sum(np.maximum(0, south_heating_temperature_setpoint - south_temperature)) + np.sum(np.maximum(0, south_temperature - south_cooling_temperature_setpoint))
-        print(f"South temp set violation: {south_temp_set_violation/10}")
+        
+        south_upper_bound = south_cooling_temperature_setpoint + 1
+        south_lower_bound = south_heating_temperature_setpoint - 1
+        south_violations = (south_temperature > south_upper_bound) | (south_temperature < south_lower_bound)
+        south_temp_set_violation_seconds = np.sum(south_violations) * step_size_seconds
+        print(f"South temp set violation: {south_temp_set_violation_seconds} seconds")
 
+        # West room temperature violations
         west_temperature = np.array(simulator.model.components["west_indoor_temp_sensor"].savedOutput["measuredValue"])
         west_heating_temperature_setpoint = np.array(simulator.model.components["west_temperature_heating_setpoint"].savedOutput["scheduleValue"])
         west_cooling_temperature_setpoint = np.array(simulator.model.components["west_temperature_cooling_setpoint"].savedOutput["scheduleValue"])
-        west_temp_set_violation = np.sum(np.maximum(0, west_heating_temperature_setpoint - west_temperature)) + np.sum(np.maximum(0, west_temperature - west_cooling_temperature_setpoint))
-        print(f"West temp set violation: {west_temp_set_violation/10}")
+        
+        west_upper_bound = west_cooling_temperature_setpoint + 1
+        west_lower_bound = west_heating_temperature_setpoint - 1
+        west_violations = (west_temperature > west_upper_bound) | (west_temperature < west_lower_bound)
+        west_temp_set_violation_seconds = np.sum(west_violations) * step_size_seconds
+        print(f"West temp set violation: {west_temp_set_violation_seconds} seconds")
 
-        temp_violation_penalty = 10 * (core_temp_set_violation + north_temp_set_violation + east_temp_set_violation + south_temp_set_violation + west_temp_set_violation)
-        print(f"Temp violation penalty: {temp_violation_penalty}")
+        # Total temperature violation time in seconds
+        total_temp_violation_seconds = (core_temp_set_violation_seconds + north_temp_set_violation_seconds + 
+                                      east_temp_set_violation_seconds + south_temp_set_violation_seconds + 
+                                      west_temp_set_violation_seconds)
+        print(f"Total temperature violation time: {total_temp_violation_seconds} seconds")
 
         # Calculate the energy consumption
         core_outlet_water_temperature = np.array(simulator.model.components["core_reheat_coil"].savedOutput["outletWaterTemperature"])
@@ -299,7 +377,7 @@ def plot_results(simulator: tb.Simulator, rewards = None, plotting_stepSize=600,
 
         room_water_temp_difference_penalty = (core_room_water_temp_difference + north_room_water_temp_difference + east_room_water_temp_difference + south_room_water_temp_difference + west_room_water_temp_difference)
 
-        print(f"Sum of room water temp difference: {np.average(room_water_temp_difference_penalty)}")
+        print(f"Average room water temp difference: {np.average(room_water_temp_difference_penalty):.2f} °C")
 
         #plot the room water temp difference
         plt.figure(figsize=(12, 6))
@@ -315,13 +393,13 @@ def plot_results(simulator: tb.Simulator, rewards = None, plotting_stepSize=600,
 
         # AHU power consumption
         fan_power = np.array(simulator.model.components["vent_power_sensor"].savedOutput["measuredValue"])
-        print(f"Fan power: {np.average(fan_power)}")
+        print(f"Average fan power: {np.average(fan_power):.1f} W")
         supply_cooling_coil_power = np.array(simulator.model.components["supply_cooling_coil"].savedOutput["Power"])
-        print(f"Supply cooling coil power: {np.average(supply_cooling_coil_power)}")
+        print(f"Average supply cooling coil power: {np.average(supply_cooling_coil_power):.1f} W")
         supply_heating_coil_power = np.array(simulator.model.components["supply_heating_coil"].savedOutput["Power"])
-        print(f"Supply heating coil power: {np.average(supply_heating_coil_power)}")
+        print(f"Average supply heating coil power: {np.average(supply_heating_coil_power):.1f} W")
         ahu_power_consumption_penalty = fan_power + supply_cooling_coil_power + supply_heating_coil_power
-        print(f"AHU power consumption: {np.average(ahu_power_consumption_penalty)}")
+        print(f"Average total AHU power consumption: {np.average(ahu_power_consumption_penalty):.1f} W")
 
         #plot the fan power consumption
         plt.figure(figsize=(12, 6))

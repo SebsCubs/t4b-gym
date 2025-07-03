@@ -89,7 +89,7 @@ def PPO_training(test_model_flag=False, reload_model_flag=False):
                 
 
        
-                temp_violation_penalty = 100000 * (core_temp_set_violation + north_temp_set_violation + east_temp_set_violation + south_temp_set_violation + west_temp_set_violation)
+                temp_violation_penalty = 10000 * (core_temp_set_violation + north_temp_set_violation + east_temp_set_violation + south_temp_set_violation + west_temp_set_violation)
 
                 #power consumption penalty
                 core_outlet_water_temperature = self.simulator.model.components["core_reheat_coil"].output["outletWaterTemperature"]
@@ -120,7 +120,11 @@ def PPO_training(test_model_flag=False, reload_model_flag=False):
                 if np.isnan(objective_integrand):
                     raise ValueError("Reward is not a number")
                 
-                reward = - objective_integrand/1000 #scale the reward to be more manageable              
+                objective_integrand = objective_integrand/1000 #scale the reward to be more manageable                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    
+
+                reward = -(objective_integrand-self.previous_objective)       
+                
+                self.previous_objective = objective_integrand
 
                 return reward
 
@@ -145,7 +149,7 @@ def PPO_training(test_model_flag=False, reload_model_flag=False):
         env = Monitor(env=env, filename=os.path.join(log_dir,'monitor.csv'))
 
         if test_model_flag:
-            model_path = os.path.join(log_dir, "ppo_model.zip")
+            model_path = os.path.join(log_dir, "c_1100k.zip")
             model = PPO.load(model_path, env=env, device=device)
             #print training steps
             print(f"Training steps: {model.num_timesteps}")
@@ -162,15 +166,15 @@ def PPO_training(test_model_flag=False, reload_model_flag=False):
 
         # Train the model
         if reload_model_flag:
-            model_path = os.path.join(log_dir, "b_300k.zip")
+            model_path = os.path.join(log_dir, "c_1200k.zip")
             model = PPO.load(model_path, env=env, device=device)
-            model.learn(total_timesteps=200000, callback=callback, reset_num_timesteps=False)
+            model.learn(total_timesteps=100000, callback=callback, reset_num_timesteps=False)
         else:
-            model.learn(total_timesteps=200000, callback=callback)
+            model.learn(total_timesteps=100000, callback=callback)
 
         # Save the model
         model.save(os.path.join(log_dir, "ppo_model"))
 
 
 if __name__ == "__main__":
-    PPO_training(test_model_flag=False, reload_model_flag=False)
+    PPO_training(test_model_flag=True, reload_model_flag=True)
