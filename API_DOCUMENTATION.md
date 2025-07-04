@@ -1,4 +1,4 @@
-# T4B Gym API Documentation
+# T4B Gym Documentation
 
 ## Overview
 
