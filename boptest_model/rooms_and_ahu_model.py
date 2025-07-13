@@ -19,77 +19,77 @@ model_output_points = [
     {
         'component_id': 'core_indoor_temp_sensor',
         'output_value': 'measuredValue',
-        'csv_path': 'C:/Users/asces/OneDriveUni/Projects/RL_control/boptest_model/boptest_handler/data/merged_data/hvac_reaZonCor_TZon_y_processed.csv'
+        'csv_path': 'C:/repos/RL_control/boptest_model/boptest_handler/data/merged_data/hvac_reaZonCor_TZon_y_processed.csv'
     },
     {
         'component_id': 'core_co2_sensor',
         'output_value': 'measuredValue',
-        'csv_path': 'C:/Users/asces/OneDriveUni/Projects/RL_control/boptest_model/boptest_handler/data/merged_data/hvac_reaZonCor_CO2Zon_y_processed.csv'
+        'csv_path': 'C:/repos/RL_control/boptest_model/boptest_handler/data/merged_data/hvac_reaZonCor_CO2Zon_y_processed.csv'
     },
     {
         'component_id': 'north_indoor_temp_sensor',
         'output_value': 'measuredValue',
-        'csv_path': 'C:/Users/asces/OneDriveUni/Projects/RL_control/boptest_model/boptest_handler/data/merged_data/hvac_reaZonNor_TZon_y_processed.csv'
+        'csv_path': 'C:/repos/RL_control/boptest_model/boptest_handler/data/merged_data/hvac_reaZonNor_TZon_y_processed.csv'
     },
     {
         'component_id': 'north_co2_sensor',
         'output_value': 'measuredValue',
-        'csv_path': 'C:/Users/asces/OneDriveUni/Projects/RL_control/boptest_model/boptest_handler/data/merged_data/hvac_reaZonNor_CO2Zon_y_processed.csv'
+        'csv_path': 'C:/repos/RL_control/boptest_model/boptest_handler/data/merged_data/hvac_reaZonNor_CO2Zon_y_processed.csv'
     },
     {
         'component_id': 'south_indoor_temp_sensor',
         'output_value': 'measuredValue',
-        'csv_path': 'C:/Users/asces/OneDriveUni/Projects/RL_control/boptest_model/boptest_handler/data/merged_data/hvac_reaZonSou_TZon_y_processed.csv'
+        'csv_path': 'C:/repos/RL_control/boptest_model/boptest_handler/data/merged_data/hvac_reaZonSou_TZon_y_processed.csv'
     },
     {
         'component_id': 'south_co2_sensor',
         'output_value': 'measuredValue',
-        'csv_path': 'C:/Users/asces/OneDriveUni/Projects/RL_control/boptest_model/boptest_handler/data/merged_data/hvac_reaZonSou_CO2Zon_y_processed.csv'
+        'csv_path': 'C:/repos/RL_control/boptest_model/boptest_handler/data/merged_data/hvac_reaZonSou_CO2Zon_y_processed.csv'
     },
     {
         'component_id': 'east_indoor_temp_sensor',
         'output_value': 'measuredValue',
-        'csv_path': 'C:/Users/asces/OneDriveUni/Projects/RL_control/boptest_model/boptest_handler/data/merged_data/hvac_reaZonEas_TZon_y_processed.csv'
+        'csv_path': 'C:/repos/RL_control/boptest_model/boptest_handler/data/merged_data/hvac_reaZonEas_TZon_y_processed.csv'
     },
     {
         'component_id': 'east_co2_sensor',
         'output_value': 'measuredValue',
-        'csv_path': 'C:/Users/asces/OneDriveUni/Projects/RL_control/boptest_model/boptest_handler/data/merged_data/hvac_reaZonEas_CO2Zon_y_processed.csv'
+        'csv_path': 'C:/repos/RL_control/boptest_model/boptest_handler/data/merged_data/hvac_reaZonEas_CO2Zon_y_processed.csv'
     },
     {
         'component_id': 'west_indoor_temp_sensor',
         'output_value': 'measuredValue',
-        'csv_path': 'C:/Users/asces/OneDriveUni/Projects/RL_control/boptest_model/boptest_handler/data/merged_data/hvac_reaZonWes_TZon_y_processed.csv'
+        'csv_path': 'C:/repos/RL_control/boptest_model/boptest_handler/data/merged_data/hvac_reaZonWes_TZon_y_processed.csv'
     },
     {
         'component_id': 'west_co2_sensor',
         'output_value': 'measuredValue',
-        'csv_path': 'C:/Users/asces/OneDriveUni/Projects/RL_control/boptest_model/boptest_handler/data/merged_data/hvac_reaZonWes_CO2Zon_y_processed.csv'
+        'csv_path': 'C:/repos/RL_control/boptest_model/boptest_handler/data/merged_data/hvac_reaZonWes_CO2Zon_y_processed.csv'
     },
     {
         'component_id': 'vent_supply_airflow_sensor',
         'output_value': 'measuredValue',
-        'csv_path': 'C:/Users/asces/OneDriveUni/Projects/RL_control/boptest_model/boptest_handler/data/merged_data/hvac_reaAhu_V_flow_sup_y_processed.csv'
+        'csv_path': 'C:/repos/RL_control/boptest_model/boptest_handler/data/merged_data/hvac_reaAhu_V_flow_sup_y_processed.csv'
     },
     {
         'component_id': 'vent_return_air_temp_sensor',
         'output_value': 'measuredValue',
-        'csv_path': 'C:/Users/asces/OneDriveUni/Projects/RL_control/boptest_model/boptest_handler/data/merged_data/hvac_reaAhu_TRet_y_processed.csv'
+        'csv_path': 'C:/repos/RL_control/boptest_model/boptest_handler/data/merged_data/hvac_reaAhu_TRet_y_processed.csv'
     },
     {
         'component_id': 'vent_return_airflow_sensor',
         'output_value': 'measuredValue',
-        'csv_path': 'C:/Users/asces/OneDriveUni/Projects/RL_control/boptest_model/boptest_handler/data/merged_data/hvac_reaAhu_V_flow_ret_y_processed.csv'
+        'csv_path': 'C:/repos/RL_control/boptest_model/boptest_handler/data/merged_data/hvac_reaAhu_V_flow_ret_y_processed.csv'
     },
     {
         'component_id': 'vent_supply_air_temp_sensor',
         'output_value': 'measuredValue',
-        'csv_path': 'C:/Users/asces/OneDriveUni/Projects/RL_control/boptest_model/boptest_handler/data/merged_data/hvac_reaAhu_TSup_y_processed.csv'
+        'csv_path': 'C:/repos/RL_control/boptest_model/boptest_handler/data/merged_data/hvac_reaAhu_TSup_y_processed.csv'
     },
     {
         'component_id': 'supply_fan',
         'output_value': 'Power',
-        'csv_path': 'C:/Users/asces/OneDriveUni/Projects/RL_control/boptest_model/boptest_handler/data/merged_data/hvac_reaAhu_PFanSup_y_processed.csv'
+        'csv_path': 'C:/repos/RL_control/boptest_model/boptest_handler/data/merged_data/hvac_reaAhu_PFanSup_y_processed.csv'
     }
 ]
 
@@ -427,13 +427,13 @@ def ahu_fcn(self):
     # Add AHU heating coil
     supply_heating_coil = tb.CoilHeatingSystem(id="supply_heating_coil", saveSimulationResult=True)
     self.add_connection(vent_mixed_air_temp_sensor, supply_heating_coil, "measuredValue", "inletAirTemperature")
-    self.add_connection(vent_airflow_sensor, supply_heating_coil, "measuredValue", "airFlowRate")
+    self.add_connection(self.components["vent_supply_airflow_sensor"], supply_heating_coil, "measuredValue", "airFlowRate")
     self.add_connection(supply_air_temp_setpoint_sensor, supply_heating_coil, "measuredValue", "outletAirTemperatureSetpoint")
 
     # Add AHU cooling coil
     supply_cooling_coil = tb.CoilCoolingSystem(id="supply_cooling_coil", saveSimulationResult=True)
     self.add_connection(supply_heating_coil, supply_cooling_coil, "outletAirTemperature", "inletAirTemperature")
-    self.add_connection(vent_airflow_sensor, supply_cooling_coil, "measuredValue", "airFlowRate")
+    self.add_connection(self.components["vent_supply_airflow_sensor"], supply_cooling_coil, "measuredValue", "airFlowRate")
     self.add_connection(supply_air_temp_setpoint_sensor, supply_cooling_coil, "measuredValue", "outletAirTemperatureSetpoint")
     self.add_connection(supply_cooling_coil, vent_supply_air_temp_sensor, "outletAirTemperature", "measuredValue")
 
@@ -924,7 +924,49 @@ def load_and_print_parameters(filename):
     print("Resulting parameters:")
     print_parameter_results(model)
 
-def parameter_evaluation(data_points, parameter_filenames:dict, save_plots=False):
+def load_model_parameters(model_id="rooms_and_ahu_estimation"):
+    """Load model with all estimated parameters from various estimation results.
+    
+    Args:
+        model_id: ID for the model instance
+        
+    Returns:
+        Model with all parameters loaded
+    """
+    envelope_filepath = r"C:\repos\RL_control\boptest_model\generated_files\models\only_rooms_estimation\model_parameters\estimation_results\LS_result\mix_day_most_accurate_08042025.pickle"
+    vavs_filepath = r"C:\repos\RL_control\boptest_model\generated_files\models\vav_controllers_param_est\model_parameters\estimation_results\LS_result\20250506_095811_ls.pickle"
+    ahu_filepath = r"C:\repos\RL_control\boptest_model\generated_files\models\only_ahu_model\model_parameters\estimation_results\LS_result\20250314_163600_ls.pickle"
+    parameter_filenames = {"envelope": envelope_filepath, "vavs": vavs_filepath, "ahu": ahu_filepath}
+    
+    # Load model with estimated parameters
+    model = get_model(id=model_id)
+    model.load_estimation_result(parameter_filenames["envelope"])
+    model.load_estimation_result(parameter_filenames["vavs"])
+    model.load_estimation_result(parameter_filenames["ahu"])
+    
+    # Apply manual parameter adjustments
+    north = model.components["north"]
+    north.C_boundary = 94407.559
+    north.Q_occ_gain = 150 #224.04964129088137
+
+    east = model.components["east"]
+    east.C_boundary = 31197951.98026053
+    east.Q_occ_gain = 150 #232.5238692961377
+
+    south = model.components["south"]
+    south.Q_occ_gain = 150 #232.5238692961377
+
+    west = model.components["west"]
+    west.Q_occ_gain = 150 #232.5238692961377
+    
+    # Load additional estimation results
+    model.load_estimation_result(r"C:\repos\RL_control\boptest_model\generated_files\models\rooms_and_ahu_estimation\model_parameters\estimation_results\LS_result\damper_params_13_06.pickle")
+    model.load_estimation_result(r"C:\repos\RL_control\boptest_model\generated_files\models\rooms_and_ahu_estimation\model_parameters\estimation_results\LS_result\fan_params_13_06.pickle")
+    model.load_estimation_result(r"C:\repos\RL_control\boptest_model\generated_files\models\rooms_and_ahu_estimation\model_parameters\estimation_results\LS_result\20250613_122822_ls.pickle")
+
+    return model
+
+def parameter_evaluation(data_points, save_plots=False):
     """Evaluate model parameters by comparing simulation results with real data.
     
     Args:
@@ -946,32 +988,8 @@ def parameter_evaluation(data_points, parameter_filenames:dict, save_plots=False
     ]
     """
     
-    # Load model with estimated parameters and run simulation
-    model = get_model(id="rooms_and_ahu_estimation")
-    model.load_estimation_result(parameter_filenames["envelope"])
-    model.load_estimation_result(parameter_filenames["vavs"])
-    model.load_estimation_result(parameter_filenames["ahu"])
-    
-    
-    north = model.components["north"]
-    north.C_boundary = 94407.559
-    north.Q_occ_gain = 150 #224.04964129088137
-
-    east = model.components["east"]
-    east.C_boundary = 31197951.98026053
-    east.Q_occ_gain = 150 #232.5238692961377
-
-    south = model.components["south"]
-    south.Q_occ_gain = 150 #232.5238692961377
-
-    west = model.components["west"]
-    west.Q_occ_gain = 150 #232.5238692961377
-    
-    model.load_estimation_result(r"C:\repos\RL_control\boptest_model\generated_files\models\rooms_and_ahu_estimation\model_parameters\estimation_results\LS_result\damper_params_13_06.pickle")
-    
-    model.load_estimation_result(r"C:\repos\RL_control\boptest_model\generated_files\models\rooms_and_ahu_estimation\model_parameters\estimation_results\LS_result\fan_params_13_06.pickle")
-
-    model.load_estimation_result(r"C:\repos\RL_control\boptest_model\generated_files\models\rooms_and_ahu_estimation\model_parameters\estimation_results\LS_result\20250613_122822_ls.pickle")
+    # Load model with all estimated parameters
+    model = load_model_parameters()
 
     print("Resulting parameters:")
     print_parameter_results(model)
@@ -1042,38 +1060,18 @@ def parameter_evaluation(data_points, parameter_filenames:dict, save_plots=False
 
 
 def load_model_and_params(model_id="rooms_and_ahu_model"):
-    envelope_filepath = r"C:\repos\RL_control\boptest_model\generated_files\models\only_rooms_estimation\model_parameters\estimation_results\LS_result\mix_day_most_accurate_08042025.pickle"
-    vavs_filepath = r"C:\repos\RL_control\boptest_model\generated_files\models\vav_controllers_param_est\model_parameters\estimation_results\LS_result\20250506_095811_ls.pickle"
-    ahu_filepath = r"C:\repos\RL_control\boptest_model\generated_files\models\only_ahu_model\model_parameters\estimation_results\LS_result\20250314_163600_ls.pickle"
-    parameter_filenames = {"envelope": envelope_filepath, "vavs": vavs_filepath, "ahu": ahu_filepath}
-    # Load model with estimated parameters and run simulation
-    model = get_model(id=model_id)
-    model.load_estimation_result(parameter_filenames["envelope"])
-    model.load_estimation_result(parameter_filenames["vavs"])
-    model.load_estimation_result(parameter_filenames["ahu"])
+    """Load model with all estimated parameters.
     
-    
-    north = model.components["north"]
-    north.C_boundary = 94407.559
-    north.Q_occ_gain = 150 #224.04964129088137
-
-    east = model.components["east"]
-    east.C_boundary = 31197951.98026053
-    east.Q_occ_gain = 150 #232.5238692961377
-
-    south = model.components["south"]
-    south.Q_occ_gain = 150 #232.5238692961377
-
-    west = model.components["west"]
-    west.Q_occ_gain = 150 #232.5238692961377
-
-    return model
+    Args:
+        model_id: ID for the model instance
+        
+    Returns:
+        Model with all parameters loaded
+    """
+    return load_model_parameters(model_id)
 
 if __name__ == "__main__":
-    envelope_filepath = r"C:\repos\RL_control\boptest_model\generated_files\models\only_rooms_estimation\model_parameters\estimation_results\LS_result\mix_day_most_accurate_08042025.pickle"
-    vavs_filepath = r"C:\repos\RL_control\boptest_model\generated_files\models\vav_controllers_param_est\model_parameters\estimation_results\LS_result\20250506_095811_ls.pickle"
-    ahu_filepath = r"C:\repos\RL_control\boptest_model\generated_files\models\only_ahu_model\model_parameters\estimation_results\LS_result\20250314_163600_ls.pickle"
-    parameter_filenames = {"envelope": envelope_filepath, "vavs": vavs_filepath, "ahu": ahu_filepath}
-    parameter_evaluation(model_output_points, parameter_filenames, save_plots=True)
+
+    parameter_evaluation(data_points = model_output_points, save_plots=True)
     #rooms_parameter_estimation()
     

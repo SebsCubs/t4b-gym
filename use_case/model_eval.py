@@ -311,7 +311,7 @@ def plot_results(simulator: tb.Simulator, rewards = None, plotting_stepSize=600,
 
         # North room temperature violations
         north_temperature = np.array(simulator.model.components["north_indoor_temp_sensor"].savedOutput["measuredValue"])
-        north_heating_temperature_setpoint = np.array(simulator.model.components["north_temperature_heating_setpoint"].savedOutput["scheduleValue"])
+        north_heating_temperature_setpoint = np.array(simulator.model.components["north_temperature_heating_setpoint" ].savedOutput["scheduleValue"])
         north_cooling_temperature_setpoint = np.array(simulator.model.components["north_temperature_cooling_setpoint"].savedOutput["scheduleValue"])
         
         north_upper_bound = north_cooling_temperature_setpoint + 1

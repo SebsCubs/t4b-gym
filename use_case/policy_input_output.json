@@ -8,22 +8,6 @@
                 "description": "AHU supply air temperature setpoint"
             }
         },
-        "main_supply_damper": {
-            "damperPosition": {
-                "signal_key" : "damperPosition",
-                "min": 0,
-                "max": 1,
-                "description": "Supply and returndamper position"
-            }
-        },
-        "main_mixing_damper": {
-            "damperPosition": {
-                "signal_key" : "damperPosition",
-                "min": 0,
-                "max": 1,
-                "description": "Mixing damper position"
-            }
-        },
         "core_temperature_heating_controller": {
             "heatingsetpointValue": {
                 "signal_key" : "heatingsetpointValue",
