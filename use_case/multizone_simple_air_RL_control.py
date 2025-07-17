@@ -48,85 +48,52 @@ def PPO_training(test_model_flag=False, reload_model_flag=False):
                 
                 
             def get_reward(self, action, observation):
-                core_temperature = self.simulator.model.components["core_indoor_temp_sensor"].output["measuredValue"]
-                core_heating_temperature_setpoint = self.simulator.model.components["core_temperature_heating_setpoint"].output["scheduleValue"]
-                core_cooling_temperature_setpoint = self.simulator.model.components["core_temperature_cooling_setpoint"].output["scheduleValue"]
-                core_heating_violation = max(0, core_heating_temperature_setpoint - core_temperature)
-                core_cooling_violation = max(0, core_temperature - core_cooling_temperature_setpoint)
-                core_temp_set_violation = core_heating_violation + core_cooling_violation + np.exp(1+core_heating_violation) + np.exp(1+core_cooling_violation)
+                # Temperature violations for all zones
+                zones = ['core', 'north', 'east', 'south', 'west']
+                temp_violations = []
                 
-
-                north_temperature = self.simulator.model.components["north_indoor_temp_sensor"].output["measuredValue"]
-                north_heating_temperature_setpoint = self.simulator.model.components["north_temperature_heating_setpoint"].output["scheduleValue"]
-                north_cooling_temperature_setpoint = self.simulator.model.components["north_temperature_cooling_setpoint"].output["scheduleValue"]
-                north_heating_violation = max(0, north_heating_temperature_setpoint - north_temperature)
-                north_cooling_violation = max(0, north_temperature - north_cooling_temperature_setpoint)
-                north_temp_set_violation = north_heating_violation + north_cooling_violation + np.exp(1+north_heating_violation) + np.exp(1+north_cooling_violation)
-           
-
-                east_temperature = self.simulator.model.components["east_indoor_temp_sensor"].output["measuredValue"]
-                east_heating_temperature_setpoint = self.simulator.model.components["east_temperature_heating_setpoint"].output["scheduleValue"]
-                east_cooling_temperature_setpoint = self.simulator.model.components["east_temperature_cooling_setpoint"].output["scheduleValue"]
-                east_heating_violation = max(0, east_heating_temperature_setpoint - east_temperature)
-                east_cooling_violation = max(0, east_temperature - east_cooling_temperature_setpoint)
-                east_temp_set_violation = east_heating_violation + east_cooling_violation + np.exp(1+east_heating_violation) + np.exp(1+east_cooling_violation)
+                for zone in zones:
+                    temp = self.simulator.model.components[f"{zone}_indoor_temp_sensor"].output["measuredValue"]
+                    heating_setpoint = self.simulator.model.components[f"{zone}_temperature_heating_setpoint"].output["scheduleValue"]
+                    cooling_setpoint = self.simulator.model.components[f"{zone}_temperature_cooling_setpoint"].output["scheduleValue"]
+                    
+                    # Calculate violations with deadband
+                    heating_violation = max(0, heating_setpoint - temp)
+                    cooling_violation = max(0, temp - cooling_setpoint)
+                    
+                    # Use quadratic penalty instead of exponential for stability
+                    zone_violation = heating_violation**2 + cooling_violation**2
+                    temp_violations.append(zone_violation)
                 
-
-                south_temperature = self.simulator.model.components["south_indoor_temp_sensor"].output["measuredValue"]
-                south_heating_temperature_setpoint = self.simulator.model.components["south_temperature_heating_setpoint"].output["scheduleValue"]
-                south_cooling_temperature_setpoint = self.simulator.model.components["south_temperature_cooling_setpoint"].output["scheduleValue"]
-                south_heating_violation = max(0, south_heating_temperature_setpoint - south_temperature)
-                south_cooling_violation = max(0, south_temperature - south_cooling_temperature_setpoint)
-                south_temp_set_violation = south_heating_violation + south_cooling_violation + np.exp(1+south_heating_violation) + np.exp(1+south_cooling_violation)
-               
-
-                west_temperature = self.simulator.model.components["west_indoor_temp_sensor"].output["measuredValue"]
-                west_heating_temperature_setpoint = self.simulator.model.components["west_temperature_heating_setpoint"].output["scheduleValue"]
-                west_cooling_temperature_setpoint = self.simulator.model.components["west_temperature_cooling_setpoint"].output["scheduleValue"]
-                west_heating_violation = max(0, west_heating_temperature_setpoint - west_temperature)
-                west_cooling_violation = max(0, west_temperature - west_cooling_temperature_setpoint)
-                west_temp_set_violation = west_heating_violation + west_cooling_violation + np.exp(1+west_heating_violation) + np.exp(1+west_cooling_violation)
+                # Balanced temperature penalty
+                temp_violation_penalty = 100 * sum(temp_violations)  # Reduced from 10000
                 
-
-       
-                temp_violation_penalty = 10000 * (core_temp_set_violation + north_temp_set_violation + east_temp_set_violation + south_temp_set_violation + west_temp_set_violation)
-
-                #power consumption penalty
-                core_outlet_water_temperature = self.simulator.model.components["core_reheat_coil"].output["outletWaterTemperature"]
-                north_outlet_water_temperature = self.simulator.model.components["north_reheat_coil"].output["outletWaterTemperature"]
-                east_outlet_water_temperature = self.simulator.model.components["east_reheat_coil"].output["outletWaterTemperature"]
-                south_outlet_water_temperature = self.simulator.model.components["south_reheat_coil"].output["outletWaterTemperature"]
-                west_outlet_water_temperature = self.simulator.model.components["west_reheat_coil"].output["outletWaterTemperature"]
-
-                inlet_water_temperature = self.simulator.model.components["reheat_coils_supply_water_temperature"].output["measuredValue"]
+                # Water temperature differences (energy efficiency proxy)
+                inlet_water_temp = self.simulator.model.components["reheat_coils_supply_water_temperature"].output["measuredValue"]
+                water_temp_differences = []
                 
-                #rooms water temp difference:
-                core_room_water_temp_difference = abs(core_outlet_water_temperature - inlet_water_temperature)
-                north_room_water_temp_difference = abs(north_outlet_water_temperature - inlet_water_temperature)
-                east_room_water_temp_difference = abs(east_outlet_water_temperature - inlet_water_temperature)
-                south_room_water_temp_difference = abs(south_outlet_water_temperature - inlet_water_temperature)
-                west_room_water_temp_difference = abs(west_outlet_water_temperature - inlet_water_temperature)
-
-                room_water_temp_difference_penalty = (core_room_water_temp_difference + north_room_water_temp_difference + east_room_water_temp_difference + south_room_water_temp_difference + west_room_water_temp_difference)
+                for zone in zones:
+                    outlet_temp = self.simulator.model.components[f"{zone}_reheat_coil"].output["outletWaterTemperature"]
+                    temp_diff = abs(outlet_temp - inlet_water_temp)
+                    water_temp_differences.append(temp_diff)
                 
-                #ahu power consumption penalty
+                # Moderate water temperature penalty
+                room_water_temp_difference_penalty = 10 * sum(water_temp_differences)
+                
+                # AHU power consumption
                 fan_power = self.simulator.model.components["vent_power_sensor"].output["measuredValue"]
                 supply_cooling_coil_power = self.simulator.model.components["supply_cooling_coil"].output["Power"]
                 supply_heating_coil_power = self.simulator.model.components["supply_heating_coil"].output["Power"]
-                ahu_power_consumption_penalty = fan_power + supply_cooling_coil_power + supply_heating_coil_power
-                #reward
-                objective_integrand =  temp_violation_penalty + room_water_temp_difference_penalty + ahu_power_consumption_penalty
-
-                if np.isnan(objective_integrand):
+                ahu_power_consumption_penalty = 0.01 * (fan_power + supply_cooling_coil_power + supply_heating_coil_power)
+                
+                # Total objective (static penalty)
+                reward = temp_violation_penalty + room_water_temp_difference_penalty + ahu_power_consumption_penalty
+                
+                if np.isnan(reward):
                     raise ValueError("Reward is not a number")
                 
-                objective_integrand = objective_integrand/1000 #scale the reward to be more manageable                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    
-
-                #reward = -(objective_integrand-self.previous_objective)       
                 
-                #self.previous_objective = objective_integrand
-
-                return - objective_integrand
+                return -reward
 
 
 
@@ -149,7 +116,7 @@ def PPO_training(test_model_flag=False, reload_model_flag=False):
         env = Monitor(env=env, filename=os.path.join(log_dir,'monitor.csv'))
 
         if test_model_flag:
-            model_path = os.path.join(log_dir, "best_model.zip")
+            model_path = os.path.join(log_dir, "b_1000k.zip")
             model = PPO.load(model_path, env=env, device=device)
             #print training steps
             print(f"Training steps: {model.num_timesteps}")
@@ -177,4 +144,4 @@ def PPO_training(test_model_flag=False, reload_model_flag=False):
 
 
 if __name__ == "__main__":
-    PPO_training(test_model_flag=False, reload_model_flag=False)
+    PPO_training(test_model_flag=True, reload_model_flag=False)
