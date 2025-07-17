@@ -13,6 +13,7 @@ import logging
 from stable_baselines3 import PPO
 from stable_baselines3.common.callbacks import EvalCallback
 from stable_baselines3.common.monitor import Monitor
+from stable_baselines3.common.logger import configure
 import numpy as np
 
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -35,6 +36,7 @@ def PPO_training(test_model_flag=False, reload_model_flag=False):
         
         # Create a new model
         model = load_model_and_params()
+
 
         stepSize = 600 #Seconds
         #Define the range of available data
@@ -135,8 +137,15 @@ def PPO_training(test_model_flag=False, reload_model_flag=False):
         if reload_model_flag:
             model_path = os.path.join(log_dir, "500k.zip")
             model = PPO.load(model_path, env=env, device=device)
+
+            new_logger = configure(log_dir, ['csv'])
+            model.set_logger(new_logger)
+
             model.learn(total_timesteps=1000000, callback=callback, reset_num_timesteps=False)
         else:
+            new_logger = configure(log_dir, ['csv'])
+            model.set_logger(new_logger)
+
             model.learn(total_timesteps=1000000, callback=callback)
 
         # Save the model
@@ -144,4 +153,4 @@ def PPO_training(test_model_flag=False, reload_model_flag=False):
 
 
 if __name__ == "__main__":
-    PPO_training(test_model_flag=True, reload_model_flag=False)
+    PPO_training(test_model_flag=False, reload_model_flag=False)
