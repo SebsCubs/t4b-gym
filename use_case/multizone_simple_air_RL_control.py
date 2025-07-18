@@ -64,23 +64,36 @@ def PPO_training(test_model_flag=False, reload_model_flag=False):
                     cooling_violation = max(0, temp - cooling_setpoint)
                     
                     # Use quadratic penalty instead of exponential for stability
-                    zone_violation = heating_violation**2 + cooling_violation**2
+                    zone_violation = (1+heating_violation)**2 + (1+cooling_violation)**2
                     temp_violations.append(zone_violation)
                 
                 # Balanced temperature penalty
-                temp_violation_penalty = 100 * sum(temp_violations)  # Reduced from 10000
+                temp_violation_penalty = 1000 * sum(temp_violations)  # Reduced from 10000
                 
-                # Water temperature differences (energy efficiency proxy)
-                inlet_water_temp = self.simulator.model.components["reheat_coils_supply_water_temperature"].output["measuredValue"]
-                water_temp_differences = []
+                # Estimated coil power consumption
+                coils_power_consumption = []
                 
                 for zone in zones:
-                    outlet_temp = self.simulator.model.components[f"{zone}_reheat_coil"].output["outletWaterTemperature"]
-                    temp_diff = abs(outlet_temp - inlet_water_temp)
-                    water_temp_differences.append(temp_diff)
+                    airflow_rate = self.simulator.model.components[f"{zone}_reheat_coil"].input["airFlowRate"]
+                    inlet_air_temp = self.simulator.model.components[f"{zone}_reheat_coil"].input["inletAirTemperature"]
+                    outlet_air_temp = self.simulator.model.components[f"{zone}_reheat_coil"].output["outletAirTemperature"]
+                    
+                    tol = 1e-5
+                    specificHeatCapacityAir = 1005 #J/kg/K
+                    if airflow_rate>tol:
+                        if inlet_air_temp < outlet_air_temp:
+                            Q = airflow_rate*specificHeatCapacityAir*(outlet_air_temp - inlet_air_temp)
+                            if np.isnan(Q):
+                                raise ValueError("Q is not a number")
+                            coils_power_consumption.append(Q)
+                        else:
+                            Q = 0
+                            coils_power_consumption.append(Q)
+                    else:
+                        coils_power_consumption.append(0)
                 
-                # Moderate water temperature penalty
-                room_water_temp_difference_penalty = 10 * sum(water_temp_differences)
+                # Moderate coil power consumption penalty
+                coils_power_consumption_penalty = 0.01 * sum(coils_power_consumption)
                 
                 # AHU power consumption
                 fan_power = self.simulator.model.components["vent_power_sensor"].output["measuredValue"]
@@ -89,7 +102,8 @@ def PPO_training(test_model_flag=False, reload_model_flag=False):
                 ahu_power_consumption_penalty = 0.01 * (fan_power + supply_cooling_coil_power + supply_heating_coil_power)
                 
                 # Total objective (static penalty)
-                reward = temp_violation_penalty + room_water_temp_difference_penalty + ahu_power_consumption_penalty
+                reward = temp_violation_penalty + coils_power_consumption_penalty + ahu_power_consumption_penalty
+                reward = reward/1000 #Making the number smaller for readability
                 
                 if np.isnan(reward):
                     raise ValueError("Reward is not a number")
@@ -118,7 +132,7 @@ def PPO_training(test_model_flag=False, reload_model_flag=False):
         env = Monitor(env=env, filename=os.path.join(log_dir,'monitor.csv'))
 
         if test_model_flag:
-            model_path = os.path.join(log_dir, "b_1000k.zip")
+            model_path = os.path.join(log_dir, "2000k.zip")
             model = PPO.load(model_path, env=env, device=device)
             #print training steps
             print(f"Training steps: {model.num_timesteps}")
@@ -135,7 +149,7 @@ def PPO_training(test_model_flag=False, reload_model_flag=False):
 
         # Train the model
         if reload_model_flag:
-            model_path = os.path.join(log_dir, "500k.zip")
+            model_path = os.path.join(log_dir, "2000k.zip")
             model = PPO.load(model_path, env=env, device=device)
 
             new_logger = configure(log_dir, ['csv'])
@@ -153,4 +167,4 @@ def PPO_training(test_model_flag=False, reload_model_flag=False):
 
 
 if __name__ == "__main__":
-    PPO_training(test_model_flag=False, reload_model_flag=False)
+    PPO_training(test_model_flag=True, reload_model_flag=True)
