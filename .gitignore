@@ -181,3 +181,4 @@ plot*/
 logs*/
 
 *.zip
+expert_trajectories.npz

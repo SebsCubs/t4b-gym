@@ -25,12 +25,13 @@ import pandas as pd
 logger = logging.getLogger(__name__)
 
 class GymSimulator(tb.Simulator):
-    def __init__(self, model, enable_logging: bool = False):
+    def __init__(self, model, enable_logging: bool = False, baseline_mode: bool = False):
         """Initialize the gym simulator with a twin4build model.
         
         Args:
             model: A twin4build model instance
             enable_logging: Whether to enable debug logging. Defaults to True.
+            baseline_mode: If True, do not apply control inputs (for baseline controller mode)
         """
         super().__init__(model)
         self.control_inputs: Dict[str, Dict[str, Any]] = {}  # Maps component_id to {input_name: current_value}
@@ -39,6 +40,7 @@ class GymSimulator(tb.Simulator):
         self.model = model
         # Configure logging
         self.enable_logging = enable_logging
+        self.baseline_mode = baseline_mode
         if enable_logging:
             logger.setLevel(logging.INFO)
             logger.info(f"Initialized gym_simulator with model: {model.__class__.__name__}")
@@ -103,12 +105,13 @@ class GymSimulator(tb.Simulator):
                                f"-> {component.id}.{connection_point.receiverPropertyName} = {input_value}")
         
         # Apply any control inputs for this component if it's being controlled
-        if component.id in self.control_inputs:
-            for input_name, value in self.control_inputs[component.id].items():
-                if input_name in component.input:
-                    component.input[input_name].set(value)
-                    if self.enable_logging:
-                        logger.info(f"Control input applied: {component.id}.{input_name} = {value}")
+        if not getattr(self, 'baseline_mode', False):
+            if component.id in self.control_inputs:
+                for input_name, value in self.control_inputs[component.id].items():
+                    if input_name in component.input:
+                        component.input[input_name].set(value)
+                        if self.enable_logging:
+                            logger.info(f"Control input applied: {component.id}.{input_name} = {value}")
         
         # Do the component timestep
         component.do_step(secondTime=self.secondTime,
@@ -295,17 +298,8 @@ class T4BGymEnv(gym.Env):
     This environment provides a standard gym interface for interacting with
     Twin4Build simulation models, allowing for reinforcement learning applications.
 
-    Things to be defined by the user:
-    - start_time (conditional on the model data available)
-    - end_time (conditional on the model data available)
-    - episode_length (can be smaller than the total simulation time)
-    - random_start (boolean to define if the start time is random or not (only used if episode_length is smaller than the total simulation time))
-    - excluding_periods (list of tuples defining periods of the simulation that should be excluded from the training data)
-    - stepSize
-    - io_config_file (this is defining action and observation spaces)
-    - warmup_period (not implemented yet, but would be a period of the simulation that runs before the training starts)
-    - reward_function (implemented by inheriting from the class and overriding the method)
-
+    baseline_mode: If True, the environment will run the unmodified baseline controller (i.e., pass action=None to the simulator),
+    ignoring any actions passed to step().
     """
     
     def __init__(self, 
@@ -318,7 +312,8 @@ class T4BGymEnv(gym.Env):
                  excluding_periods: List[Tuple[datetime, datetime]] = None,
                  forecast_horizon: int = 0,
                  step_size: int = 600,
-                 warmup_period = 0):
+                 warmup_period = 0,
+                 baseline_mode: bool = False):
         """Initialize the gym environment.
         
         Args:
@@ -331,9 +326,11 @@ class T4BGymEnv(gym.Env):
             excluding_periods: List of (start, end) datetime tuples defining periods to exclude from training
             step_size: Simulation step size in seconds
             warmup_period: Number of steps to run before starting the episode (not implemented yet)
+            baseline_mode: If True, run the environment in baseline mode (use unmodified control logic)
         """
         super().__init__()
-        self.simulator = GymSimulator(model)
+        self.baseline_mode = baseline_mode
+        self.simulator = GymSimulator(model, baseline_mode=baseline_mode)
 
         # Set simulation parameters
         self.step_size = step_size
@@ -489,17 +486,20 @@ class T4BGymEnv(gym.Env):
                 truncated: Whether episode was artificially terminated
                 info: Additional information
         """
-        #Assert the format of the action
-        assert isinstance(action, np.ndarray), "The action must be a numpy array"
-        assert action.shape == self.action_space.shape, f"Action shape {action.shape} must match action space shape {self.action_space.shape}"
-        assert np.all(action >= self.action_space.low) and np.all(action <= self.action_space.high), "Action values must be within action space bounds"
-
-        #if action contains NaN, set it to 0
-        if np.isnan(action).any():
-            action = np.nan_to_num(action, 0.0)
-
-        # Apply action and get new observations
-        done = self.simulator.step_simulation(action)
+        if self.baseline_mode:
+            # Ignore the action and run the baseline controller
+            self.simulator.baseline_mode = True
+            done = self.simulator.step_simulation(actions=None)
+        else:
+            #Assert the format of the action
+            assert isinstance(action, np.ndarray), "The action must be a numpy array"
+            assert action.shape == self.action_space.shape, f"Action shape {action.shape} must match action space shape {self.action_space.shape}"
+            assert np.all(action >= self.action_space.low) and np.all(action <= self.action_space.high), "Action values must be within action space bounds"
+            if np.isnan(action).any():
+                raise ValueError("Action contains NaN")
+            # Apply action and get new observations
+            self.simulator.baseline_mode = False
+            done = self.simulator.step_simulation(action)
         
         observations = self._get_obs()
         if np.isnan(observations).any():

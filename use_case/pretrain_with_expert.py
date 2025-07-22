@@ -25,11 +25,14 @@ Usage Examples:
 7. Pretrain with sanity checks and save plots:
    python pretrain_with_expert.py --save-plots
 
-8. Use autoencoder for observation compression:
-   python pretrain_with_expert.py --use-autoencoder --latent-dim 32
+8. Use autoencoder for observation compression (with unnormalized data):
+   python pretrain_with_expert.py --use-autoencoder --latent-dim 32 --use-unnormalized
 
 9. Combine autoencoder with large network:
-   python pretrain_with_expert.py --use-autoencoder --latent-dim 64 --network-size large
+   python pretrain_with_expert.py --use-autoencoder --latent-dim 64 --network-size large --use-unnormalized
+
+10. Use normalized trajectories (NOT recommended with autoencoders):
+    python pretrain_with_expert.py --use-autoencoder --latent-dim 64
 
 Network Sizes:
 =============
@@ -45,12 +48,28 @@ Autoencoder Benefits:
 - Reduces policy complexity and training time
 - Improves generalization and sample efficiency
 
+Normalization Issues:
+====================
+⚠️  IMPORTANT: When using autoencoders, use --use-unnormalized flag to avoid double normalization:
+- Normalized trajectories: Already in [-1, 1] range from NormalizedObservationWrapper
+- Autoencoder learns to compress normalized data
+- Environment applies normalization again during training
+- Result: Double normalization causes poor performance
+
+Recommended Workflow:
+====================
+1. Record unnormalized expert trajectories:
+   python record_expert_trajectories_unnormalized.py
+
+2. Pretrain with autoencoder using unnormalized data:
+   python pretrain_with_expert.py --use-autoencoder --latent-dim 64 --use-unnormalized
+
 Output Files:
 ============
 - ppo_pretrained_bc.zip: Pretrained PPO policy weights
 - a2c_pretrained_bc.zip: Pretrained A2C policy weights
 
-Note: This script requires expert_trajectories.npz to be generated first using record_expert_trajectories.py
+Note: This script requires expert_trajectories.npz or expert_trajectories_unnormalized.npz to be generated first
 """
 import os
 import numpy as np
@@ -78,6 +97,7 @@ from imitation.algorithms.bc import BC
 from imitation.data.types import Transitions
 
 EXPERT_PATH = os.path.join(os.path.dirname(__file__), "expert_trajectories.npz")
+EXPERT_PATH_UNNORMALIZED = os.path.join(os.path.dirname(__file__), "expert_trajectories_unnormalized.npz")
 PRETRAINED_MODEL_PATHS = {
     'ppo': os.path.join(os.path.dirname(__file__), "ppo_pretrained_bc.zip"),
     'a2c': os.path.join(os.path.dirname(__file__), "a2c_pretrained_bc.zip"),
@@ -96,6 +116,9 @@ class AutoencoderWrapper(gym.ObservationWrapper):
         self.encoder = encoder
         self.latent_dim = latent_dim
         
+        # Set encoder to evaluation mode to avoid BatchNorm issues
+        self.encoder.eval()
+        
         # Update observation space
         self.observation_space = gym.spaces.Box(
             low=-np.inf, 
@@ -107,6 +130,8 @@ class AutoencoderWrapper(gym.ObservationWrapper):
     def observation(self, obs):
         """Compress observation using the encoder."""
         with torch.no_grad():
+            # Ensure encoder is in eval mode
+            self.encoder.eval()
             obs_tensor = torch.FloatTensor(obs).unsqueeze(0)
             latent = self.encoder(obs_tensor)
             return latent.squeeze(0).numpy()
@@ -752,9 +777,21 @@ def main():
                        help='Network size for the policy (default: large)')
     parser.add_argument('--use-autoencoder', action='store_true', help='Use autoencoder for observation compression')
     parser.add_argument('--latent-dim', type=int, default=64, help='Latent dimension for autoencoder (default: 64)')
+    parser.add_argument('--use-unnormalized', action='store_true', help='Use unnormalized expert trajectories (recommended for autoencoders)')
     args = parser.parse_args()
     algo = args.algo
     model_path = PRETRAINED_MODEL_PATHS[algo]
+
+    # Choose expert trajectory source
+    if args.use_unnormalized:
+        expert_path = EXPERT_PATH_UNNORMALIZED
+        print("Using UNNORMALIZED expert trajectories (recommended for autoencoders)")
+    else:
+        expert_path = EXPERT_PATH
+        print("Using NORMALIZED expert trajectories")
+        if args.use_autoencoder:
+            print("⚠️  WARNING: Using normalized trajectories with autoencoder may cause double normalization issues!")
+            print("   Consider using --use-unnormalized flag instead.")
 
     # Create save directory for plots if needed
     save_dir = None
@@ -764,7 +801,7 @@ def main():
         print(f"Saving sanity check plots to: {save_dir}")
 
     # Load expert trajectories
-    data = np.load(EXPERT_PATH, allow_pickle=True)
+    data = np.load(expert_path, allow_pickle=True)
     obs_arr = data['obs']
     acts_arr = data['acts']
     next_obs_arr = data['next_obs']
@@ -794,6 +831,33 @@ def main():
             network_size=args.network_size, 
             latent_dim=args.latent_dim
         )
+        
+        # Compress expert trajectory observations to match autoencoder output
+        print("Compressing expert trajectory observations...")
+        with torch.no_grad():
+            obs_tensor = torch.FloatTensor(obs_arr)
+            next_obs_tensor = torch.FloatTensor(next_obs_arr)
+            
+            # Compress in batches to avoid memory issues
+            batch_size = 128
+            compressed_obs = []
+            compressed_next_obs = []
+            
+            for i in range(0, len(obs_arr), batch_size):
+                end_idx = min(i + batch_size, len(obs_arr))
+                batch_obs = obs_tensor[i:end_idx]
+                batch_next_obs = next_obs_tensor[i:end_idx]
+                
+                compressed_batch_obs = encoder(batch_obs).numpy()
+                compressed_batch_next_obs = encoder(batch_next_obs).numpy()
+                
+                compressed_obs.append(compressed_batch_obs)
+                compressed_next_obs.append(compressed_batch_next_obs)
+            
+            obs_arr = np.vstack(compressed_obs)
+            next_obs_arr = np.vstack(compressed_next_obs)
+            
+            print(f"Expert trajectories compressed from {data['obs'].shape[1]} to {obs_arr.shape[1]} dimensions")
     
     # Create an RL policy (untrained) with specified network size
     print(f"Creating {algo.upper()} policy with {args.network_size} network size...")
