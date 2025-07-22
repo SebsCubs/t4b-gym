@@ -132,7 +132,7 @@ def PPO_training(test_model_flag=False, reload_model_flag=False):
         env = Monitor(env=env, filename=os.path.join(log_dir,'monitor.csv'))
 
         if test_model_flag:
-            model_path = os.path.join(log_dir, "2000k.zip")
+            model_path = os.path.join(log_dir, "ppo_model.zip")
             model = PPO.load(model_path, env=env, device=device)
             #print training steps
             print(f"Training steps: {model.num_timesteps}")
@@ -167,4 +167,4 @@ def PPO_training(test_model_flag=False, reload_model_flag=False):
 
 
 if __name__ == "__main__":
-    PPO_training(test_model_flag=True, reload_model_flag=True)
+    PPO_training(test_model_flag=False, reload_model_flag=False)

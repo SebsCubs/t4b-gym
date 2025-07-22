@@ -200,7 +200,7 @@ def vavs_fcn(self):
         creates a schedule object, and adds it to the component dictionary.
     '''
     reheat_coils_supply_water_temperature = tb.SensorSystem(id="reheat_coils_supply_water_temperature", saveSimulationResult=True)
-    reheat_coils_supply_air_temperature = tb.SensorSystem(id="reheat_coils_supply_air_temperature", saveSimulationResult=True)
+    #reheat_coils_supply_air_temperature = tb.SensorSystem(id="reheat_coils_supply_air_temperature", saveSimulationResult=True)
 
     #Add core components
     core_temperature_heating_setpoint = tb.ScheduleSystem(id="core_temperature_heating_setpoint", saveSimulationResult=True)
@@ -231,8 +231,7 @@ def vavs_fcn(self):
     self.add_connection(core_reheat_control_sensor, core_reheat_coil, "measuredValue", "valvePosition") 
     self.add_connection(core_supply_damper, core_reheat_coil, "airFlowRate", "airFlowRate")
     self.add_connection(reheat_coils_supply_water_temperature, core_reheat_coil, "measuredValue", "supplyWaterTemperature")
-    self.add_connection(reheat_coils_supply_air_temperature, core_reheat_coil, "measuredValue", "inletAirTemperature")
-
+    
     self.add_connection(core_temperature_heating_controller, core_supply_damper_position_sensor, "y_dam", "measuredValue")
     self.add_connection(core_supply_damper_position_sensor, core_supply_damper, "measuredValue", "damperPosition")
 
@@ -269,8 +268,7 @@ def vavs_fcn(self):
     self.add_connection(north_reheat_control_sensor, north_reheat_coil, "measuredValue", "valvePosition")
     self.add_connection(north_supply_damper, north_reheat_coil, "airFlowRate", "airFlowRate")
     self.add_connection(reheat_coils_supply_water_temperature, north_reheat_coil, "measuredValue", "supplyWaterTemperature")
-    self.add_connection(reheat_coils_supply_air_temperature, north_reheat_coil, "measuredValue", "inletAirTemperature")
-
+    
     self.add_connection(north_temperature_heating_controller, north_supply_damper_position_sensor, "y_dam", "measuredValue")
     self.add_connection(north_supply_damper_position_sensor, north_supply_damper, "measuredValue", "damperPosition")
     
@@ -308,8 +306,7 @@ def vavs_fcn(self):
     self.add_connection(south_reheat_control_sensor, south_reheat_coil, "measuredValue", "valvePosition")
     self.add_connection(south_supply_damper, south_reheat_coil, "airFlowRate", "airFlowRate")
     self.add_connection(reheat_coils_supply_water_temperature, south_reheat_coil, "measuredValue", "supplyWaterTemperature")
-    self.add_connection(reheat_coils_supply_air_temperature, south_reheat_coil, "measuredValue", "inletAirTemperature")
-
+    
     self.add_connection(south_temperature_heating_controller, south_supply_damper_position_sensor, "y_dam", "measuredValue")
     self.add_connection(south_supply_damper_position_sensor, south_supply_damper, "measuredValue", "damperPosition")
     
@@ -347,8 +344,7 @@ def vavs_fcn(self):
     self.add_connection(east_reheat_control_sensor, east_reheat_coil, "measuredValue", "valvePosition")
     self.add_connection(east_supply_damper, east_reheat_coil, "airFlowRate", "airFlowRate")
     self.add_connection(reheat_coils_supply_water_temperature, east_reheat_coil, "measuredValue", "supplyWaterTemperature")
-    self.add_connection(reheat_coils_supply_air_temperature, east_reheat_coil, "measuredValue", "inletAirTemperature")
-
+    
     self.add_connection(east_temperature_heating_controller, east_supply_damper_position_sensor, "y_dam", "measuredValue")
     self.add_connection(east_supply_damper_position_sensor, east_supply_damper, "measuredValue", "damperPosition")
     
@@ -386,8 +382,7 @@ def vavs_fcn(self):
     self.add_connection(west_reheat_control_sensor, west_reheat_coil, "measuredValue", "valvePosition")
     self.add_connection(west_supply_damper, west_reheat_coil, "airFlowRate", "airFlowRate")
     self.add_connection(reheat_coils_supply_water_temperature, west_reheat_coil, "measuredValue", "supplyWaterTemperature")
-    self.add_connection(reheat_coils_supply_air_temperature, west_reheat_coil, "measuredValue", "inletAirTemperature")
-
+    
     self.add_connection(west_temperature_heating_controller, west_supply_damper_position_sensor, "y_dam", "measuredValue")
     self.add_connection(west_supply_damper_position_sensor, west_supply_damper, "measuredValue", "damperPosition")
     
@@ -463,7 +458,7 @@ def ahu_fcn(self):
     #Add connections to the rooms
     self.add_connection(self.components["vent_return_air_temp_sensor"], return_flow_junction_for_supply, "measuredValue", "airTemperatureIn")
     #reheat coils supply air temperature
-    self.add_connection(return_flow_junction_for_supply, self.components["reheat_coils_supply_air_temperature"], "airTemperatureOut", "measuredValue")
+    #self.add_connection(return_flow_junction_for_supply, self.components["reheat_coils_supply_air_temperature"], "airTemperatureOut", "measuredValue")
 
 def fcn(self):
     '''
@@ -508,6 +503,13 @@ def fcn(self):
     self.add_connection(return_junction, vent_return_air_temp_sensor, "airTemperatureOut", "measuredValue")
 
     ahu_fcn(self)
+
+    #Add connection to reheat coils supply air temperature
+    self.add_connection(self.components["vent_supply_air_temp_sensor"], self.components["core_reheat_coil"], "measuredValue", "inletAirTemperature")
+    self.add_connection(self.components["vent_supply_air_temp_sensor"], self.components["north_reheat_coil"], "measuredValue", "inletAirTemperature")
+    self.add_connection(self.components["vent_supply_air_temp_sensor"], self.components["south_reheat_coil"], "measuredValue", "inletAirTemperature")
+    self.add_connection(self.components["vent_supply_air_temp_sensor"], self.components["east_reheat_coil"], "measuredValue", "inletAirTemperature")
+    self.add_connection(self.components["vent_supply_air_temp_sensor"], self.components["west_reheat_coil"], "measuredValue", "inletAirTemperature")
 
 
 def get_model(id=None, fcn_=None):

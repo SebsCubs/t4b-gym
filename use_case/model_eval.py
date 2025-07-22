@@ -259,11 +259,11 @@ def plot_results(simulator: tb.Simulator, rewards = None, plotting_stepSize=600,
                 'output_value': 'measuredValue'
             },
             {
-                'component_id': 'vent_airflow_sensor',
+                'component_id': 'vent_supply_airflow_sensor',
                 'output_value': 'measuredValue'
             },
             {
-                'component_id': 'vent_return_airflow_sensor_ahu',
+                'component_id': 'vent_return_airflow_sensor',
                 'output_value': 'measuredValue'
             },
             {

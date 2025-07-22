@@ -128,7 +128,7 @@
                 "description": "Supply air temperature"
             }
         },
-        "vent_airflow_sensor": {
+        "vent_supply_airflow_sensor": {
             "measuredValue": {
                 "signal_key" : "measuredValue",
                 "min": 0,
