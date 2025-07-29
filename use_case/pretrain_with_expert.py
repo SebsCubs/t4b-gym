@@ -47,21 +47,23 @@ Autoencoder Benefits:
 - Learns meaningful representations from expert data
 - Reduces policy complexity and training time
 - Improves generalization and sample efficiency
+- Bounded latent outputs ([-1, 1] range) for stable training
 
-Normalization Issues:
-====================
-⚠️  IMPORTANT: When using autoencoders, use --use-unnormalized flag to avoid double normalization:
-- Normalized trajectories: Already in [-1, 1] range from NormalizedObservationWrapper
-- Autoencoder learns to compress normalized data
-- Environment applies normalization again during training
-- Result: Double normalization causes poor performance
+Normalization Handling:
+======================
+✅ NEW: The script now automatically handles normalization based on autoencoder usage:
+- With autoencoder: Skips observation normalization (autoencoder handles it)
+- Without autoencoder: Applies observation normalization wrapper
+- Action normalization is always applied (autoencoder doesn't affect actions)
+- Autoencoder outputs are bounded to [-1, 1] range with Tanh activation
+- Built-in diagnosis verifies autoencoder output ranges
 
 Recommended Workflow:
 ====================
-1. Record unnormalized expert trajectories:
-   python record_expert_trajectories_unnormalized.py
+1. Record expert trajectories for autoencoder usage:
+   python record_expert_trajectories_unnormalized.py --normalize-actions
 
-2. Pretrain with autoencoder using unnormalized data:
+2. Pretrain with autoencoder using optimal data:
    python pretrain_with_expert.py --use-autoencoder --latent-dim 64 --use-unnormalized
 
 Output Files:
@@ -69,7 +71,10 @@ Output Files:
 - ppo_pretrained_bc.zip: Pretrained PPO policy weights
 - a2c_pretrained_bc.zip: Pretrained A2C policy weights
 
-Note: This script requires expert_trajectories.npz or expert_trajectories_unnormalized.npz to be generated first
+Note: This script requires one of the following expert trajectory files:
+- expert_trajectories.npz (normalized observations and actions)
+- expert_trajectories_unnormalized.npz (unnormalized observations and actions)  
+- expert_trajectories_unnormalized_norm_actions.npz (unnormalized observations + normalized actions, optimal for autoencoders)
 """
 import os
 import numpy as np
@@ -87,7 +92,6 @@ MAIN_DIR = os.path.dirname(SCRIPT_DIR)
 sys.path.append(MAIN_DIR)
 
 from t4b_gym.t4b_gym_env import T4BGymEnv
-from use_case.multizone_simple_air_RL_SAC_DDPG import get_custom_env
 import datetime
 from dateutil.tz import gettz
 from use_case.model_eval import test_model
@@ -98,6 +102,7 @@ from imitation.data.types import Transitions
 
 EXPERT_PATH = os.path.join(os.path.dirname(__file__), "expert_trajectories.npz")
 EXPERT_PATH_UNNORMALIZED = os.path.join(os.path.dirname(__file__), "expert_trajectories_unnormalized.npz")
+EXPERT_PATH_UNNORMALIZED_NORM_ACTIONS = os.path.join(os.path.dirname(__file__), "expert_trajectories_unnormalized_norm_actions.npz")
 PRETRAINED_MODEL_PATHS = {
     'ppo': os.path.join(os.path.dirname(__file__), "ppo_pretrained_bc.zip"),
     'a2c': os.path.join(os.path.dirname(__file__), "a2c_pretrained_bc.zip"),
@@ -137,6 +142,49 @@ class AutoencoderWrapper(gym.ObservationWrapper):
             return latent.squeeze(0).numpy()
 
 
+def diagnose_autoencoder_outputs(encoder, obs_arr, device='cpu'):
+    """Diagnose autoencoder output ranges to ensure they're properly bounded."""
+    print("\n=== Autoencoder Output Diagnosis ===")
+    
+    with torch.no_grad():
+        obs_tensor = torch.FloatTensor(obs_arr).to(device)
+        
+        # Test with a batch of observations
+        batch_size = min(1000, len(obs_arr))
+        test_batch = obs_tensor[:batch_size]
+        
+        # Get encoder outputs
+        latent = encoder(test_batch)
+        latent_np = latent.cpu().numpy()
+        
+        # Analyze output ranges
+        min_vals = np.min(latent_np, axis=0)
+        max_vals = np.max(latent_np, axis=0)
+        mean_vals = np.mean(latent_np, axis=0)
+        std_vals = np.std(latent_np, axis=0)
+        
+        print(f"Latent space shape: {latent_np.shape}")
+        print(f"Output range: [{latent_np.min():.3f}, {latent_np.max():.3f}]")
+        print(f"Mean range: [{mean_vals.min():.3f}, {mean_vals.max():.3f}]")
+        print(f"Std range: [{std_vals.min():.3f}, {std_vals.max():.3f}]")
+        
+        # Check if outputs are properly bounded
+        if latent_np.min() >= -1.1 and latent_np.max() <= 1.1:
+            print("[SUCCESS] Autoencoder outputs are properly bounded (within [-1, 1] range)")
+        else:
+            print("[WARNING] Autoencoder outputs are NOT properly bounded!")
+            print(f"   Expected range: [-1, 1], Actual range: [{latent_np.min():.3f}, {latent_np.max():.3f}]")
+        
+        # Check for any extreme values
+        extreme_count = np.sum(np.abs(latent_np) > 5)
+        if extreme_count > 0:
+            print(f"[WARNING] Found {extreme_count} values with magnitude > 5")
+        else:
+            print("[SUCCESS] No extreme values detected")
+        
+        return latent_np
+
+
 def pretrain_autoencoder(obs_arr, latent_dim=64, autoencoder_layers=[512, 256, 128], 
                         epochs=100, batch_size=64, device='cpu'):
     """Pretrain the autoencoder on expert observations."""
@@ -152,13 +200,15 @@ def pretrain_autoencoder(obs_arr, latent_dim=64, autoencoder_layers=[512, 256, 1
     for layer_dim in autoencoder_layers:
         encoder_layers.extend([
             nn.Linear(prev_dim, layer_dim),
+            nn.BatchNorm1d(layer_dim),  # ✅ Before ReLU
             nn.ReLU(),
-            nn.BatchNorm1d(layer_dim),
             nn.Dropout(0.1)
         ])
         prev_dim = layer_dim
     
+    # Final encoder layer (with Tanh activation for bounded latent space)
     encoder_layers.append(nn.Linear(prev_dim, latent_dim))
+    encoder_layers.append(nn.Tanh())  # ✅ Bound outputs to [-1, 1]
     encoder = nn.Sequential(*encoder_layers).to(device)
     
     # Decoder
@@ -167,12 +217,13 @@ def pretrain_autoencoder(obs_arr, latent_dim=64, autoencoder_layers=[512, 256, 1
     for layer_dim in reversed(autoencoder_layers):
         decoder_layers.extend([
             nn.Linear(prev_dim, layer_dim),
+            nn.BatchNorm1d(layer_dim),  # ✅ Before ReLU
             nn.ReLU(),
-            nn.BatchNorm1d(layer_dim),
             nn.Dropout(0.1)
         ])
         prev_dim = layer_dim
     
+    # Final decoder layer (no activation for reconstruction)
     decoder_layers.append(nn.Linear(prev_dim, obs_dim))
     decoder = nn.Sequential(*decoder_layers).to(device)
     
@@ -227,9 +278,12 @@ def create_autoencoder_env(env, network_size='large', latent_dim=64, device='cpu
         obs_arr, 
         latent_dim=latent_dim,
         autoencoder_layers=autoencoder_layers[network_size],
-        epochs=50,  # Reduced for faster training
+        epochs=150,  
         device=device
     )
+    
+    # Diagnose autoencoder outputs
+    diagnose_autoencoder_outputs(encoder, obs_arr, device)
     
     # Wrap environment with autoencoder
     wrapped_env = AutoencoderWrapper(env, encoder, latent_dim)
@@ -259,14 +313,15 @@ class AutoencoderPolicy(nn.Module):
         for layer_dim in autoencoder_layers:
             encoder_layers.extend([
                 nn.Linear(prev_dim, layer_dim),
+                nn.BatchNorm1d(layer_dim),  # ✅ Before activation
                 activation_fn(),
-                nn.BatchNorm1d(layer_dim),
                 nn.Dropout(0.1)
             ])
             prev_dim = layer_dim
         
-        # Final encoding layer
+        # Final encoding layer (with activation for bounded latent space)
         encoder_layers.append(nn.Linear(prev_dim, latent_dim))
+        encoder_layers.append(nn.Tanh())  # ✅ Bound outputs to [-1, 1]
         self.encoder = nn.Sequential(*encoder_layers)
         
         # Decoder (for reconstruction loss)
@@ -275,13 +330,13 @@ class AutoencoderPolicy(nn.Module):
         for layer_dim in reversed(autoencoder_layers):
             decoder_layers.extend([
                 nn.Linear(prev_dim, layer_dim),
+                nn.BatchNorm1d(layer_dim),  # ✅ Before activation
                 activation_fn(),
-                nn.BatchNorm1d(layer_dim),
                 nn.Dropout(0.1)
             ])
             prev_dim = layer_dim
         
-        # Final decoding layer
+        # Final decoding layer (no activation for reconstruction)
         decoder_layers.append(nn.Linear(prev_dim, obs_dim))
         self.decoder = nn.Sequential(*decoder_layers)
         
@@ -294,8 +349,8 @@ class AutoencoderPolicy(nn.Module):
         for layer_dim in net_arch:
             policy_layers.extend([
                 nn.Linear(prev_dim, layer_dim),
+                nn.BatchNorm1d(layer_dim),  # ✅ Before activation
                 activation_fn(),
-                nn.BatchNorm1d(layer_dim),
                 nn.Dropout(0.1)
             ])
             prev_dim = layer_dim
@@ -364,14 +419,15 @@ class AutoencoderMlpPolicy(nn.Module):
         for layer_dim in autoencoder_layers:
             encoder_layers.extend([
                 nn.Linear(prev_dim, layer_dim),
+                nn.BatchNorm1d(layer_dim),  # ✅ Before activation
                 activation_fn(),
-                nn.BatchNorm1d(layer_dim),
                 nn.Dropout(0.1)
             ])
             prev_dim = layer_dim
         
-        # Final encoding layer
+        # Final encoding layer (with activation for bounded latent space)
         encoder_layers.append(nn.Linear(prev_dim, latent_dim))
+        encoder_layers.append(nn.Tanh())  # ✅ Bound outputs to [-1, 1]
         self.encoder = nn.Sequential(*encoder_layers)
         
         # Decoder (for reconstruction loss)
@@ -380,13 +436,13 @@ class AutoencoderMlpPolicy(nn.Module):
         for layer_dim in reversed(autoencoder_layers):
             decoder_layers.extend([
                 nn.Linear(prev_dim, layer_dim),
+                nn.BatchNorm1d(layer_dim),  # ✅ Before activation
                 activation_fn(),
-                nn.BatchNorm1d(layer_dim),
                 nn.Dropout(0.1)
             ])
             prev_dim = layer_dim
         
-        # Final decoding layer
+        # Final decoding layer (no activation for reconstruction)
         decoder_layers.append(nn.Linear(prev_dim, obs_dim))
         self.decoder = nn.Sequential(*decoder_layers)
         
@@ -399,8 +455,8 @@ class AutoencoderMlpPolicy(nn.Module):
         for layer_dim in net_arch:
             policy_layers.extend([
                 nn.Linear(prev_dim, layer_dim),
+                nn.BatchNorm1d(layer_dim),  # ✅ Before activation
                 activation_fn(),
-                nn.BatchNorm1d(layer_dim),
                 nn.Dropout(0.1)
             ])
             prev_dim = layer_dim
@@ -586,11 +642,11 @@ def check_time_alignment_and_episode_cuts(obs_arr, next_obs_arr, dones_arr):
                 misalignments.append(t)
     
     if misalignments:
-        print(f"❌ Found {len(misalignments)} time-alignment issues!")
+        print(f"[ERROR] Found {len(misalignments)} time-alignment issues!")
         print(f"   First few misalignments at timesteps: {misalignments[:5]}")
         return False
     else:
-        print("✅ Time-alignment is correct")
+        print("[SUCCESS] Time-alignment is correct")
         return True
 
 
@@ -634,9 +690,9 @@ def check_scaling_and_units(obs_arr, acts_arr):
     acts_zero_var = np.sum(acts_std < 1e-6)
     
     if obs_zero_var > 0:
-        print(f"⚠️  {obs_zero_var} observation features have zero variance")
+        print(f"[WARNING] {obs_zero_var} observation features have zero variance")
     if acts_zero_var > 0:
-        print(f"⚠️  {acts_zero_var} action features have zero variance")
+        print(f"[WARNING] {acts_zero_var} action features have zero variance")
     
     return True
 
@@ -709,32 +765,32 @@ def check_data_quality(obs_arr, acts_arr, dones_arr):
     acts_nans = np.isnan(acts_arr).sum()
     
     if obs_nans > 0:
-        print(f"❌ Found {obs_nans} NaN values in observations")
+        print(f"[ERROR] Found {obs_nans} NaN values in observations")
         return False
     else:
-        print("✅ No NaN values in observations")
+        print("[SUCCESS] No NaN values in observations")
     
     if acts_nans > 0:
-        print(f"❌ Found {acts_nans} NaN values in actions")
+        print(f"[ERROR] Found {acts_nans} NaN values in actions")
         return False
     else:
-        print("✅ No NaN values in actions")
+        print("[SUCCESS] No NaN values in actions")
     
     # Check for infinite values
     obs_inf = np.isinf(obs_arr).sum()
     acts_inf = np.isinf(acts_arr).sum()
     
     if obs_inf > 0:
-        print(f"❌ Found {obs_inf} infinite values in observations")
+        print(f"[ERROR] Found {obs_inf} infinite values in observations")
         return False
     else:
-        print("✅ No infinite values in observations")
+        print("[SUCCESS] No infinite values in observations")
     
     if acts_inf > 0:
-        print(f"❌ Found {acts_inf} infinite values in actions")
+        print(f"[ERROR] Found {acts_inf} infinite values in actions")
         return False
     else:
-        print("✅ No infinite values in actions")
+        print("[SUCCESS] No infinite values in actions")
     
     # Check episode structure
     num_episodes = np.sum(dones_arr)
@@ -760,11 +816,103 @@ def run_sanity_checks(obs_arr, acts_arr, next_obs_arr, dones_arr, save_plots=Fal
     
     print("\n" + "=" * 60)
     if checks_passed:
-        print("✅ All sanity checks passed! Data looks good for training.")
+        print("[SUCCESS] All sanity checks passed! Data looks good for training.")
     else:
-        print("❌ Some sanity checks failed. Please review the data before training.")
+        print("[ERROR] Some sanity checks failed. Please review the data before training.")
     
     return checks_passed
+
+
+def get_env(stepSize, start_time, end_time, use_autoencoder=False):
+    """Create environment with conditional normalization based on autoencoder usage.
+    
+    Args:
+        stepSize: Simulation step size in seconds
+        start_time: Simulation start time
+        end_time: Simulation end time
+        use_autoencoder: If True, skip observation normalization (autoencoder handles it)
+    
+    Returns:
+        Environment with appropriate wrappers applied
+    """
+    from use_case.multizone_simple_air_RL_control import load_model_and_params, POLICY_CONFIG_PATH
+    from t4b_gym.t4b_gym_env import NormalizedObservationWrapper, NormalizedActionWrapper
+    
+    model = load_model_and_params()
+    
+    class T4BGymEnvCustomReward(T4BGymEnv):
+        def __init__(self, *args, **kwargs):
+            super().__init__(*args, **kwargs)
+            self.previous_objective = 0.0
+            
+        def get_reward(self, action, observation):
+            zones = ['core', 'north', 'east', 'south', 'west']
+            temp_violations = []
+            for zone in zones:
+                temp = self.simulator.model.components[f"{zone}_indoor_temp_sensor"].output["measuredValue"]
+                heating_setpoint = self.simulator.model.components[f"{zone}_temperature_heating_setpoint"].output["scheduleValue"]
+                cooling_setpoint = self.simulator.model.components[f"{zone}_temperature_cooling_setpoint"].output["scheduleValue"]
+                heating_violation = max(0, heating_setpoint - temp)
+                cooling_violation = max(0, temp - cooling_setpoint)
+                zone_violation = (1+heating_violation)**2 + (1+cooling_violation)**2
+                temp_violations.append(zone_violation)
+            temp_violation_penalty = 1000 * sum(temp_violations)
+            coils_power_consumption = []
+            for zone in zones:
+                airflow_rate = self.simulator.model.components[f"{zone}_reheat_coil"].input["airFlowRate"]
+                inlet_air_temp = self.simulator.model.components[f"{zone}_reheat_coil"].input["inletAirTemperature"]
+                outlet_air_temp = self.simulator.model.components[f"{zone}_reheat_coil"].output["outletAirTemperature"]
+                tol = 1e-5
+                specificHeatCapacityAir = 1005 #J/kg/K
+                if airflow_rate>tol:
+                    if inlet_air_temp < outlet_air_temp:
+                        Q = airflow_rate*specificHeatCapacityAir*(outlet_air_temp - inlet_air_temp)
+                        if np.isnan(Q):
+                            raise ValueError("Q is not a number")
+                        coils_power_consumption.append(Q)
+                    else:
+                        Q = 0
+                        coils_power_consumption.append(Q)
+                else:
+                    coils_power_consumption.append(0)
+            coils_power_consumption_penalty = 0.01 * sum(coils_power_consumption)
+            fan_power = self.simulator.model.components["vent_power_sensor"].output["measuredValue"]
+            supply_cooling_coil_power = self.simulator.model.components["supply_cooling_coil"].output["Power"]
+            supply_heating_coil_power = self.simulator.model.components["supply_heating_coil"].output["Power"]
+            ahu_power_consumption_penalty = 0.01 * (fan_power + supply_cooling_coil_power + supply_heating_coil_power)
+            reward = temp_violation_penalty + coils_power_consumption_penalty + ahu_power_consumption_penalty
+            reward = reward/1000
+            if np.isnan(reward):
+                raise ValueError("Reward is not a number")
+            return -reward
+    
+    # Create base environment
+    env = T4BGymEnvCustomReward(
+        model=model, 
+        io_config_file=POLICY_CONFIG_PATH,
+        start_time=start_time,
+        end_time=end_time,
+        episode_length=int(3600*24*5 / stepSize),  # 5 days
+        random_start=True, 
+        excluding_periods=None, 
+        forecast_horizon=50,
+        step_size=stepSize,
+        warmup_period=0
+    )
+    
+    # Apply wrappers conditionally
+    if not use_autoencoder:
+        # Apply observation normalization only when NOT using autoencoder
+        env = NormalizedObservationWrapper(env)
+        print("Applied observation normalization wrapper")
+    else:
+        print("Skipped observation normalization (autoencoder will handle it)")
+    
+    # Always apply action normalization (autoencoder doesn't affect actions)
+    env = NormalizedActionWrapper(env)
+    print("Applied action normalization wrapper")
+    
+    return env
 
 
 def main():
@@ -772,25 +920,29 @@ def main():
     parser.add_argument('--algo', choices=['ppo', 'a2c'], default='ppo', help='RL algorithm to use (default: ppo)')
     parser.add_argument('--test', action='store_true', help='Test the pretrained policy after training')
     parser.add_argument('--skip-checks', action='store_true', help='Skip sanity checks (not recommended)')
-    parser.add_argument('--save-plots', action='store_true', help='Save sanity check plots to plots_sanity_checks folder')
+    parser.add_argument('--save-plots', action='store_true', default=True, help='Save sanity check plots to plots_sanity_checks folder')
     parser.add_argument('--network-size', choices=['small', 'medium', 'large', 'xlarge'], default='large', 
                        help='Network size for the policy (default: large)')
-    parser.add_argument('--use-autoencoder', action='store_true', help='Use autoencoder for observation compression')
+    parser.add_argument('--use-autoencoder', action='store_true', default=True, help='Use autoencoder for observation compression')
     parser.add_argument('--latent-dim', type=int, default=64, help='Latent dimension for autoencoder (default: 64)')
-    parser.add_argument('--use-unnormalized', action='store_true', help='Use unnormalized expert trajectories (recommended for autoencoders)')
+    parser.add_argument('--use-unnormalized', action='store_true', default=True, help='Use unnormalized expert trajectories (recommended for autoencoders)')
     args = parser.parse_args()
     algo = args.algo
     model_path = PRETRAINED_MODEL_PATHS[algo]
 
     # Choose expert trajectory source
-    if args.use_unnormalized:
+    if args.use_autoencoder and args.use_unnormalized:
+        # For autoencoders: use unnormalized observations + normalized actions
+        expert_path = EXPERT_PATH_UNNORMALIZED_NORM_ACTIONS
+        print("Using UNNORMALIZED observations + NORMALIZED actions (optimal for autoencoders)")
+    elif args.use_unnormalized:
         expert_path = EXPERT_PATH_UNNORMALIZED
-        print("Using UNNORMALIZED expert trajectories (recommended for autoencoders)")
+        print("Using UNNORMALIZED expert trajectories")
     else:
         expert_path = EXPERT_PATH
         print("Using NORMALIZED expert trajectories")
         if args.use_autoencoder:
-            print("⚠️  WARNING: Using normalized trajectories with autoencoder may cause double normalization issues!")
+            print("[WARNING] Using normalized trajectories with autoencoder may cause double normalization issues!")
             print("   Consider using --use-unnormalized flag instead.")
 
     # Create save directory for plots if needed
@@ -821,7 +973,7 @@ def main():
     #visualize_observations(obs_arr)
 
     # Prepare environment (for policy and BC trainer)
-    env = get_custom_env(stepSize, start_time, end_time)
+    env = get_env(stepSize, start_time, end_time, args.use_autoencoder)
     
     # Apply autoencoder if requested
     if args.use_autoencoder:
@@ -889,7 +1041,7 @@ def main():
         rng=rng
     )
     print(f"Pretraining {algo.upper()} policy with behavioral cloning...")
-    bc_trainer.train(n_epochs=50)
+    bc_trainer.train(n_epochs=100)
     print("Pretraining complete.")
 
     # Save the pretrained policy weights for later RL training
