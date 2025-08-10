@@ -757,6 +757,18 @@ class NormalizedObservationWrapper(gym.ObservationWrapper):
         # Construct from parent class
         super().__init__(env)
         
+        # Store the original observation space bounds for normalization
+        self.original_obs_low = self.observation_space.low.copy()
+        self.original_obs_high = self.observation_space.high.copy()
+        
+        # Update the observation space to reflect normalized bounds [-1, 1]
+        self.observation_space = gym.spaces.Box(
+            low=-1.0,
+            high=1.0,
+            shape=self.observation_space.shape,
+            dtype=self.observation_space.dtype
+        )
+        
     def observation(self, observation):
         '''
         This method accepts a single parameter (the 
@@ -783,11 +795,11 @@ class NormalizedObservationWrapper(gym.ObservationWrapper):
         if np.isnan(observation).any():
             raise ValueError("NaN values detected in observation before normalization")
             
-        # Check if observation is within bounds
-        if not np.all(observation >= self.observation_space.low) or not np.all(observation <= self.observation_space.high):
+        # Check if observation is within bounds (using original bounds)
+        if not np.all(observation >= self.original_obs_low) or not np.all(observation <= self.original_obs_high):
             #Check which values are outside the bounds
-            outside_bounds = np.where(observation < self.observation_space.low)[0]
-            outside_bounds = np.where(observation > self.observation_space.high)[0]
+            outside_bounds = np.where(observation < self.original_obs_low)[0]
+            outside_bounds = np.where(observation > self.original_obs_high)[0]
             #print(f"Observation values outside of observation space bounds: {outside_bounds}")
             #If the outside bounds are more than 10% of the total observations, raise an error
             if len(outside_bounds) > 0.1*len(observation):
@@ -795,9 +807,9 @@ class NormalizedObservationWrapper(gym.ObservationWrapper):
             else:
                 logging.warning(f"Observation values outside of observation space bounds: {outside_bounds}")
         
-        # Convert to one number for the wrapped environment
-        observation_wrapper = 2*(observation - self.observation_space.low)/\
-            (self.observation_space.high-self.observation_space.low)-1
+        # Convert to one number for the wrapped environment (using original bounds)
+        observation_wrapper = 2*(observation - self.original_obs_low)/\
+            (self.original_obs_high-self.original_obs_low)-1
             
         # Check for NaN values after normalization
         if np.isnan(observation_wrapper).any():

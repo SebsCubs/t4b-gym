@@ -31,8 +31,8 @@ Usage Examples:
 9. Combine autoencoder with large network:
    python pretrain_with_expert.py --use-autoencoder --latent-dim 64 --network-size large --use-unnormalized
 
-10. Use normalized trajectories (NOT recommended with autoencoders):
-    python pretrain_with_expert.py --use-autoencoder --latent-dim 64
+10. Force retrain autoencoder (clears saved models):
+    python pretrain_with_expert.py --retrain-autoencoder
 
 Network Sizes:
 =============
@@ -48,28 +48,43 @@ Autoencoder Benefits:
 - Reduces policy complexity and training time
 - Improves generalization and sample efficiency
 - Bounded latent outputs ([-1, 1] range) for stable training
+- Models are automatically saved and reused to avoid retraining
 
 Normalization Handling:
 ======================
 ✅ NEW: The script now automatically handles normalization based on autoencoder usage:
 - With autoencoder: Skips observation normalization (autoencoder handles it)
-- Without autoencoder: Applies observation normalization wrapper
-- Action normalization is always applied (autoencoder doesn't affect actions)
+- Without autoencoder: Uses NormalizedObservationWrapper (automatically sets observation space to [-1, 1])
+- Action normalization is always applied via NormalizedActionWrapper
+- Expert trajectory actions are pre-normalized to match NormalizedActionWrapper
+- Expert trajectory observations are left unnormalized (wrapper handles normalization during training)
 - Autoencoder outputs are bounded to [-1, 1] range with Tanh activation
 - Built-in diagnosis verifies autoencoder output ranges
 
+Autoencoder Model Management:
+===========================
+- Models are automatically saved to `autoencoder_models/` directory
+- Saved models are reused on subsequent runs (no retraining needed)
+- Model filenames include network size and latent dimension for easy identification
+- Use `--retrain-autoencoder` flag to force retraining and clear saved models
+
 Recommended Workflow:
 ====================
-1. Record expert trajectories for autoencoder usage:
-   python record_expert_trajectories_unnormalized.py --normalize-actions
+1. Record expert trajectories:
+   - For autoencoder: python record_expert_trajectories_unnormalized.py --normalize-actions
+   - For non-autoencoder: python record_expert_trajectories.py (normalized observations and actions)
 
 2. Pretrain with autoencoder using optimal data:
    python pretrain_with_expert.py --use-autoencoder --latent-dim 64 --use-unnormalized
+
+3. Pretrain without autoencoder (uses NormalizedObservationWrapper):
+   python pretrain_with_expert.py --algo ppo
 
 Output Files:
 ============
 - ppo_pretrained_bc.zip: Pretrained PPO policy weights
 - a2c_pretrained_bc.zip: Pretrained A2C policy weights
+- autoencoder_models/: Directory containing saved autoencoder models
 
 Note: This script requires one of the following expert trajectory files:
 - expert_trajectories.npz (normalized observations and actions)
@@ -260,29 +275,164 @@ def pretrain_autoencoder(obs_arr, latent_dim=64, autoencoder_layers=[512, 256, 1
     return encoder, decoder
 
 
-def create_autoencoder_env(env, network_size='large', latent_dim=64, device='cpu'):
+def list_autoencoder_models():
+    """List all available autoencoder models."""
+    model_dir = os.path.join(os.path.dirname(__file__), "autoencoder_models")
+    
+    if not os.path.exists(model_dir):
+        print("No autoencoder models directory found.")
+        return []
+    
+    models = []
+    for filename in os.listdir(model_dir):
+        if filename.endswith('.pth'):
+            # Parse filename: encoder_network_size_latentN.pth
+            parts = filename.replace('.pth', '').split('_')
+            if len(parts) >= 3 and parts[0] in ['encoder', 'decoder']:
+                network_size = parts[1]
+                latent_dim = int(parts[2].replace('latent', ''))
+                models.append((parts[0], network_size, latent_dim))
+    
+    if models:
+        print("Available autoencoder models:")
+        encoders = [m for m in models if m[0] == 'encoder']
+        decoders = [m for m in models if m[0] == 'decoder']
+        
+        for encoder, decoder in zip(encoders, decoders):
+            print(f"  - {encoder[1]} network, latent_dim={encoder[2]}")
+    else:
+        print("No autoencoder models found.")
+    
+    return models
+
+
+def clear_autoencoder_models(network_size='large', latent_dim=64):
+    """Clear saved autoencoder models to force retraining."""
+    model_dir = os.path.join(os.path.dirname(__file__), "autoencoder_models")
+    encoder_path = os.path.join(model_dir, f"encoder_{network_size}_latent{latent_dim}.pth")
+    decoder_path = os.path.join(model_dir, f"decoder_{network_size}_latent{latent_dim}.pth")
+    
+    cleared = False
+    if os.path.exists(encoder_path):
+        os.remove(encoder_path)
+        print(f"Removed encoder model: {encoder_path}")
+        cleared = True
+    
+    if os.path.exists(decoder_path):
+        os.remove(decoder_path)
+        print(f"Removed decoder model: {decoder_path}")
+        cleared = True
+    
+    if cleared:
+        print("Autoencoder models cleared. Will retrain on next run.")
+    else:
+        print("No autoencoder models found to clear.")
+    
+    return cleared
+
+
+def create_autoencoder_env(env, network_size='large', latent_dim=64, device='cpu', expert_path=None, force_retrain=False):
     """Create environment with autoencoder observation compression."""
-    # Get observation data for pretraining
-    data = np.load(EXPERT_PATH, allow_pickle=True)
-    obs_arr = data['obs']
+    # Define model save paths
+    model_dir = os.path.join(os.path.dirname(__file__), "autoencoder_models")
+    os.makedirs(model_dir, exist_ok=True)
     
-    # Pretrain autoencoder
-    autoencoder_layers = {
-        'small': [256, 128],
-        'medium': [512, 256, 128],
-        'large': [512, 256, 128],
-        'xlarge': [1024, 512, 256, 128]
-    }
+    # Use provided expert_path or default to normalized path
+    if expert_path is None:
+        expert_path = EXPERT_PATH
     
-    encoder, decoder = pretrain_autoencoder(
-        obs_arr, 
-        latent_dim=latent_dim,
-        autoencoder_layers=autoencoder_layers[network_size],
-        epochs=150,  
-        device=device
-    )
+    encoder_path = os.path.join(model_dir, f"encoder_{network_size}_latent{latent_dim}.pth")
+    decoder_path = os.path.join(model_dir, f"decoder_{network_size}_latent{latent_dim}.pth")
+    
+    # Check if pretrained models exist and force_retrain is False
+    if os.path.exists(encoder_path) and os.path.exists(decoder_path) and not force_retrain:
+        print(f"Loading pretrained autoencoder from {model_dir}...")
+        
+        # Get observation data for model architecture setup
+        data = np.load(expert_path, allow_pickle=True)
+        obs_arr = data['obs']
+        obs_dim = obs_arr.shape[1]
+        
+        # Define autoencoder architecture
+        autoencoder_layers = {
+            'small': [256, 128],
+            'medium': [512, 256, 128],
+            'large': [512, 256, 128],
+            'xlarge': [1024, 512, 256, 128]
+        }
+        
+        # Create encoder architecture
+        encoder_layers = []
+        prev_dim = obs_dim
+        for layer_dim in autoencoder_layers[network_size]:
+            encoder_layers.extend([
+                nn.Linear(prev_dim, layer_dim),
+                nn.BatchNorm1d(layer_dim),
+                nn.ReLU(),
+                nn.Dropout(0.1)
+            ])
+            prev_dim = layer_dim
+        
+        encoder_layers.append(nn.Linear(prev_dim, latent_dim))
+        encoder_layers.append(nn.Tanh())
+        encoder = nn.Sequential(*encoder_layers).to(device)
+        
+        # Create decoder architecture
+        decoder_layers = []
+        prev_dim = latent_dim
+        for layer_dim in reversed(autoencoder_layers[network_size]):
+            decoder_layers.extend([
+                nn.Linear(prev_dim, layer_dim),
+                nn.BatchNorm1d(layer_dim),
+                nn.ReLU(),
+                nn.Dropout(0.1)
+            ])
+            prev_dim = layer_dim
+        
+        decoder_layers.append(nn.Linear(prev_dim, obs_dim))
+        decoder = nn.Sequential(*decoder_layers).to(device)
+        
+        # Load pretrained weights
+        encoder.load_state_dict(torch.load(encoder_path, map_location=device))
+        decoder.load_state_dict(torch.load(decoder_path, map_location=device))
+        
+        print(f"Successfully loaded pretrained autoencoder (latent_dim={latent_dim})")
+        
+    else:
+        if force_retrain:
+            print("Force retraining autoencoder (cleared saved models)...")
+        else:
+            print(f"No pretrained autoencoder found. Training new model...")
+        
+        # Get observation data for pretraining
+        data = np.load(expert_path, allow_pickle=True)
+        obs_arr = data['obs']
+        
+        # Pretrain autoencoder
+        autoencoder_layers = {
+            'small': [256, 128],
+            'medium': [512, 256, 128],
+            'large': [512, 256, 128],
+            'xlarge': [1024, 512, 256, 128]
+        }
+        
+        encoder, decoder = pretrain_autoencoder(
+            obs_arr, 
+            latent_dim=latent_dim,
+            autoencoder_layers=autoencoder_layers[network_size],
+            epochs=150,  
+            device=device
+        )
+        
+        # Save the trained models
+        print(f"Saving autoencoder models to {model_dir}...")
+        torch.save(encoder.state_dict(), encoder_path)
+        torch.save(decoder.state_dict(), decoder_path)
+        print(f"Autoencoder models saved successfully")
     
     # Diagnose autoencoder outputs
+    data = np.load(expert_path, allow_pickle=True)
+    obs_arr = data['obs']
     diagnose_autoencoder_outputs(encoder, obs_arr, device)
     
     # Wrap environment with autoencoder
@@ -923,9 +1073,10 @@ def main():
     parser.add_argument('--save-plots', action='store_true', default=True, help='Save sanity check plots to plots_sanity_checks folder')
     parser.add_argument('--network-size', choices=['small', 'medium', 'large', 'xlarge'], default='large', 
                        help='Network size for the policy (default: large)')
-    parser.add_argument('--use-autoencoder', action='store_true', default=True, help='Use autoencoder for observation compression')
+    parser.add_argument('--use-autoencoder', action='store_true', default=False, help='Use autoencoder for observation compression')
     parser.add_argument('--latent-dim', type=int, default=64, help='Latent dimension for autoencoder (default: 64)')
-    parser.add_argument('--use-unnormalized', action='store_true', default=True, help='Use unnormalized expert trajectories (recommended for autoencoders)')
+    parser.add_argument('--use-unnormalized', action='store_true', default=False, help='Use unnormalized expert trajectories (recommended for autoencoders)')
+    parser.add_argument('--retrain-autoencoder', action='store_true', help='Force retrain autoencoder and clear saved models')
     args = parser.parse_args()
     algo = args.algo
     model_path = PRETRAINED_MODEL_PATHS[algo]
@@ -959,6 +1110,55 @@ def main():
     next_obs_arr = data['next_obs']
     dones_arr = data['dones']
     
+    # For BC training without autoencoder, we need to normalize expert trajectories
+    # to match what the environment will provide (after NormalizedObservationWrapper)
+    if not args.use_autoencoder:
+        print("Normalizing expert trajectory observations and actions to match environment normalization...")
+        
+        # Get the original observation space bounds (before normalization wrapper)
+        # We need to create a temporary environment without wrappers to get the original bounds
+        from use_case.multizone_simple_air_RL_control import load_model_and_params, POLICY_CONFIG_PATH
+        from t4b_gym.t4b_gym_env import T4BGymEnv
+        
+        # Create base environment without wrappers
+        model = load_model_and_params()
+        temp_env = T4BGymEnv(
+            model=model, 
+            io_config_file=POLICY_CONFIG_PATH,
+            start_time=start_time,
+            end_time=end_time,
+            episode_length=int(3600*24*5 / stepSize),
+            random_start=True, 
+            excluding_periods=None, 
+            forecast_horizon=50,
+            step_size=stepSize,
+            warmup_period=0
+        )
+        
+        # Get original bounds
+        obs_low = temp_env.observation_space.low
+        obs_high = temp_env.observation_space.high
+        act_low = temp_env.action_space.low
+        act_high = temp_env.action_space.high
+        
+        # Apply the same normalization as NormalizedObservationWrapper: 2*(obs - low)/(high - low) - 1
+        obs_arr = 2 * (obs_arr - obs_low) / (obs_high - obs_low) - 1
+        next_obs_arr = 2 * (next_obs_arr - obs_low) / (obs_high - obs_low) - 1
+        
+        # Apply the same normalization as NormalizedActionWrapper: 2*(acts - low)/(high - low) - 1
+        acts_arr = 2 * (acts_arr - act_low) / (act_high - act_low) - 1
+        
+        # Clip to [-1, 1] bounds (same as wrappers)
+        obs_arr = np.clip(obs_arr, -1, 1)
+        next_obs_arr = np.clip(next_obs_arr, -1, 1)
+        acts_arr = np.clip(acts_arr, -1, 1)
+        
+        print(f"Expert trajectory observations normalized to range [{obs_arr.min():.3f}, {obs_arr.max():.3f}]")
+        print(f"Expert trajectory actions normalized to range [{acts_arr.min():.3f}, {acts_arr.max():.3f}]")
+        
+        # Close temporary environment
+        temp_env.close()
+    
     # Run sanity checks
     if not args.skip_checks:
         checks_passed = run_sanity_checks(obs_arr, acts_arr, next_obs_arr, dones_arr, 
@@ -973,15 +1173,29 @@ def main():
     #visualize_observations(obs_arr)
 
     # Prepare environment (for policy and BC trainer)
+    # Use the same environment setup as regular RL training for consistency
     env = get_env(stepSize, start_time, end_time, args.use_autoencoder)
+    
+    # Store original observation space for later restoration
+    original_obs_space = env.observation_space
     
     # Apply autoencoder if requested
     if args.use_autoencoder:
         print(f"Using autoencoder with latent_dim={args.latent_dim}")
+        
+        # Show available models
+        list_autoencoder_models()
+        
+        # Clear models if retrain flag is set
+        if args.retrain_autoencoder:
+            clear_autoencoder_models(args.network_size, args.latent_dim)
+        
         env, encoder, decoder = create_autoencoder_env(
             env, 
             network_size=args.network_size, 
-            latent_dim=args.latent_dim
+            latent_dim=args.latent_dim,
+            expert_path=expert_path,
+            force_retrain=args.retrain_autoencoder
         )
         
         # Compress expert trajectory observations to match autoencoder output
@@ -1032,7 +1246,7 @@ def main():
 
     # Pretrain with Behavioral Cloning
     rng = np.random.default_rng(0)
-    bc_trainer = BC(
+    bc_trainer = BC( 
         observation_space=env.observation_space,
         action_space=env.action_space,
         demonstrations=transitions,
@@ -1041,7 +1255,7 @@ def main():
         rng=rng
     )
     print(f"Pretraining {algo.upper()} policy with behavioral cloning...")
-    bc_trainer.train(n_epochs=100)
+    bc_trainer.train(n_epochs=150)
     print("Pretraining complete.")
 
     # Save the pretrained policy weights for later RL training
@@ -1052,6 +1266,7 @@ def main():
     if args.test:
         test_pretrained_policy(model_path, env, algo=algo, num_episodes=1)
     else:
+        # Use the same environment for testing (consistent with training)
         test_model(env, policy)
 
 if __name__ == "__main__":

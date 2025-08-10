@@ -15,6 +15,7 @@ from stable_baselines3.common.callbacks import EvalCallback
 from stable_baselines3.common.monitor import Monitor
 from stable_baselines3.common.logger import configure
 import numpy as np
+import gymnasium as gym
 
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 MAIN_DIR = os.path.dirname(SCRIPT_DIR)
@@ -152,9 +153,6 @@ def PPO_training(test_model_flag=False, reload_model_flag=False, use_autoencoder
         print(f"Setting up autoencoder with latent_dim={latent_dim}, network_size={network_size}")
         
         # Import autoencoder functions from pretrain script
-        import sys
-        import os
-        sys.path.append(os.path.dirname(__file__))
         from pretrain_with_expert import create_autoencoder_env, diagnose_autoencoder_outputs
         
         # Create autoencoder environment
@@ -170,7 +168,7 @@ def PPO_training(test_model_flag=False, reload_model_flag=False, use_autoencoder
     env = Monitor(env=env, filename=os.path.join(log_dir,'monitor.csv'))
 
     if test_model_flag:
-        model_path = os.path.join(log_dir, "ppo_model.zip")
+        model_path = os.path.join(log_dir, "ppo_pretrained_bc.zip")
         model = PPO.load(model_path, env=env, device=device)
         print(f"Training steps: {model.num_timesteps}")
         test_model(env, model)
@@ -184,11 +182,8 @@ def PPO_training(test_model_flag=False, reload_model_flag=False, use_autoencoder
             model = PPO.load(bc_model_path, env=env, device=device)
             print(f"Loaded pretrained model with {model.num_timesteps} timesteps")
         else:
-            print(f"Warning: Pretrained model not found at {bc_model_path}")
-            print("Starting training from scratch...")
-            model = PPO('MlpPolicy', env, verbose=1, gamma=0.99,      
-                learning_rate=1e-5, batch_size=int(50), n_steps=int(200),      
-                n_epochs=10, clip_range=0.2, max_grad_norm=0.5, tensorboard_log=log_dir, device=device)
+            raise FileNotFoundError(f"Pretrained behavioral cloning model not found at {bc_model_path}. "
+                                  f"Please run the pretraining script first to generate the required model file.")
     else:
         # Create new model
         model = PPO('MlpPolicy', env, verbose=1, gamma=0.99,      
@@ -196,22 +191,23 @@ def PPO_training(test_model_flag=False, reload_model_flag=False, use_autoencoder
             n_epochs=10, clip_range=0.2, max_grad_norm=0.5, tensorboard_log=log_dir, device=device)
 
     # Create the callback
-    callback = EvalCallback(env, best_model_save_path=log_dir, log_path=log_dir, eval_freq=5000, n_eval_episodes=5)
+    #Disable evaluation for now
+    callback = EvalCallback(env, best_model_save_path=log_dir, log_path=log_dir, eval_freq=1000000, n_eval_episodes=5)
 
     # Train the model
     if reload_model_flag:
-        model_path = os.path.join(log_dir, "2000k.zip")
+        model_path = os.path.join(log_dir, "ppo_model.zip")
         model = PPO.load(model_path, env=env, device=device)
 
         new_logger = configure(log_dir, ['csv'])
         model.set_logger(new_logger)
 
-        model.learn(total_timesteps=100000, callback=callback, reset_num_timesteps=False)
+        model.learn(total_timesteps=10000, callback=callback, reset_num_timesteps=False)
     else:
         new_logger = configure(log_dir, ['csv'])
         model.set_logger(new_logger)
 
-        model.learn(total_timesteps=100000, callback=callback)
+        model.learn(total_timesteps=10000, callback=callback)
 
     # Save the model
     model.save(os.path.join(log_dir, "ppo_model"))
@@ -233,4 +229,12 @@ if __name__ == "__main__":
     # PPO_training(test_model_flag=True, reload_model_flag=False, use_autoencoder=True, latent_dim=64, network_size='large')
     
     # Default: Standard PPO training
-    PPO_training(test_model_flag=False, reload_model_flag=False)
+    #PPO_training(test_model_flag=False, reload_model_flag=False)
+
+    #Test a finetuned model with autoencoder
+    #PPO_training(test_model_flag=True, reload_model_flag=False, use_autoencoder=True, latent_dim=64, network_size='large')
+
+    # Fine tune a pretrained bc model without autoencoder
+    PPO_training(test_model_flag=False, reload_model_flag=False, use_autoencoder=False, load_pretrained_bc=True)
+
+

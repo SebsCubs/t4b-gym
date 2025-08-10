@@ -3,6 +3,7 @@ import os
 import datetime
 from dateutil.tz import gettz 
 from gymnasium.core import Wrapper
+import gymnasium as gym
 import matplotlib.pyplot as plt 
 import pandas as pd
 import numpy as np
@@ -34,7 +35,6 @@ def get_baseline(model):
 
 
 def test_model(env, model):
-
         stepSize = 600 #Seconds
         #Define the range of available data
         start_time = datetime.datetime(year=2024, month=1, day=1, hour=0, minute=0, second=0, tzinfo=gettz("Europe/Copenhagen"))
@@ -54,7 +54,7 @@ def test_model(env, model):
                 env.episode_length  = episode_length
                 env.warmup_period = warmup_period
 
-            # Reset environment
+        # Reset environment
         obs, _ = env.reset()
         
         # Simulation loop
