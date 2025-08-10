@@ -33,7 +33,7 @@ device = 'cpu'
 
 
 
-def PPO_training(test_model_flag=False, reload_model_flag=False, use_autoencoder=False, 
+def PPO_training(test_model_flag=False, reload_model_flag=False, use_autoencoder=False, total_timesteps=100000,
                  latent_dim=64, network_size='large', load_pretrained_bc=False):
     """
     Train PPO with optional autoencoder support.
@@ -168,7 +168,7 @@ def PPO_training(test_model_flag=False, reload_model_flag=False, use_autoencoder
     env = Monitor(env=env, filename=os.path.join(log_dir,'monitor.csv'))
 
     if test_model_flag:
-        model_path = os.path.join(log_dir, "ppo_pretrained_bc.zip")
+        model_path = os.path.join(log_dir, "ppo_model.zip")
         model = PPO.load(model_path, env=env, device=device)
         print(f"Training steps: {model.num_timesteps}")
         test_model(env, model)
@@ -181,36 +181,75 @@ def PPO_training(test_model_flag=False, reload_model_flag=False, use_autoencoder
             print(f"Loading pretrained behavioral cloning model from {bc_model_path}")
             model = PPO.load(bc_model_path, env=env, device=device)
             print(f"Loaded pretrained model with {model.num_timesteps} timesteps")
+            
+            # Set lower learning rate for fine-tuning from pretrained model
+            fine_tune_lr = 1e-6  # 10x lower than default for fine-tuning
+            model.learning_rate = fine_tune_lr
+            print(f"Set learning rate to {fine_tune_lr} for fine-tuning from pretrained model")
+            
+            # Set high verbosity for detailed training output
+            model.verbose = 2
+            print("Set training verbosity to maximum (2) for detailed progress")
         else:
             raise FileNotFoundError(f"Pretrained behavioral cloning model not found at {bc_model_path}. "
                                   f"Please run the pretraining script first to generate the required model file.")
     else:
         # Create new model
-        model = PPO('MlpPolicy', env, verbose=1, gamma=0.99,      
+        model = PPO('MlpPolicy', env, verbose=2, gamma=0.99,      
             learning_rate=1e-5, batch_size=int(50), n_steps=int(200),      
             n_epochs=10, clip_range=0.2, max_grad_norm=0.5, tensorboard_log=log_dir, device=device)
+        print("Set training verbosity to maximum (2) for detailed progress")
 
     # Create the callback
     #Disable evaluation for now
     callback = EvalCallback(env, best_model_save_path=log_dir, log_path=log_dir, eval_freq=1000000, n_eval_episodes=5)
 
     # Train the model
+    print(f"\n{'='*60}")
+    print("STARTING TRAINING")
+    print(f"{'='*60}")
+    
+    print(f"Total timesteps to train: {total_timesteps:,}")
+    print(f"Environment: {env.__class__.__name__}")
+    print(f"Observation space: {env.observation_space}")
+    print(f"Action space: {env.action_space}")
+    print(f"Device: {device}")
+    print(f"Log directory: {log_dir}")
+    print(f"{'='*60}\n")
+    
     if reload_model_flag:
         model_path = os.path.join(log_dir, "ppo_model.zip")
+        print(f"Reloading existing model from {model_path}")
         model = PPO.load(model_path, env=env, device=device)
+        print(f"Loaded model with {model.num_timesteps} previous timesteps")
 
         new_logger = configure(log_dir, ['csv'])
         model.set_logger(new_logger)
 
-        model.learn(total_timesteps=10000, callback=callback, reset_num_timesteps=False)
+        print("Continuing training with existing model...")
+        model.learn(total_timesteps=total_timesteps, callback=callback, reset_num_timesteps=False)
     else:
         new_logger = configure(log_dir, ['csv'])
         model.set_logger(new_logger)
 
-        model.learn(total_timesteps=10000, callback=callback)
+        print("Starting fresh training...")
+        model.learn(total_timesteps=total_timesteps, callback=callback)
+    
+    print(f"\n{'='*60}")
+    print("TRAINING COMPLETED")
+    print(f"{'='*60}")
+    print(f"Final model timesteps: {model.num_timesteps}")
+    print(f"{'='*60}\n")
 
     # Save the model
-    model.save(os.path.join(log_dir, "ppo_model"))
+    model_save_path = os.path.join(log_dir, "ppo_model")
+    print(f"Saving trained model to {model_save_path}")
+    model.save(model_save_path)
+    print(f"Model saved successfully!")
+    print(f"Model file size: {os.path.getsize(model_save_path + '.zip') / (1024*1024):.2f} MB")
+
+    #Test the model
+    test_model(env, model)
 
 
 if __name__ == "__main__":
@@ -235,6 +274,6 @@ if __name__ == "__main__":
     #PPO_training(test_model_flag=True, reload_model_flag=False, use_autoencoder=True, latent_dim=64, network_size='large')
 
     # Fine tune a pretrained bc model without autoencoder
-    PPO_training(test_model_flag=False, reload_model_flag=False, use_autoencoder=False, load_pretrained_bc=True)
+    PPO_training(test_model_flag=False, reload_model_flag=False, use_autoencoder=False, load_pretrained_bc=True, total_timesteps=100000)
 
 
