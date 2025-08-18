@@ -18,7 +18,7 @@ from boptest_model.rooms_and_ahu_model import load_model_and_params
 from t4b_gym.t4b_gym_env import T4BGymEnv
 
 # Import the custom reward class from the RL script
-from use_case.multizone_simple_air_RL_SAC_DDPG import get_custom_env
+from use_case.multizone_simple_air_RL_control import get_custom_env
 
 POLICY_CONFIG_PATH = os.path.join(SCRIPT_DIR, "policy_input_output.json")
 EXPERT_SAVE_PATH = os.path.join(SCRIPT_DIR, "expert_trajectories.npz")
