@@ -359,6 +359,78 @@ def plot_results(simulator: tb.Simulator, rewards = None, plotting_stepSize=600,
                                       west_temp_set_violation_seconds)
         print(f"Total temperature violation time: {total_temp_violation_seconds} seconds")
 
+
+
+        #Room VAV coils power consumption
+        zones = ['core', 'north', 'east', 'south', 'west']
+        coils_power_consumption = []
+        average_coils_power_consumption = []
+        for zone in zones:
+            airflow_rate = np.array(simulator.model.components[f"{zone}_reheat_coil"].savedInput["airFlowRate"])
+            inlet_air_temp = np.array(simulator.model.components[f"{zone}_reheat_coil"].savedInput["inletAirTemperature"])
+            outlet_air_temp = np.array(simulator.model.components[f"{zone}_reheat_coil"].savedOutput["outletAirTemperature"])
+            
+            tol = 1e-5
+            specificHeatCapacityAir = 1005 #J/kg/K
+            
+            # Initialize Q array with zeros
+            Q = np.zeros_like(airflow_rate)
+            
+            # Create mask for valid conditions
+            valid_flow_mask = airflow_rate > tol
+            # Add a deadband of 1 degree Celsius for heating
+            heating_mask = (outlet_air_temp - inlet_air_temp) > 1.0
+            if np.any(~heating_mask):
+                print(f"Warning: Heating coil in {zone} is cooling the air")
+            
+            # Calculate power only where both conditions are met
+            combined_mask = valid_flow_mask & heating_mask
+            Q[combined_mask] = (airflow_rate[combined_mask] * 
+                               specificHeatCapacityAir * 
+                               (outlet_air_temp[combined_mask] - inlet_air_temp[combined_mask]))
+            
+            # Check for NaN values
+            if np.any(np.isnan(Q)):
+                raise ValueError("Q contains NaN values")
+            
+            # Calculate average power consumption
+            avg_Q = np.average(Q)
+            average_coils_power_consumption.append(avg_Q)
+            
+            coils_power_consumption.append(Q)
+            
+
+            print(f" Zone: {zone} - reheat coil average power consumption: {average_coils_power_consumption[-1]:.1f} W")
+
+            #plot the zone coil power consumption
+            plt.figure(figsize=(12, 6))
+            plt.plot(sim_times, Q, label=f'{zone} - Reheat Coil Power', linewidth=2)
+            plt.title(f'{zone} - Reheat Coil Power')
+            plt.xlabel('Time')
+            plt.ylabel('Power (W)')
+            plt.legend()
+            plt.grid(True)
+            plt.xticks(rotation=45)
+            plt.tight_layout()
+            if save_plots:
+                os.makedirs('plots', exist_ok=True)
+                plt.savefig(f'plots/{zone}_reheat_coil_power.png')
+
+            #Plot inlet and outlet air temperature
+            plt.figure(figsize=(12, 6))
+            plt.plot(sim_times, inlet_air_temp, label=f'{zone} - Inlet Air Temperature', linewidth=2)
+            plt.plot(sim_times, outlet_air_temp, label=f'{zone} - Outlet Air Temperature', linewidth=2)
+            plt.title(f'{zone} - Inlet and Outlet Air Temperature')
+            plt.xlabel('Time')
+            plt.ylabel('Air Temperature (°C)')
+            plt.legend()
+            plt.grid(True)
+            plt.xticks(rotation=45)
+            plt.tight_layout()
+            if save_plots:
+                os.makedirs('plots', exist_ok=True)
+                plt.savefig(f'plots/{zone}_coil_inlet_and_outlet_air_temperature.png')
+
         # Calculate the energy consumption
         core_outlet_water_temperature = np.array(simulator.model.components["core_reheat_coil"].savedOutput["outletWaterTemperature"])
         north_outlet_water_temperature = np.array(simulator.model.components["north_reheat_coil"].savedOutput["outletWaterTemperature"])
@@ -367,7 +439,6 @@ def plot_results(simulator: tb.Simulator, rewards = None, plotting_stepSize=600,
         west_outlet_water_temperature = np.array(simulator.model.components["west_reheat_coil"].savedOutput["outletWaterTemperature"])
 
         inlet_water_temperature = np.array(simulator.model.components["reheat_coils_supply_water_temperature"].savedOutput["measuredValue"])
-        
         #rooms water temp difference:
         core_room_water_temp_difference = abs(core_outlet_water_temperature - inlet_water_temperature)
         north_room_water_temp_difference = abs(north_outlet_water_temperature - inlet_water_temperature)
@@ -378,7 +449,7 @@ def plot_results(simulator: tb.Simulator, rewards = None, plotting_stepSize=600,
         room_water_temp_difference_penalty = (core_room_water_temp_difference + north_room_water_temp_difference + east_room_water_temp_difference + south_room_water_temp_difference + west_room_water_temp_difference)
 
         print(f"Average room water temp difference: {np.average(room_water_temp_difference_penalty):.2f} °C")
-
+        
         #plot the room water temp difference
         plt.figure(figsize=(12, 6))
         plt.plot(sim_times, room_water_temp_difference_penalty, label='Room Water Temp Difference', linewidth=2)
@@ -389,7 +460,13 @@ def plot_results(simulator: tb.Simulator, rewards = None, plotting_stepSize=600,
         plt.grid(True)
         plt.xticks(rotation=45)
         plt.tight_layout()
+        if save_plots:
+            os.makedirs('plots', exist_ok=True)
+            plt.savefig(f'plots/room_water_temp_difference.png')
         #plt.show()
+
+        
+
 
         # AHU power consumption
         fan_power = np.array(simulator.model.components["vent_power_sensor"].savedOutput["measuredValue"])
@@ -400,6 +477,17 @@ def plot_results(simulator: tb.Simulator, rewards = None, plotting_stepSize=600,
         print(f"Average supply heating coil power: {np.average(supply_heating_coil_power):.1f} W")
         ahu_power_consumption_penalty = fan_power + supply_cooling_coil_power + supply_heating_coil_power
         print(f"Average total AHU power consumption: {np.average(ahu_power_consumption_penalty):.1f} W")
+        outdoor_air_temperature = np.array(simulator.model.components["vent_outdoor_air_temp_sensor"].savedOutput["measuredValue"])
+
+        # Sum coils power consumption element-wise to get total coils power at each time step
+        total_coils_power = np.sum(coils_power_consumption, axis=0)
+        total_hvac_power_consumption = fan_power + supply_cooling_coil_power + supply_heating_coil_power + total_coils_power
+        print(f"Average total HVAC power consumption: {np.average(total_hvac_power_consumption):.1f} W")
+
+        pre_heated_air_temperature = np.array(simulator.model.components["supply_heating_coil"].savedOutput["outletAirTemperature"])
+        print(f"Average pre-heated air temperature: {np.average(pre_heated_air_temperature):.1f} °C")
+        pre_cooled_air_temperature = np.array(simulator.model.components["supply_cooling_coil"].savedOutput["outletAirTemperature"])
+        print(f"Average pre-cooled air temperature: {np.average(pre_cooled_air_temperature):.1f} °C")
 
         #plot the fan power consumption
         plt.figure(figsize=(12, 6))
@@ -411,6 +499,9 @@ def plot_results(simulator: tb.Simulator, rewards = None, plotting_stepSize=600,
         plt.grid(True)
         plt.xticks(rotation=45)
         plt.tight_layout()
+        if save_plots:
+            os.makedirs('plots', exist_ok=True)
+            plt.savefig(f'plots/fan_power.png')
         #plt.show()
 
         #plot the supply cooling and heating coil power consumption
@@ -424,6 +515,40 @@ def plot_results(simulator: tb.Simulator, rewards = None, plotting_stepSize=600,
         plt.grid(True)
         plt.xticks(rotation=45)
         plt.tight_layout()
+        if save_plots:
+            os.makedirs('plots', exist_ok=True)
+            plt.savefig(f'plots/supply_coils_power.png')
+        #plt.show()
+
+        #Plot the pre-heated and pre-cooled air temperature
+        plt.figure(figsize=(12, 6))
+        plt.plot(sim_times, pre_heated_air_temperature, label='Pre-Heated Air Temperature', linewidth=2)
+        plt.plot(sim_times, pre_cooled_air_temperature, label='Pre-Cooled Air Temperature', linewidth=2)
+        plt.title('Pre-Heated and Pre-Cooled Air Temperature')
+        plt.xlabel('Time')
+        plt.ylabel('Air Temperature (°C)')
+        plt.legend()
+        plt.grid(True)
+        plt.xticks(rotation=45)
+        plt.tight_layout()
+        if save_plots:
+            os.makedirs('plots', exist_ok=True)
+            plt.savefig(f'plots/pre_heated_and_pre_cooled_air_temperature.png')
+        #plt.show()
+
+        #Plot the outdoor air temperature
+        plt.figure(figsize=(12, 6))
+        plt.plot(sim_times, outdoor_air_temperature, label='Outdoor Air Temperature', linewidth=2)
+        plt.title('Outdoor Air Temperature')
+        plt.xlabel('Time')
+        plt.ylabel('Outdoor Air Temperature (°C)')
+        plt.legend()
+        plt.grid(True)
+        plt.xticks(rotation=45)
+        plt.tight_layout()
+        if save_plots:
+            os.makedirs('plots', exist_ok=True)
+            plt.savefig(f'plots/outdoor_air_temperature.png')
         #plt.show()
 
         #Plot some actions

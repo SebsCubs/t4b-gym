@@ -204,7 +204,7 @@ def PPO_training(test_model_flag=False, reload_model_flag=False, use_autoencoder
             # Weighted combination: start with high imitation weight, gradually reduce
             if self.training_phase == 'bc_fine_tune':
                 # During BC fine-tuning, use imitation learning with decay
-                imitation_weight = max(0.1, 1.0 - getattr(self.simulator, 'current_step', 0) / 1000)  # Decay over time
+                imitation_weight = max(0.01, 1.0 - getattr(self.simulator, 'current_step', 0) / 1000)  # Decay over time
                 task_weight = 1.0 - imitation_weight
             else:
                 # During regular training, no imitation
@@ -355,17 +355,16 @@ def PPO_training(test_model_flag=False, reload_model_flag=False, use_autoencoder
             
             # Set up imitation learning for BC fine-tuning
             print("Setting up imitation learning for BC fine-tuning...")
-            env.load_expert_demonstrations()  # Load expert demonstrations
-            env.training_phase = 'bc_fine_tune'
+            env.unwrapped.load_expert_demonstrations()  # Load expert demonstrations
+            env.unwrapped.training_phase = 'bc_fine_tune'
             
             # Set lower learning rate for fine-tuning from pretrained model
-            fine_tune_lr = 1e-6  # 10x lower than default for fine-tuning
+            fine_tune_lr = 1e-4  # 10x lower than default for fine-tuning
             model.learning_rate = fine_tune_lr
             print(f"Set learning rate to {fine_tune_lr} for fine-tuning from pretrained model")
             
             # Set high verbosity for detailed training output
-            model.verbose = 2
-            print("Set training verbosity to maximum (2) for detailed progress")
+            #model.target_kl = 0.01
         else:
             raise FileNotFoundError(f"Pretrained behavioral cloning model not found at {bc_model_path}. "
                                   f"Please run the pretraining script first to generate the required model file.")
@@ -455,6 +454,6 @@ if __name__ == "__main__":
     #PPO_training(test_model_flag=True, reload_model_flag=False, use_autoencoder=True, latent_dim=64, network_size='large')
 
     # Fine tune a pretrained bc model without autoencoder
-    PPO_training(test_model_flag=True, reload_model_flag=False, use_autoencoder=False, load_pretrained_bc=True, total_timesteps=500000)
+    PPO_training(test_model_flag=False, reload_model_flag=False, use_autoencoder=False, load_pretrained_bc=True, total_timesteps=500000)
 
 

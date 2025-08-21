@@ -69,7 +69,7 @@ def main():
     if not args.skip_pretraining:
         print("\n[STEP2] Pretraining behavioral cloning model without autoencoder")
         success = run_command(
-            "python pretrain_with_expert.py --algo ppo",
+            "python pretrain_no_autoencoder.py --algo ppo",
             "Pretraining behavioral cloning model without autoencoder"
         )
         if not success:
@@ -88,7 +88,6 @@ def main():
         success = PPO_training(
             test_model_flag=False,
             reload_model_flag=False,
-            use_autoencoder=False,
             load_pretrained_bc=True
         )
         
@@ -106,7 +105,6 @@ def main():
     PPO_training(
         test_model_flag=True,
         reload_model_flag=False,
-        use_autoencoder=False
     )
     
     print("\n[SUCCESS] Complete workflow finished successfully!")
