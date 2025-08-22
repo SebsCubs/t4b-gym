@@ -39,7 +39,7 @@ def test_model(env, model):
         #Define the range of available data
         start_time = datetime.datetime(year=2024, month=1, day=1, hour=0, minute=0, second=0, tzinfo=gettz("Europe/Copenhagen"))
         #end_time = datetime.datetime(year=2024, month=1, day=15, hour=0, minute=0, second=0, tzinfo=gettz("Europe/Copenhagen"))        
-        episode_length = int(3600*24*15 / stepSize)  # 15 days
+        episode_length = int(3600*24*15 / stepSize)
         warmup_period = 0
 
         # Set a fixed start time

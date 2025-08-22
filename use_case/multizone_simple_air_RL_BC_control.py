@@ -10,7 +10,8 @@ from dateutil.tz import gettz
 import sys
 import os
 import logging
-from stable_baselines3 import PPOKL4BC, PPO
+import copy
+from stable_baselines3 import PPO
 from stable_baselines3.common.callbacks import EvalCallback
 from stable_baselines3.common.monitor import Monitor
 from stable_baselines3.common.logger import configure
@@ -26,14 +27,14 @@ from t4b_gym.t4b_gym_env import T4BGymEnv, NormalizedObservationWrapper, Normali
 from boptest_model.rooms_and_ahu_model import load_model_and_params
 from use_case.model_eval import test_model
 
-log_dir = os.path.join(SCRIPT_DIR, 'logs_finetune_bc')
+log_dir = os.path.join(SCRIPT_DIR, 'logs_finetune_bc_3')
 os.makedirs(log_dir, exist_ok=True)
 
 
 POLICY_CONFIG_PATH = os.path.join(SCRIPT_DIR, "policy_input_output.json")
 device = 'cpu'
 bc_model_path = os.path.join(os.path.dirname(__file__), "ppo_pretrained_bc.zip")
-
+policy_size = 'large'
 
 def get_custom_env(stepSize, start_time, end_time):
     model = load_model_and_params()
@@ -43,16 +44,33 @@ def get_custom_env(stepSize, start_time, end_time):
             self.previous_objective = 0.0
         def get_reward(self, action, observation):
             zones = ['core', 'north', 'east', 'south', 'west']
+            
+            # Get current temperature violations with comfort gradients
             temp_violations = []
+            comfort_rewards = []
+            
             for zone in zones:
                 temp = self.simulator.model.components[f"{zone}_indoor_temp_sensor"].output["measuredValue"]
                 heating_setpoint = self.simulator.model.components[f"{zone}_temperature_heating_setpoint"].output["scheduleValue"]
                 cooling_setpoint = self.simulator.model.components[f"{zone}_temperature_cooling_setpoint"].output["scheduleValue"]
+                
+                # Calculate comfort gradient reward
+                comfort_reward = self.get_comfort_gradient_reward(temp, heating_setpoint, cooling_setpoint)
+                comfort_rewards.append(comfort_reward)
+                
+                # Calculate immediate temperature violations (keeping original logic for compatibility)
                 heating_violation = max(0, heating_setpoint - temp)
                 cooling_violation = max(0, temp - cooling_setpoint)
                 zone_violation = (1+heating_violation)**2 + (1+cooling_violation)**2
                 temp_violations.append(zone_violation)
+            
+            # Get forecast-aware temperature violation prediction
+            forecast_violation_penalty = self.get_forecast_aware_temp_penalty(observation, zones)
+            
+            # Original immediate temperature violation penalty
             temp_violation_penalty = 1000 * sum(temp_violations)
+            
+            # Energy consumption calculations (keeping original logic)
             coils_power_consumption = []
             for zone in zones:
                 airflow_rate = self.simulator.model.components[f"{zone}_reheat_coil"].input["airFlowRate"]
@@ -76,11 +94,259 @@ def get_custom_env(stepSize, start_time, end_time):
             supply_cooling_coil_power = self.simulator.model.components["supply_cooling_coil"].output["Power"]
             supply_heating_coil_power = self.simulator.model.components["supply_heating_coil"].output["Power"]
             ahu_power_consumption_penalty = 0.01 * (fan_power + supply_cooling_coil_power + supply_heating_coil_power)
-            reward = temp_violation_penalty + coils_power_consumption_penalty + ahu_power_consumption_penalty
-            reward = reward/1000
+            
+            # Normalize all reward components to similar ranges (roughly 0-1)
+            # Comfort gradient reward (already in range -0.5 to 1.0, normalize to 0-1)
+            comfort_reward_total = sum(comfort_rewards) / len(comfort_rewards)  # Average per zone
+            comfort_reward_normalized = (comfort_reward_total + 0.5) / 1.5  # Normalize to 0-1
+            
+            # Temperature violations (typically 0-50 range, normalize to 0-1)
+            immediate_temp_penalty = sum(temp_violations) / len(temp_violations)  # Average per zone
+            immediate_temp_normalized = min(immediate_temp_penalty * 10.0, 1.0)  # Normalize to 0-1, cap at 1
+            
+            # Forecast violations (typically 0-100 range, normalize to 0-1)
+            forecast_temp_normalized = min(forecast_violation_penalty / 100.0, 1.0)  # Normalize to 0-1, cap at 1
+            
+            # Energy penalties (typically 0-1000 range, normalize to 0-1)
+            total_energy = coils_power_consumption_penalty + ahu_power_consumption_penalty
+            energy_normalized = min(total_energy / 100.0, 1.0)  # Normalize to 0-1, cap at 1
+            
+            # Combine normalized components with meaningful weights
+            reward = (comfort_reward_normalized * 0.2 -      # 20% weight for comfort
+                     immediate_temp_normalized * 0.3 -       # 30% weight for immediate violations
+                     forecast_temp_normalized * 0.2 -        # 20% weight for forecast violations
+                     energy_normalized * 0.3)                # 30% weight for energy
+            
             if np.isnan(reward):
                 raise ValueError("Reward is not a number")
             return -reward
+        
+        def get_comfort_gradient_reward(self, zone_temp, heating_sp, cooling_sp):
+            """Calculate comfort gradient reward with smooth transitions.
+            Encourages staying close to the appropriate setpoint for energy efficiency."""
+            
+            # Determine if we're in heating or cooling mode based on temperature
+            if zone_temp < heating_sp:
+                # Heating mode - encourage staying close to heating setpoint
+                target_temp = heating_sp
+                mode = "heating"
+            elif zone_temp > cooling_sp:
+                # Cooling mode - encourage staying close to cooling setpoint
+                target_temp = cooling_sp
+                mode = "cooling"
+            else:
+                # Within comfort zone - encourage staying close to the nearest setpoint
+                if zone_temp < (heating_sp + cooling_sp) / 2:
+                    target_temp = heating_sp
+                    mode = "heating"
+                else:
+                    target_temp = cooling_sp
+                    mode = "cooling"
+            
+            # Calculate distance from the target setpoint
+            distance_from_target = abs(zone_temp - target_temp)
+            comfort_range = (cooling_sp - heating_sp) / 2
+            
+            if distance_from_target <= comfort_range:
+                # Within comfort zone - reward decreases linearly with distance from target setpoint
+                # Higher reward for being closer to the appropriate setpoint
+                return 1.0 - (distance_from_target / comfort_range) * 0.3
+            else:
+                # Outside comfort zone - increasing penalty
+                excess = distance_from_target - comfort_range
+                return -0.5 - (excess / comfort_range) * 2.0
+        
+        def get_forecast_aware_temp_penalty(self, observation, zones):
+            """Calculate forecast-aware temperature violation penalty."""
+            if not hasattr(self, '_observations') or self._observations is None:
+                # Fallback to immediate violations only if observation names not available
+                return 0.0
+            
+            total_forecast_penalty = 0.0
+            
+            for zone in zones:
+                # Get current temperature
+                current_temp = self.simulator.model.components[f"{zone}_indoor_temp_sensor"].output["measuredValue"]
+                
+                # Get forecast setpoints and weather
+                forecast_setpoints = self.get_forecast_setpoints(zone, observation)
+                forecast_weather = self.get_forecast_weather(observation)
+                
+                # Predict future temperature violations
+                future_violations = self.predict_future_violations(
+                    zone, current_temp, forecast_setpoints, forecast_weather
+                )
+                
+                # Weighted penalty: immediate + predicted future violations
+                immediate_violation = self.calculate_temp_violation(zone)
+                future_penalty = sum([0.8**i * v for i, v in enumerate(future_violations)])
+                
+                total_forecast_penalty += immediate_violation + 0.5 * future_penalty
+            
+            return total_forecast_penalty * 500  # Scale factor for forecast penalties
+        
+        def get_forecast_setpoints(self, zone, observation):
+            """Extract forecast setpoints for a zone from observation array."""
+            if not hasattr(self, '_observations') or self._observations is None:
+                return None
+            
+            forecast_horizon = 50  # From environment configuration
+            setpoints = {'heating': [], 'cooling': []}
+            
+            # Find indices for heating and cooling setpoint forecasts
+            heating_sp_name = f"{zone}_temperature_heating_setpoint:scheduleValue"
+            cooling_sp_name = f"{zone}_temperature_cooling_setpoint:scheduleValue"
+            
+            try:
+                # Find the indices in the observation array
+                heating_indices = [i for i, name in enumerate(self._observations) if heating_sp_name in name]
+                cooling_indices = [i for i, name in enumerate(self._observations) if cooling_sp_name in name]
+                
+                if heating_indices and cooling_indices:
+                    # Extract forecast values (first forecast_horizon + 1 values)
+                    for i in range(min(forecast_horizon + 1, len(heating_indices))):
+                        setpoints['heating'].append(observation[heating_indices[i]])
+                        setpoints['cooling'].append(observation[cooling_indices[i]])
+                else:
+                    # Fallback: use current setpoints for all future timesteps
+                    current_heating_sp = self.simulator.model.components[f"{zone}_temperature_heating_setpoint"].output["scheduleValue"]
+                    current_cooling_sp = self.simulator.model.components[f"{zone}_temperature_cooling_setpoint"].output["scheduleValue"]
+                    setpoints['heating'] = [current_heating_sp] * (forecast_horizon + 1)
+                    setpoints['cooling'] = [current_cooling_sp] * (forecast_horizon + 1)
+                
+            except (IndexError, ValueError):
+                # Fallback: use current setpoints for all future timesteps
+                current_heating_sp = self.simulator.model.components[f"{zone}_temperature_heating_setpoint"].output["scheduleValue"]
+                current_cooling_sp = self.simulator.model.components[f"{zone}_temperature_cooling_setpoint"].output["scheduleValue"]
+                setpoints['heating'] = [current_heating_sp] * (forecast_horizon + 1)
+                setpoints['cooling'] = [current_cooling_sp] * (forecast_horizon + 1)
+            
+            return setpoints
+        
+        def get_forecast_weather(self, observation):
+            """Extract weather forecasts from observation array."""
+            if not hasattr(self, '_observations') or self._observations is None:
+                return None
+            
+            forecast_horizon = 50
+            weather = {'outdoor_temp': [], 'solar': []}
+            
+            try:
+                # Find indices for weather forecasts
+                outdoor_temp_indices = [i for i, name in enumerate(self._observations) if 'outdoorTemperature' in name]
+                solar_indices = [i for i, name in enumerate(self._observations) if 'globalIrradiation' in name]
+                
+                if outdoor_temp_indices:
+                    for i in range(min(forecast_horizon + 1, len(outdoor_temp_indices))):
+                        weather['outdoor_temp'].append(observation[outdoor_temp_indices[i]])
+                else:
+                    # Fallback: use current weather for all future timesteps
+                    current_outdoor_temp = self.simulator.model.components["outdoor_environment"].output["outdoorTemperature"]
+                    weather['outdoor_temp'] = [current_outdoor_temp] * (forecast_horizon + 1)
+                
+                if solar_indices:
+                    for i in range(min(forecast_horizon + 1, len(solar_indices))):
+                        weather['solar'].append(observation[solar_indices[i]])
+                else:
+                    weather['solar'] = [0] * (forecast_horizon + 1)  # Default solar value
+                
+            except (IndexError, ValueError):
+                # Fallback: use current weather for all future timesteps
+                current_outdoor_temp = self.simulator.model.components["outdoor_environment"].output["outdoorTemperature"]
+                weather['outdoor_temp'] = [current_outdoor_temp] * (forecast_horizon + 1)
+                weather['solar'] = [0] * (forecast_horizon + 1)  # Default solar value
+            
+            return weather
+        
+        def predict_future_violations(self, zone, current_temp, forecast_setpoints, forecast_weather):
+            """Predict future temperature violations based on forecasts."""
+            if forecast_setpoints is None or forecast_weather is None:
+                return [0] * 10  # Return zeros if forecasts not available
+            
+            violations = []
+            temp = current_temp
+            
+            # Zone-specific thermal parameters (simplified)
+            thermal_params = {
+                'core': {'time_constant': 7200, 'outdoor_influence': 0.2},      # 2 hours, less outdoor influence
+                'north': {'time_constant': 5400, 'outdoor_influence': 0.4},     # 1.5 hours
+                'south': {'time_constant': 5400, 'outdoor_influence': 0.4},     # 1.5 hours
+                'east': {'time_constant': 5400, 'outdoor_influence': 0.4},      # 1.5 hours
+                'west': {'time_constant': 5400, 'outdoor_influence': 0.4}       # 1.5 hours
+            }
+            
+            params = thermal_params.get(zone, {'time_constant': 5400, 'outdoor_influence': 0.3})
+            thermal_time_constant = params['time_constant']
+            outdoor_influence = params['outdoor_influence']
+            step_size = self.step_size
+            
+            for i in range(min(10, len(forecast_setpoints['heating']))):  # Predict next 10 steps
+                heating_sp = forecast_setpoints['heating'][i]
+                cooling_sp = forecast_setpoints['cooling'][i]
+                outdoor_temp = forecast_weather['outdoor_temp'][i] if i < len(forecast_weather['outdoor_temp']) else outdoor_temp
+                
+                # Improved thermal response model
+                # Temperature tends toward a weighted combination of outdoor temp and setpoint
+                setpoint_influence = 1.0 - outdoor_influence
+                temp_toward = outdoor_temp * outdoor_influence + (heating_sp + cooling_sp) / 2 * setpoint_influence
+                
+                # Exponential decay toward target temperature
+                temp = temp + (temp_toward - temp) * (step_size / thermal_time_constant)
+                
+                # Calculate violation using the same formula as immediate violations
+                heating_violation = max(0, heating_sp - temp)
+                cooling_violation = max(0, temp - cooling_sp)
+                violation = (1 + heating_violation)**2 + (1 + cooling_violation)**2
+                
+                violations.append(violation)
+            
+            return violations
+        
+        def calculate_temp_violation(self, zone):
+            """Calculate current temperature violation for a zone."""
+            temp = self.simulator.model.components[f"{zone}_indoor_temp_sensor"].output["measuredValue"]
+            heating_setpoint = self.simulator.model.components[f"{zone}_temperature_heating_setpoint"].output["scheduleValue"]
+            cooling_setpoint = self.simulator.model.components[f"{zone}_temperature_cooling_setpoint"].output["scheduleValue"]
+            
+            heating_violation = max(0, heating_setpoint - temp)
+            cooling_violation = max(0, temp - cooling_setpoint)
+            return (1 + heating_violation)**2 + (1 + cooling_violation)**2
+        
+        def debug_forecast_extraction(self, observation):
+            """Debug method to print forecast extraction information."""
+            if hasattr(self, '_observations') and self._observations is not None:
+                print(f"Total observations: {len(self._observations)}")
+                print(f"Observation names: {self._observations[:10]}...")  # First 10 names
+                
+                # Check for setpoint forecasts
+                setpoint_names = [name for name in self._observations if 'temperature_heating_setpoint' in name or 'temperature_cooling_setpoint' in name]
+                print(f"Setpoint forecast names found: {len(setpoint_names)}")
+                if setpoint_names:
+                    print(f"First few setpoint names: {setpoint_names[:5]}")
+                
+                # Check for weather forecasts
+                weather_names = [name for name in self._observations if 'outdoorTemperature' in name or 'globalIrradiation' in name]
+                print(f"Weather forecast names found: {len(weather_names)}")
+                if weather_names:
+                    print(f"Weather names: {weather_names}")
+            else:
+                print("No observation names available")
+    
+    
+    # Create base environment first to get observation names
+    base_env = T4BGymEnv(
+        model = model, 
+        io_config_file = POLICY_CONFIG_PATH,
+        start_time = start_time,
+        end_time = end_time,
+        episode_length= int(3600*24*5 / stepSize),  # 5 days
+        random_start=True, 
+        excluding_periods=None, 
+        forecast_horizon=50,
+        step_size=stepSize,
+        warmup_period=0)
+    
+    # Create custom environment with observation names
     env = T4BGymEnvCustomReward(
         model = model, 
         io_config_file = POLICY_CONFIG_PATH,
@@ -91,7 +357,10 @@ def get_custom_env(stepSize, start_time, end_time):
         excluding_periods=None, 
         forecast_horizon=50,
         step_size=stepSize,
-        warmup_period=0) 
+        warmup_period=0)
+    
+    # Copy observation names from base environment
+    env._observations = base_env._observations
 
     return env
 
@@ -169,29 +438,148 @@ class PeriodicSaveCallback(BaseCallback):
 
 
 class AdaptKLtoBC(BaseCallback):
-    def __init__(self, target_kl=0.02, up=1.5, down=0.7, min_beta=1e-4, max_beta=5.0, verbose=0):
+    def __init__(
+        self,
+        target_kl=0.02,
+        beta0=1.0,
+        beta_final=0.05,          # set to 0.0 if you want to remove KL entirely
+        decay_steps=200_000,      # how fast to relax the BC constraint (timesteps)
+        up=1.5,
+        down=0.7,
+        ema=0.9,                  # EMA for KL smoothing
+        min_beta=1e-5,
+        max_beta=5.0,
+        verbose=0,
+    ):
         super().__init__(verbose)
-        self.target_kl, self.up, self.down = target_kl, up, down
-        self.min_beta, self.max_beta = min_beta, max_beta
+        self.target_kl = float(target_kl)
+        self.beta0 = float(beta0)
+        self.beta_final = float(beta_final)
+        self.decay_steps = int(decay_steps)
+        self.up, self.down = float(up), float(down)
+        self.ema = float(ema)
+        self.min_beta, self.max_beta = float(min_beta), float(max_beta)
+        self._ema_kl = None
+
+    def _envelope(self, t):
+        # Exponential decay: beta_env = beta0 * (beta_final/beta0)^(progress)
+        progress = min(1.0, t / max(1, self.decay_steps))
+        return self.beta0 * (self.beta_final / self.beta0) ** progress
 
     def _on_step(self) -> bool:
         # This method is called on every step, but we only want to adapt KL on rollout end
         # So we just return True to continue training
         return True
 
+    def _on_training_start(self) -> None:
+        # Initialize model beta to envelope at t=0 if not set
+        if not hasattr(self.model, "beta_kl"):
+            self.model.beta_kl = self.beta0
+        self.model.set_beta_kl(self.model.beta_kl)
+
     def _on_rollout_end(self) -> bool:
-        kl = self.model.logger.name_to_value.get("train/kl_bc", None)
+        # Read KL measured during training step - try multiple sources
+        kl = None
+        
+        # First try to get from model instance
+        if hasattr(self.model, 'kl_bc_value'):
+            kl = self.model.kl_bc_value
+            if self.verbose > 0:
+                print(f"[KL-BC] Found KL value in model instance: {kl}")
+        
+        # Fallback to logger
         if kl is None:
+            kl = self.model.logger.name_to_value.get("train/kl_bc", None)
+            if self.verbose > 0 and kl is not None:
+                print(f"[KL-BC] Found KL value in logger: {kl}")
+        
+        # Debug: Print available keys in logger if still None
+        if self.verbose > 0 and kl is None:
+            available_keys = list(self.model.logger.name_to_value.keys())
+            print(f"[KL-BC] DEBUG: Available logger keys: {available_keys}")
+            print(f"[KL-BC] DEBUG: Looking for 'train/kl_bc', found: {kl}")
+            print(f"[KL-BC] DEBUG: Model has kl_bc_value attribute: {hasattr(self.model, 'kl_bc_value')}")
+        
+        if kl is None:
+            if self.verbose > 0:
+                print(f"[KL-BC] WARNING: No KL value found. Available logger keys: {list(self.model.logger.name_to_value.keys())}")
             return True
-        beta = self.model.beta_kl
-        if kl > 2 * self.target_kl:
+
+        # Clamp extreme KL values to prevent numerical instability
+        if kl > 10.0:  # Reduced threshold to match new KL clamp
+            print(f"[KL-BC] WARNING: Extreme KL value detected: {kl:.2e}. Clamping to 10.0")
+            kl = 10.0
+        elif np.isnan(kl) or np.isinf(kl):
+            print(f"[KL-BC] WARNING: Invalid KL value detected: {kl}. Using previous value or 1.0")
+            kl = self._ema_kl if self._ema_kl is not None else 1.0
+
+        # EMA smoothing
+        if self._ema_kl is None:
+            self._ema_kl = kl
+        else:
+            self._ema_kl = self.ema * self._ema_kl + (1 - self.ema) * kl
+
+        beta = float(self.model.beta_kl)
+
+        # Adaptive multiplicative control around target KL
+        if self._ema_kl > 2.0 * self.target_kl:
             beta *= self.up
-        elif kl < 0.5 * self.target_kl:
+        elif self._ema_kl < 0.5 * self.target_kl:
             beta *= self.down
-        beta = float(max(self.min_beta, min(self.max_beta, beta)))
+
+        # Apply decaying envelope as an upper bound (monotonic relaxation)
+        beta_env = self._envelope(self.num_timesteps)
+        beta = min(beta, beta_env)
+
+        # Final clamp
+        beta = float(np.clip(beta, self.min_beta, self.max_beta))
         self.model.set_beta_kl(beta)
+
+        # Log for monitoring
+        self.model.logger.record("train/beta_kl", beta)
+        self.model.logger.record("train/beta_env", beta_env)
+        self.model.logger.record("train/kl_bc_ema", self._ema_kl)
         if self.verbose:
-            print(f"[KL-BC] kl={kl:.4f} -> beta={beta:.4f}")
+            print(f"[KL-BC] kl_ema={self._ema_kl:.4f} env={beta_env:.4f} -> beta={beta:.4f}")
+        return True
+
+
+class PolicyDistributionMonitorCallback(BaseCallback):
+    """
+    Monitor policy distribution parameters to detect numerical instability.
+    """
+    def __init__(self, check_freq=1000, verbose=0):
+        super().__init__(verbose)
+        self.check_freq = check_freq
+        
+    def _on_rollout_end(self) -> bool:
+        if self.num_timesteps % self.check_freq == 0:
+            # Get policy parameters
+            policy = self.model.policy
+            if hasattr(policy, 'action_net'):
+                # For continuous action spaces
+                action_mean = policy.action_net.mean
+                action_log_std = policy.action_net.log_std
+                
+                # Check for numerical issues
+                mean_norm = torch.norm(action_mean).item()
+                log_std_norm = torch.norm(action_log_std).item()
+                log_std_min = torch.min(action_log_std).item()
+                log_std_max = torch.max(action_log_std).item()
+                
+                # Log warnings for potential issues
+                if log_std_min < -10:  # Very small standard deviations
+                    print(f"[PolicyMonitor] WARNING: Very small log_std detected: {log_std_min:.4f}")
+                if log_std_max > 10:  # Very large standard deviations
+                    print(f"[PolicyMonitor] WARNING: Very large log_std detected: {log_std_max:.4f}")
+                if mean_norm > 100:  # Very large means
+                    print(f"[PolicyMonitor] WARNING: Large action means detected: {mean_norm:.4f}")
+                
+                # Log distribution statistics
+                self.model.logger.record("policy/log_std_min", log_std_min)
+                self.model.logger.record("policy/log_std_max", log_std_max)
+                self.model.logger.record("policy/mean_norm", mean_norm)
+                
         return True
 
 
@@ -348,6 +736,596 @@ def create_large_ppo_policy_kwargs(network_size='large'):
     
     return policy_kwargs
 
+def create_stable_ppokl4bc_class():
+    """
+    Create a more numerically stable version of PPOKL4BC with better KL divergence calculation.
+    """
+    import copy
+    import torch
+    import torch.nn.functional as F
+    import numpy as np
+    from gymnasium import spaces
+    from stable_baselines3.ppo import PPO
+    from stable_baselines3.common.utils import explained_variance
+    
+    class StablePPOKL4BC(PPO):
+        def __init__(self, *args, bc_policy=None, beta_kl=1.0, **kwargs):
+            super().__init__(*args, **kwargs)
+            assert bc_policy is not None, "Pass a frozen BC policy (same arch)."
+            self.bc_policy = copy.deepcopy(bc_policy).eval()
+            for p in self.bc_policy.parameters():
+                p.requires_grad_(False)
+            self.beta_kl = float(beta_kl)
+            # Initialize KL value storage
+            self.kl_bc_value = 0.0
+            # Copy BC weights into the new PPO policy
+            self._copy_bc_weights()
+            
+        def _copy_bc_weights(self):
+            """Copy weights from the BC policy to the current PPO policy with small noise."""
+            with torch.no_grad():
+                # Copy features extractor weights
+                if hasattr(self.policy, 'features_extractor') and hasattr(self.bc_policy, 'features_extractor'):
+                    self._copy_module_weights(self.policy.features_extractor, self.bc_policy.features_extractor)
+                
+                # Copy MLP extractor weights (shared or separate)
+                if hasattr(self.policy, 'mlp_extractor') and hasattr(self.bc_policy, 'mlp_extractor'):
+                    self._copy_module_weights(self.policy.mlp_extractor, self.bc_policy.mlp_extractor)
+                
+                # Copy action network weights with small noise
+                if hasattr(self.policy, 'action_net') and hasattr(self.bc_policy, 'action_net'):
+                    self._copy_module_weights_with_noise(self.policy.action_net, self.bc_policy.action_net, noise_std=0.001)
+                
+                # Copy value network weights
+                if hasattr(self.policy, 'value_net') and hasattr(self.bc_policy, 'value_net'):
+                    self._copy_module_weights(self.policy.value_net, self.bc_policy.value_net)
+                
+                # Copy log_std if it exists (for continuous actions) with small noise
+                if hasattr(self.policy, 'log_std') and hasattr(self.bc_policy, 'log_std'):
+                    self.policy.log_std.data.copy_(self.bc_policy.log_std.data)
+                    # Add small noise to log_std to create initial divergence
+                    noise = torch.randn_like(self.policy.log_std.data) * 0.001
+                    self.policy.log_std.data.add_(noise)
+                
+                print("Successfully copied BC policy weights to PPO policy with small noise for initial divergence")
+
+        def _copy_module_weights(self, target_module, source_module):
+            """Helper method to copy weights from source module to target module."""
+            target_state_dict = target_module.state_dict()
+            source_state_dict = source_module.state_dict()
+            
+            # Only copy weights for parameters that exist in both modules
+            for key in target_state_dict.keys():
+                if key in source_state_dict:
+                    if target_state_dict[key].shape == source_state_dict[key].shape:
+                        target_state_dict[key].copy_(source_state_dict[key])
+                    else:
+                        raise ValueError(f"Shape mismatch for {key}: target {target_state_dict[key].shape} vs source {source_state_dict[key].shape}")
+
+        def _copy_module_weights_with_noise(self, target_module, source_module, noise_std=0.01):
+            """Helper method to copy weights with small noise for initial divergence."""
+            target_state_dict = target_module.state_dict()
+            source_state_dict = source_module.state_dict()
+            
+            # Only copy weights for parameters that exist in both modules
+            for key in target_state_dict.keys():
+                if key in source_state_dict:
+                    if target_state_dict[key].shape == source_state_dict[key].shape:
+                        # Copy weights and add small noise
+                        target_state_dict[key].copy_(source_state_dict[key])
+                        noise = torch.randn_like(target_state_dict[key]) * noise_std
+                        target_state_dict[key].add_(noise)
+                    else:
+                        raise ValueError(f"Shape mismatch for {key}: target {target_state_dict[key].shape} vs source {source_state_dict[key].shape}")
+
+        def set_beta_kl(self, val: float):
+            self.beta_kl = float(val)
+
+        @classmethod
+        def load(cls, path, env, bc_policy=None, **kwargs):
+            """
+            Load a saved StablePPOKL4BC model.
+            """
+            # Load the base PPO model first
+            base_model = PPO.load(path, env, **kwargs)
+            
+            # Create a new StablePPOKL4BC instance without policy (will be set manually)
+            model = cls.__new__(cls)
+            
+            # Initialize the model manually to avoid policy creation issues
+            model.env = env
+            model.bc_policy = bc_policy
+            model.beta_kl = 1.0
+            model.kl_bc_value = 0.0
+            
+            # Copy all the attributes from the loaded model
+            for attr in ['num_timesteps', 'learning_rate', 'policy_kwargs', 'policy', 'rollout_buffer']:
+                if hasattr(base_model, attr):
+                    setattr(model, attr, getattr(base_model, attr))
+            
+            # Set up the BC policy if provided
+            if bc_policy is not None:
+                model.bc_policy = copy.deepcopy(bc_policy).eval()
+                for p in model.bc_policy.parameters():
+                    p.requires_grad_(False)
+            
+            return model
+
+        @torch.no_grad()
+        def _bc_log_prob(self, obs_tensor, actions_tensor):
+            dist_bc = self.bc_policy.get_distribution(obs_tensor)
+            # SB3 already sums over action dims in log_prob for each distribution
+            logp_bc = dist_bc.log_prob(actions_tensor)
+            if logp_bc.ndim > 1:
+                logp_bc = logp_bc.sum(-1)
+            return logp_bc
+
+        def _compute_stable_kl_bc(self, log_prob, logp_bc):
+            """
+            Compute KL divergence to BC policy using a numerically stable method.
+            """
+            bc_log_ratio = log_prob - logp_bc
+            
+            # Clip log_ratio to prevent numerical overflow
+            bc_log_ratio = torch.clamp(bc_log_ratio, -20.0, 20.0)
+            
+            # Use more stable KL calculation
+            # KL = E[log(p/q)] = E[log(p) - log(q)] = E[log_ratio]
+            # But we want KL(p||q) = E_p[log(p/q)] = E_p[log_ratio]
+            # The approximation is: KL ≈ E[(exp(log_ratio) - 1) - log_ratio]
+            
+            # Split into positive and negative parts for numerical stability
+            pos_mask = bc_log_ratio > 0
+            neg_mask = bc_log_ratio <= 0
+            
+            kl_pos = torch.zeros_like(bc_log_ratio)
+            kl_neg = torch.zeros_like(bc_log_ratio)
+            
+            if pos_mask.any():
+                # For positive log_ratio: KL ≈ exp(log_ratio) - 1 - log_ratio
+                kl_pos[pos_mask] = torch.exp(bc_log_ratio[pos_mask]) - 1 - bc_log_ratio[pos_mask]
+            
+            if neg_mask.any():
+                # For negative log_ratio: KL ≈ 1 - exp(log_ratio) + log_ratio
+                # This is more stable than the original formula
+                kl_neg[neg_mask] = 1 - torch.exp(bc_log_ratio[neg_mask]) + bc_log_ratio[neg_mask]
+            
+            approx_kl_bc = torch.mean(kl_pos + kl_neg)
+            
+            # Debug: Print detailed KL calculation info occasionally
+            if hasattr(self, '_kl_debug_count'):
+                self._kl_debug_count += 1
+            else:
+                self._kl_debug_count = 0
+                
+            if self._kl_debug_count % 1000 == 0 and self.verbose >= 1:
+                print(f"[KL-CALC] Debug batch {self._kl_debug_count}:")
+                print(f"[KL-CALC] Log ratio range: [{bc_log_ratio.min().item():.4f}, {bc_log_ratio.max().item():.4f}]")
+                print(f"[KL-CALC] Pos mask count: {pos_mask.sum().item()}, Neg mask count: {neg_mask.sum().item()}")
+                print(f"[KL-CALC] KL components - Pos: {kl_pos.sum().item():.6f}, Neg: {kl_neg.sum().item():.6f}")
+                print(f"[KL-CALC] Final KL: {approx_kl_bc.item():.6f}")
+            
+            # Additional safety check
+            if torch.isnan(approx_kl_bc) or torch.isinf(approx_kl_bc):
+                print(f"WARNING: Invalid KL value detected: {approx_kl_bc.item()}. Using fallback.")
+                # Fallback: use simple L2 distance between log probabilities
+                approx_kl_bc = torch.mean((log_prob - logp_bc) ** 2)
+            
+            # Final safety check - clamp to reasonable range
+            approx_kl_bc = torch.clamp(approx_kl_bc, 0.0, 100.0)
+            
+            return approx_kl_bc
+
+        def train(self):
+            """Update policy using the currently gathered rollout buffer with KL divergence to BC policy."""
+            # Switch to train mode (this affects batch norm / dropout)
+            self.policy.set_training_mode(True)
+            # Update optimizer learning rate
+            self._update_learning_rate(self.policy.optimizer)
+            # Compute current clip range
+            clip_range = self.clip_range(self._current_progress_remaining)
+            # Optional: clip range for the value function
+            if self.clip_range_vf is not None:
+                clip_range_vf = self.clip_range_vf(self._current_progress_remaining)
+
+            entropy_losses = []
+            pg_losses, value_losses = [], []
+            clip_fractions = []
+            kl_bc_meter = []
+
+            continue_training = True
+            # train for n_epochs epochs
+            for epoch in range(self.n_epochs):
+                approx_kl_divs = []
+                # Do a complete pass on the rollout buffer
+                for rollout_data in self.rollout_buffer.get(self.batch_size):
+                    actions = rollout_data.actions
+                    if isinstance(self.action_space, spaces.Discrete):
+                        # Convert discrete action from float to long
+                        actions = rollout_data.actions.long().flatten()
+
+                    values, log_prob, entropy = self.policy.evaluate_actions(rollout_data.observations, actions)
+                    values = values.flatten()
+                    
+                    # Clip log probabilities to prevent extreme values
+                    log_prob = torch.clamp(log_prob, -20.0, 20.0)
+                    
+                    # Normalize advantage
+                    advantages = rollout_data.advantages
+                    # Normalization does not make sense if mini batchsize == 1, see GH issue #325
+                    if self.normalize_advantage and len(advantages) > 1:
+                        advantages = (advantages - advantages.mean()) / (advantages.std() + 1e-8)
+
+                    # ratio between old and new policy, should be one at the first iteration
+                    ratio = torch.exp(log_prob - rollout_data.old_log_prob)
+
+                    # clipped surrogate loss
+                    policy_loss_1 = advantages * ratio
+                    policy_loss_2 = advantages * torch.clamp(ratio, 1 - clip_range, 1 + clip_range)
+                    policy_loss = -torch.min(policy_loss_1, policy_loss_2).mean()
+
+                    # Logging
+                    pg_losses.append(policy_loss.item())
+                    clip_fraction = torch.mean((torch.abs(ratio - 1) > clip_range).float()).item()
+                    clip_fractions.append(clip_fraction)
+
+                    if self.clip_range_vf is None:
+                        # No clipping
+                        values_pred = values
+                    else:
+                        # Clip the difference between old and new value
+                        # NOTE: this depends on the reward scaling
+                        values_pred = rollout_data.old_values + torch.clamp(
+                            values - rollout_data.old_values, -clip_range_vf, clip_range_vf
+                        )
+                    # Value loss using the TD(gae_lambda) target
+                    value_loss = F.mse_loss(rollout_data.returns, values_pred)
+                    value_losses.append(value_loss.item())
+
+                    # Entropy loss favor exploration
+                    if entropy is None:
+                        # Approximate entropy when no analytical form
+                        entropy_loss = -torch.mean(-log_prob)
+                    else:
+                        entropy_loss = -torch.mean(entropy)
+
+                    entropy_losses.append(entropy_loss.item())
+
+                    # === KL to BC (using stable calculation) ===
+                    with torch.no_grad():
+                        logp_bc = self._bc_log_prob(rollout_data.observations, actions)
+                        # Clip BC log probabilities as well
+                        logp_bc = torch.clamp(logp_bc, -20.0, 20.0)
+                    
+                    # Use stable KL calculation
+                    approx_kl_bc = self._compute_stable_kl_bc(log_prob, logp_bc)
+                    kl_bc_meter.append(approx_kl_bc.detach().cpu().item())
+                    
+                    # Debug: Print KL values and log probabilities occasionally
+                    if len(kl_bc_meter) % 1000 == 0 and self.verbose >= 1:
+                        print(f"[KL-DEBUG] Batch {len(kl_bc_meter)}: KL_BC = {approx_kl_bc.item():.6f}")
+                        print(f"[KL-DEBUG] Log prob stats - Current: mean={log_prob.mean().item():.4f}, std={log_prob.std().item():.4f}")
+                        print(f"[KL-DEBUG] Log prob stats - Expert: mean={logp_bc.mean().item():.4f}, std={logp_bc.std().item():.4f}")
+                        print(f"[KL-DEBUG] Log ratio stats - mean={(log_prob - logp_bc).mean().item():.4f}, std={(log_prob - logp_bc).std().item():.4f}")
+                    
+                    # Total loss including KL divergence to BC
+                    loss = policy_loss + self.beta_kl * approx_kl_bc + self.ent_coef * entropy_loss + self.vf_coef * value_loss
+
+                    # Calculate approximate form of reverse KL Divergence for early stopping
+                    # see issue #417: https://github.com/DLR-RM/stable-baselines3/issues/417
+                    # and discussion in PR #419: https://github.com/DLR-RM/stable-baselines3/pull/419
+                    # and Schulman blog: http://joschu.net/blog/kl-approx.html
+                    with torch.no_grad():
+                        log_ratio = log_prob - rollout_data.old_log_prob
+                        approx_kl_div = torch.mean((torch.exp(log_ratio) - 1) - log_ratio).cpu().numpy()
+                        approx_kl_divs.append(approx_kl_div)
+
+                    if self.target_kl is not None and approx_kl_div > 1.5 * self.target_kl:
+                        continue_training = False
+                        if self.verbose >= 1:
+                            print(f"Early stopping at step {epoch} due to reaching max kl: {approx_kl_div:.2f}")
+                        break
+
+                    # Optimization step
+                    self.policy.optimizer.zero_grad()
+                    loss.backward()
+                    # Clip grad norm
+                    torch.nn.utils.clip_grad_norm_(self.policy.parameters(), self.max_grad_norm)
+                    self.policy.optimizer.step()
+
+                self._n_updates += 1
+                if not continue_training:
+                    break
+
+            explained_var = explained_variance(self.rollout_buffer.values.flatten(), self.rollout_buffer.returns.flatten())
+
+            # Logs
+            if kl_bc_meter:
+                kl_bc_mean = np.mean(kl_bc_meter)
+                self.logger.record("train/kl_bc", kl_bc_mean)
+                # Store KL value directly in model instance for callback access
+                self.kl_bc_value = kl_bc_mean
+                if self.verbose >= 1:
+                    print(f"[TRAIN] Logged KL_BC: {kl_bc_mean:.6f} (from {len(kl_bc_meter)} batches)")
+            else:
+                # If no KL values were computed, log 0
+                self.logger.record("train/kl_bc", 0.0)
+                self.kl_bc_value = 0.0
+                if self.verbose >= 1:
+                    print("[TRAIN] WARNING: No KL values computed, logging 0.0")
+                
+            self.logger.record("train/entropy_loss", np.mean(entropy_losses))
+            self.logger.record("train/policy_gradient_loss", np.mean(pg_losses))
+            self.logger.record("train/value_loss", np.mean(value_losses))
+            self.logger.record("train/approx_kl", np.mean(approx_kl_divs))
+            self.logger.record("train/clip_fraction", np.mean(clip_fractions))
+            self.logger.record("train/loss", loss.item())
+            self.logger.record("train/explained_variance", explained_var)
+            if hasattr(self.policy, "log_std"):
+                self.logger.record("train/std", torch.exp(self.policy.log_std).mean().item())
+
+            self.logger.record("train/n_updates", self._n_updates, exclude="tensorboard")
+            self.logger.record("train/clip_range", clip_range)
+            if self.clip_range_vf is not None:
+                self.logger.record("train/clip_range_vf", clip_range_vf)
+    
+    return StablePPOKL4BC
+
+def test_policy_differences(model, bc_model, env, num_samples=10):
+    """
+    Test if the current and expert policies are producing different outputs.
+    """
+    print("Testing policy differences...")
+    
+    current_actions = []
+    expert_actions = []
+    
+    for i in range(num_samples):
+        obs = env.observation_space.sample()
+        
+        # Get actions from both policies
+        current_action = model.predict(obs, deterministic=True)[0]
+        expert_action = bc_model.predict(obs, deterministic=True)[0]
+        
+        current_actions.append(current_action)
+        expert_actions.append(expert_action)
+    
+    current_actions = np.array(current_actions)
+    expert_actions = np.array(expert_actions)
+    
+    # Calculate differences
+    action_diff = np.abs(current_actions - expert_actions)
+    mean_diff = np.mean(action_diff, axis=0)
+    max_diff = np.max(action_diff, axis=0)
+    
+    print(f"Action differences - Mean: {mean_diff}")
+    print(f"Action differences - Max: {max_diff}")
+    print(f"Overall mean difference: {np.mean(mean_diff):.6f}")
+    print(f"Overall max difference: {np.mean(max_diff):.6f}")
+    
+    # Check if policies are identical
+    if np.allclose(current_actions, expert_actions, atol=1e-6):
+        print("WARNING: Policies appear to be identical! This explains KL=0.")
+        print("The BC weights were copied exactly, so no KL divergence is expected.")
+        return False
+    else:
+        print("Policies are different, KL should be non-zero.")
+        return True
+
+
+def test_kl_calculation():
+    """
+    Test function to verify KL divergence calculation is working.
+    """
+    print("Testing KL divergence calculation...")
+    
+    # Create a simple test case
+    import torch
+    
+    # Create test log probabilities
+    log_prob_current = torch.tensor([-1.0, -2.0, -3.0])  # Current policy log probs
+    log_prob_expert = torch.tensor([-1.1, -1.9, -3.1])   # Expert policy log probs
+    
+    # Create the stable PPOKL4BC class
+    StablePPOKL4BC = create_stable_ppokl4bc_class()
+    
+    # Create a dummy model instance just to access the KL calculation method
+    class DummyModel:
+        def _compute_stable_kl_bc(self, log_prob, logp_bc):
+            """
+            Compute KL divergence to BC policy using a numerically stable method.
+            """
+            bc_log_ratio = log_prob - logp_bc
+            
+            # Clip log_ratio to prevent numerical overflow (reduced from 20.0 to 10.0)
+            bc_log_ratio = torch.clamp(bc_log_ratio, -10.0, 10.0)
+            
+            # Use more stable KL calculation
+            pos_mask = bc_log_ratio > 0
+            neg_mask = bc_log_ratio <= 0
+            
+            kl_pos = torch.zeros_like(bc_log_ratio)
+            kl_neg = torch.zeros_like(bc_log_ratio)
+            
+            if pos_mask.any():
+                kl_pos[pos_mask] = torch.exp(bc_log_ratio[pos_mask]) - 1 - bc_log_ratio[pos_mask]
+            
+            if neg_mask.any():
+                kl_neg[neg_mask] = 1 - torch.exp(bc_log_ratio[neg_mask]) + bc_log_ratio[neg_mask]
+            
+            approx_kl_bc = torch.mean(kl_pos + kl_neg)
+            
+            # Final safety check - clamp to reasonable range (reduced from 100.0 to 10.0)
+            approx_kl_bc = torch.clamp(approx_kl_bc, 0.0, 10.0)
+            
+            return approx_kl_bc
+    
+    dummy_model = DummyModel()
+    
+    # Test KL calculation
+    kl_value = dummy_model._compute_stable_kl_bc(log_prob_current, log_prob_expert)
+    print(f"Test KL calculation result: {kl_value.item():.6f}")
+    
+    # Test with more extreme values
+    log_prob_extreme = torch.tensor([-10.0, -15.0, -20.0])
+    log_prob_expert_extreme = torch.tensor([-1.0, -1.0, -1.0])
+    
+    kl_extreme = dummy_model._compute_stable_kl_bc(log_prob_extreme, log_prob_expert_extreme)
+    print(f"Extreme KL calculation result: {kl_extreme.item():.6f}")
+    
+    print("KL calculation test completed!")
+    return kl_value.item(), kl_extreme.item()
+
+
+def analyze_policy_distributions(bc_model_path, env, num_samples=1000):
+    """
+    Comprehensive analysis of both expert and current policy distributions.
+    """
+    print("="*60)
+    print("COMPREHENSIVE POLICY DISTRIBUTION ANALYSIS")
+    print("="*60)
+    
+    # Load expert policy
+    bc_model = PPO.load(bc_model_path, env=env, device='cpu')
+    
+    # Sample actions from expert policy
+    expert_actions = []
+    current_actions = []
+    
+    print("Sampling actions from both policies...")
+    for i in range(num_samples):
+        obs = env.observation_space.sample()
+        
+        # Expert policy
+        expert_action = bc_model.predict(obs, deterministic=False)[0]
+        expert_actions.append(expert_action)
+        
+        # Current policy (random initialization)
+        current_action = env.action_space.sample()
+        current_actions.append(current_action)
+        
+        if (i + 1) % 200 == 0:
+            print(f"  Sampled {i + 1}/{num_samples} actions...")
+    
+    expert_actions = np.array(expert_actions)
+    current_actions = np.array(current_actions)
+    
+    print("\nEXPERT POLICY ANALYSIS:")
+    print("-" * 30)
+    expert_std = np.std(expert_actions, axis=0)
+    expert_mean = np.mean(expert_actions, axis=0)
+    expert_min = np.min(expert_actions, axis=0)
+    expert_max = np.max(expert_actions, axis=0)
+    
+    print(f"Action means: {expert_mean}")
+    print(f"Action stds:  {expert_std}")
+    print(f"Action range: [{expert_min}, {expert_max}]")
+    
+    print("\nCURRENT POLICY ANALYSIS (Random):")
+    print("-" * 40)
+    current_std = np.std(current_actions, axis=0)
+    current_mean = np.mean(current_actions, axis=0)
+    current_min = np.min(current_actions, axis=0)
+    current_max = np.max(current_actions, axis=0)
+    
+    print(f"Action means: {current_mean}")
+    print(f"Action stds:  {current_std}")
+    print(f"Action range: [{current_min}, {current_max}]")
+    
+    print("\nDISTRIBUTION COMPARISON:")
+    print("-" * 25)
+    mean_diff = np.abs(expert_mean - current_mean)
+    std_diff = np.abs(expert_std - current_std)
+    
+    print(f"Mean differences: {mean_diff}")
+    print(f"Std differences:  {std_diff}")
+    
+    # Check for potential KL divergence issues
+    print("\nPOTENTIAL ISSUES:")
+    print("-" * 18)
+    issues = []
+    
+    # Check for very small expert variances (could cause KL spikes)
+    if np.any(expert_std < 1e-2):
+        small_std_indices = np.where(expert_std < 1e-2)[0]
+        issues.append(f"Expert policy has very small std in actions {small_std_indices}: {expert_std[small_std_indices]}")
+    
+    # Check for very large action values
+    if np.any(np.abs(expert_actions) > 10):
+        large_action_count = np.sum(np.abs(expert_actions) > 10)
+        issues.append(f"Expert policy has {large_action_count} actions with magnitude > 10")
+    
+    # Check for large distribution differences
+    if np.any(mean_diff > 5):
+        large_diff_indices = np.where(mean_diff > 5)[0]
+        issues.append(f"Large mean differences in actions {large_diff_indices}: {mean_diff[large_diff_indices]}")
+    
+    if issues:
+        for i, issue in enumerate(issues, 1):
+            print(f"  {i}. {issue}")
+    else:
+        print("  No obvious issues detected")
+    
+    print("\nRECOMMENDATIONS:")
+    print("-" * 16)
+    if np.any(expert_std < 1e-2):
+        print("  • Consider adding minimum std constraint to prevent KL spikes")
+        print("  • Use more conservative KL adaptation parameters")
+    if np.any(mean_diff > 5):
+        print("  • Consider gradual policy initialization")
+        print("  • Use smaller learning rate initially")
+    
+    print("="*60)
+    return expert_actions, current_actions
+
+
+def analyze_expert_policy_distribution(bc_model_path, env, num_samples=1000):
+    """
+    Analyze the expert policy distribution to detect potential issues.
+    """
+    print("Analyzing expert policy distribution...")
+    
+    # Load expert policy
+    bc_model = PPO.load(bc_model_path, env=env, device='cpu')
+    
+    # Sample actions from expert policy
+    expert_actions = []
+    
+    for _ in range(num_samples):
+        obs = env.observation_space.sample()
+        action = bc_model.predict(obs, deterministic=False)[0]  # predict returns (action, state)
+        expert_actions.append(action)
+    
+    expert_actions = np.array(expert_actions)
+    
+    # Analyze distribution
+    action_std = np.std(expert_actions, axis=0)
+    action_mean = np.mean(expert_actions, axis=0)
+    
+    print(f"Expert action statistics:")
+    print(f"  Action means: {action_mean}")
+    print(f"  Action stds: {action_std}")
+    print(f"  Action range: [{np.min(expert_actions, axis=0)}, {np.max(expert_actions, axis=0)}]")
+    
+    # Check for potential issues
+    issues = []
+    if np.any(action_std < 1e-3):
+        issues.append("Very low action variance detected")
+    if np.any(np.abs(action_mean) > 10):
+        issues.append("Large action means detected")
+    if np.any(np.abs(expert_actions) > 20):
+        issues.append("Very large action values detected")
+    
+    if issues:
+        print("POTENTIAL ISSUES DETECTED:")
+        for issue in issues:
+            print(f"  - {issue}")
+    else:
+        print("Expert policy distribution looks reasonable")
+    
+    return expert_actions
+
+
 def PPO_BC_finetune_training(test_model_flag=False, reload_model_flag=False,  total_timesteps=100000,
                  load_pretrained_bc=False):
     """
@@ -363,19 +1341,27 @@ def PPO_BC_finetune_training(test_model_flag=False, reload_model_flag=False,  to
     #Define the range of available data
     start_time = datetime.datetime(year=2024, month=1, day=1, hour=0, minute=0, second=0, tzinfo=gettz("Europe/Copenhagen"))
     end_time = datetime.datetime(year=2024, month=1, day=15, hour=0, minute=0, second=0, tzinfo=gettz("Europe/Copenhagen"))        
-
+    fine_tune_lr = 1e-5
+    StablePPOKL4BC = create_stable_ppokl4bc_class()
     env = get_custom_env(stepSize, start_time, end_time)
     env = NormalizedObservationWrapper(env)
     env = RobustNormalizedActionWrapper(env)  # Use robust wrapper that handles out-of-bounds actions
     env = Monitor(env=env, filename=os.path.join(log_dir,'monitor.csv'))
 
-    policy_kwargs = create_large_ppo_policy_kwargs()
+    policy_kwargs = create_large_ppo_policy_kwargs(network_size=policy_size)
 
     if test_model_flag:
-        model_path = os.path.join(log_dir, "ppo_model.zip")
+        model_path = os.path.join(log_dir, "model_500000.zip")
+        if not os.path.exists(model_path):
+            print(f"Model file not found: {model_path}")
+            print("Available model files:")
+            for file in os.listdir(log_dir):
+                if file.endswith('.zip'):
+                    print(f"  - {file}")
+            return
+        
         bc_model = PPO.load(bc_model_path, env=env, device=device)
-        bc_model.policy.to(device).eval()
-        model = PPOKL4BC.load(model_path, env=env, bc_policy=bc_model.policy, policy_kwargs=policy_kwargs, device=device)
+        model = StablePPOKL4BC.load(model_path, env=env, bc_policy=bc_model.policy, policy_kwargs=policy_kwargs, device=device)
         print(f"Training steps: {model.num_timesteps}")
         test_model(env, model)
         return
@@ -388,11 +1374,18 @@ def PPO_BC_finetune_training(test_model_flag=False, reload_model_flag=False,  to
         bc_model = PPO.load(bc_model_path, env=env, device=device)
         print(f"Loaded pretrained model with {bc_model.num_timesteps} timesteps")
         
-        model = PPOKL4BC(
-        "MlpPolicy", env, bc_policy=bc_model.policy, policy_kwargs=policy_kwargs, beta_kl=1.0,
+        # Test KL calculation
+        #test_kl_calculation()
+        
+        # Analyze expert policy distribution
+        #analyze_policy_distributions(bc_model_path, env)
+        
+        
+        model = StablePPOKL4BC(
+        "MlpPolicy", env, bc_policy=bc_model.policy, policy_kwargs=policy_kwargs, beta_kl=0.5,
         n_steps=4096, batch_size=256, n_epochs=10,
-        gamma=0.997, gae_lambda=0.95, learning_rate=1e-4, clip_range=0.15,  # Increased learning rate
-        ent_coef=0.0, vf_coef=0.5, device=device, verbose=1
+        gamma=0.997, gae_lambda=0.95, learning_rate=fine_tune_lr, clip_range=0.15,  
+        ent_coef=0.0, vf_coef=0.5, device=device, verbose=0
         )
         
         # Debug: Check action space bounds
@@ -435,10 +1428,10 @@ def PPO_BC_finetune_training(test_model_flag=False, reload_model_flag=False,  to
             print(f"Average deterministic action range: [{np.mean(action_mins):.4f}, {np.mean(action_maxs):.4f}]")
             print(f"Average stochastic action range: [{np.mean(stoch_action_mins):.4f}, {np.mean(stoch_action_maxs):.4f}]")
         
-        # Set learning rate for fine-tuning from pretrained model
-        fine_tune_lr = 1e-4  # Increased learning rate for better stability
-        model.learning_rate = fine_tune_lr
-        print(f"Set learning rate to {fine_tune_lr} for fine-tuning from pretrained model")
+        # Test policy differences after model creation
+        test_policy_differences(model, bc_model, env)
+        
+        
     else:
         raise FileNotFoundError(f"Pretrained behavioral cloning model not found at {bc_model_path}. "
                                 f"Please run the pretraining script first to generate the required model file.")
@@ -446,7 +1439,12 @@ def PPO_BC_finetune_training(test_model_flag=False, reload_model_flag=False,  to
 
     # Set up callback for BC fine-tuning
 
-    AdaptKLtoBC_callback = AdaptKLtoBC(target_kl=0.005, verbose=1)
+    AdaptKLtoBC_callback = AdaptKLtoBC(target_kl=0.01,  # Lower target since we start with similar policies
+                                            beta0=0.5,   # Lower initial beta to allow gradual divergence
+                                            beta_final=1e-4,  # Higher final beta to maintain some BC constraint
+                                            decay_steps=100000,  
+                                            verbose=0
+                                        )
     progress_callback = SingleLineProgressCallback(total_timesteps, verbose=0)
     periodic_save_callback = PeriodicSaveCallback(save_freq=100000, save_path=log_dir, verbose=0)
     action_bounds_callback = ActionBoundsMonitorCallback(check_freq=1000, verbose=1)
@@ -472,7 +1470,7 @@ def PPO_BC_finetune_training(test_model_flag=False, reload_model_flag=False,  to
         print(f"Loaded model with {model.num_timesteps} previous timesteps")
 
         # Set lower learning rate for fine-tuning from pretrained model
-        fine_tune_lr = 1e-6  # 10x lower than default for fine-tuning
+        
         model.learning_rate = fine_tune_lr
         print(f"Set learning rate to {fine_tune_lr} for fine-tuning from pretrained model")
 
@@ -506,6 +1504,6 @@ def PPO_BC_finetune_training(test_model_flag=False, reload_model_flag=False,  to
 
 
 if __name__ == "__main__":
-    PPO_BC_finetune_training(test_model_flag=False, reload_model_flag=False, load_pretrained_bc=True, total_timesteps=500000)
+    PPO_BC_finetune_training(test_model_flag=False, reload_model_flag=False, load_pretrained_bc=True, total_timesteps=1000000)
 
 

@@ -561,13 +561,13 @@ class T4BGymEnv(gym.Env):
             spaces.Dict: Observation space
         """
         #Get the populated component outputs from the simulator
-        observations = []
+        self._observations = []
         low_bounds = []
         upper_bounds = []
 
         for component_id, outputs in self.simulator.observation_outputs.items():
             for output_name in outputs:
-                observations.append(outputs[output_name])
+                self._observations.append(outputs[output_name])
                 low_bounds.append(self.simulator.observation_outputs[component_id][output_name]['min'])
                 upper_bounds.append(self.simulator.observation_outputs[component_id][output_name]['max'])
 
@@ -577,8 +577,8 @@ class T4BGymEnv(gym.Env):
             for key in time_embedding_keys:
                 #Using sin and cos embeddings for the time of day, day of week, month of year
                 #Therefore there are two observations for each time embedding
-                observations.append(self.io_config_dict['time_embeddings'][key]["signal_key"] + "_sin")
-                observations.append(self.io_config_dict['time_embeddings'][key]["signal_key"] + "_cos")
+                self._observations.append(self.io_config_dict['time_embeddings'][key]["signal_key"] + "_sin")
+                self._observations.append(self.io_config_dict['time_embeddings'][key]["signal_key"] + "_cos")
                 low_bounds.append(-1)
                 low_bounds.append(-1)
                 upper_bounds.append(1)
@@ -591,7 +591,7 @@ class T4BGymEnv(gym.Env):
                 for signal_name, signal_config in self.io_config_dict['forecasts'][key].items():
                     # For each signal, we need forecast_horizon + 1 dimensions (current value + future values)
                     for _ in range(self.forecast_horizon + 1):
-                        observations.append(signal_name)
+                        self._observations.append(signal_name)
                         low_bounds.append(signal_config['min'])
                         upper_bounds.append(signal_config['max'])
 
