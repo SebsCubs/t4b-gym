@@ -521,7 +521,7 @@ def get_model(id=None, fcn_=None):
     else:
         model = tb.Model(id="rooms_and_ahu_model_no_id", saveSimulationResult=True)
     
-    model.load(fcn=fcn_, create_signature_graphs=False, validate_model=True, verbose=True, force_config_update=True)
+    model.load(fcn=fcn_, create_signature_graphs=False, validate_model=True, verbose=False, force_config_update=True)
     return model
 
 

@@ -35,6 +35,9 @@ POLICY_CONFIG_PATH = os.path.join(SCRIPT_DIR, "policy_input_output.json")
 device = 'cpu'
 bc_model_path = os.path.join(os.path.dirname(__file__), "ppo_pretrained_bc.zip")
 policy_size = 'large'
+test_model_flag = True
+reload_model_flag = True
+total_timesteps = 1500000
 
 def get_custom_env(stepSize, start_time, end_time):
     model = load_model_and_params()
@@ -751,15 +754,19 @@ def create_stable_ppokl4bc_class():
     class StablePPOKL4BC(PPO):
         def __init__(self, *args, bc_policy=None, beta_kl=1.0, **kwargs):
             super().__init__(*args, **kwargs)
-            assert bc_policy is not None, "Pass a frozen BC policy (same arch)."
-            self.bc_policy = copy.deepcopy(bc_policy).eval()
-            for p in self.bc_policy.parameters():
-                p.requires_grad_(False)
             self.beta_kl = float(beta_kl)
             # Initialize KL value storage
             self.kl_bc_value = 0.0
-            # Copy BC weights into the new PPO policy
-            self._copy_bc_weights()
+            
+            # Set up BC policy if provided
+            if bc_policy is not None:
+                self.bc_policy = copy.deepcopy(bc_policy).eval()
+                for p in self.bc_policy.parameters():
+                    p.requires_grad_(False)
+                # Copy BC weights into the new PPO policy
+                self._copy_bc_weights()
+            else:
+                self.bc_policy = None
             
         def _copy_bc_weights(self):
             """Copy weights from the BC policy to the current PPO policy with small noise."""
@@ -824,24 +831,11 @@ def create_stable_ppokl4bc_class():
         @classmethod
         def load(cls, path, env, bc_policy=None, **kwargs):
             """
-            Load a saved StablePPOKL4BC model.
+            Load a saved StablePPOKL4BC model using SB3's built-in loading mechanism.
             """
-            # Load the base PPO model first
-            base_model = PPO.load(path, env, **kwargs)
-            
-            # Create a new StablePPOKL4BC instance without policy (will be set manually)
-            model = cls.__new__(cls)
-            
-            # Initialize the model manually to avoid policy creation issues
-            model.env = env
-            model.bc_policy = bc_policy
-            model.beta_kl = 1.0
-            model.kl_bc_value = 0.0
-            
-            # Copy all the attributes from the loaded model
-            for attr in ['num_timesteps', 'learning_rate', 'policy_kwargs', 'policy', 'rollout_buffer']:
-                if hasattr(base_model, attr):
-                    setattr(model, attr, getattr(base_model, attr))
+            # Load the model using SB3's standard loading mechanism
+            # This will properly restore all attributes and state
+            model = super().load(path, env, **kwargs)
             
             # Set up the BC policy if provided
             if bc_policy is not None:
@@ -918,6 +912,10 @@ def create_stable_ppokl4bc_class():
 
         def train(self):
             """Update policy using the currently gathered rollout buffer with KL divergence to BC policy."""
+            # Check if BC policy is available
+            if self.bc_policy is None:
+                raise ValueError("BC policy is not set. Please ensure bc_policy is provided during initialization or loading.")
+            
             # Switch to train mode (this affects batch norm / dropout)
             self.policy.set_training_mode(True)
             # Update optimizer learning rate
@@ -1351,7 +1349,7 @@ def PPO_BC_finetune_training(test_model_flag=False, reload_model_flag=False,  to
     policy_kwargs = create_large_ppo_policy_kwargs(network_size=policy_size)
 
     if test_model_flag:
-        model_path = os.path.join(log_dir, "model_500000.zip")
+        model_path = os.path.join(log_dir, "model_2200001.zip")
         if not os.path.exists(model_path):
             print(f"Model file not found: {model_path}")
             print("Available model files:")
@@ -1464,9 +1462,14 @@ def PPO_BC_finetune_training(test_model_flag=False, reload_model_flag=False,  to
     print(f"{'='*60}\n")
     
     if reload_model_flag:
-        model_path = os.path.join(log_dir, "100k.zip")
+        model_path = os.path.join(log_dir, "model_1000000.zip")
         print(f"Reloading existing model from {model_path}")
-        model = PPO.load(model_path, env=env, device=device)
+
+        # Load the BC model to get its policy
+        bc_model = PPO.load(bc_model_path, env=env, device=device)
+        
+        model = StablePPOKL4BC.load(model_path, env=env, bc_policy=bc_model.policy, policy_kwargs=policy_kwargs, device=device)
+
         print(f"Loaded model with {model.num_timesteps} previous timesteps")
 
         # Set lower learning rate for fine-tuning from pretrained model
@@ -1477,8 +1480,11 @@ def PPO_BC_finetune_training(test_model_flag=False, reload_model_flag=False,  to
         new_logger = configure(log_dir, ['csv'])
         model.set_logger(new_logger)
 
+        total_training_timesteps = total_timesteps - model.num_timesteps
+
         print("Continuing training with existing model...")
-        model.learn(total_timesteps=total_timesteps, callback=callback, reset_num_timesteps=False)
+        model.learn(total_timesteps=total_training_timesteps, callback=callback, reset_num_timesteps=False)
+         
     else:
         new_logger = configure(log_dir, ['csv'])
         model.set_logger(new_logger)
@@ -1504,6 +1510,6 @@ def PPO_BC_finetune_training(test_model_flag=False, reload_model_flag=False,  to
 
 
 if __name__ == "__main__":
-    PPO_BC_finetune_training(test_model_flag=False, reload_model_flag=False, load_pretrained_bc=True, total_timesteps=1000000)
+    PPO_BC_finetune_training(test_model_flag=test_model_flag, reload_model_flag=reload_model_flag, load_pretrained_bc=True, total_timesteps=total_timesteps)
 
 
