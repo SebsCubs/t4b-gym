@@ -81,7 +81,8 @@ from use_case.model_eval import test_model
 from imitation.algorithms.bc import BC
 from imitation.data.types import Transitions
 
-EXPERT_PATH = os.path.join(os.path.dirname(__file__), "expert_trajectories.npz")
+EXPERT_PATH = os.path.join(os.path.dirname(__file__), "expert_trajectories_merged.npz")
+POLICY_CONFIG_PATH = os.path.join(os.path.dirname(__file__), "policy_input_output_co2sets.json")
 PRETRAINED_MODEL_PATHS = {
     'ppo': os.path.join(os.path.dirname(__file__), "ppo_pretrained_bc.zip"),
     'a2c': os.path.join(os.path.dirname(__file__), "a2c_pretrained_bc.zip"),
@@ -396,7 +397,7 @@ def run_sanity_checks(obs_arr, acts_arr, next_obs_arr, dones_arr, save_plots=Fal
 
 def get_env(stepSize, start_time, end_time):
     """Create environment with custom reward function for pretraining."""
-    from use_case.multizone_simple_air_RL_control import load_model_and_params, POLICY_CONFIG_PATH
+    from use_case.multizone_simple_air_RL_control import load_model_and_params
     from t4b_gym.t4b_gym_env import NormalizedObservationWrapper, NormalizedActionWrapper
     model = load_model_and_params()
     
@@ -467,7 +468,7 @@ def normalize_expert_trajectories(obs_arr, acts_arr, next_obs_arr, stepSize, sta
 
     # Get the original observation space bounds (before normalization wrapper)
     # We need to create a temporary environment without wrappers to get the original bounds
-    from use_case.multizone_simple_air_RL_control import load_model_and_params, POLICY_CONFIG_PATH
+    from use_case.multizone_simple_air_RL_control import load_model_and_params
     from t4b_gym.t4b_gym_env import T4BGymEnv
     
     # Create base environment without wrappers
@@ -484,6 +485,22 @@ def normalize_expert_trajectories(obs_arr, acts_arr, next_obs_arr, stepSize, sta
         step_size=stepSize,
         warmup_period=0
     )
+
+    if 'boptest' in EXPERT_PATH:
+        #Get the action and observation space indeces of the values with temperatures
+        observation_keys = temp_env._observations
+        observation_keys_indices = [i for i, key in enumerate(observation_keys) if "temp" in key]
+
+        action_keys = temp_env._actions
+        action_keys_indices = [i for i, key in enumerate(action_keys) if "temp" in key]
+
+        #Convert Kelvin to Celsius for the acts and obs with temperatures
+        # Apply conversion row-wise (for each time step) to the feature dimension
+        obs_arr[:, observation_keys_indices] = obs_arr[:, observation_keys_indices] - 273.15
+        next_obs_arr[:, observation_keys_indices] = next_obs_arr[:, observation_keys_indices] - 273.15
+        acts_arr[:, action_keys_indices] = acts_arr[:, action_keys_indices] - 273.15
+
+    
     
     # Get original bounds
     obs_low = temp_env.observation_space.low
@@ -539,7 +556,7 @@ def main():
     data = np.load(expert_path, allow_pickle=True)
     obs_arr = data['obs']
     acts_arr = data['acts']
-    next_obs_arr = data['next_obs']
+    next_obs_arr = data['obs_next']
     dones_arr = data['dones']
     
     print("Normalizing expert trajectory observations and actions to match environment normalization...")
@@ -597,7 +614,7 @@ def main():
         rng=rng
     )
     print(f"Pretraining {algo.upper()} policy with behavioral cloning...")
-    bc_trainer.train(n_epochs=150)
+    bc_trainer.train(n_epochs=50)
     print("Pretraining complete.")
 
     # Save the pretrained policy weights for later RL training

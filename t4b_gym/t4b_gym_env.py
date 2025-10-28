@@ -537,13 +537,13 @@ class T4BGymEnv(gym.Env):
         """
         
         #Define the action and observation spaces, if io_config_file is provided, max and min values are defined in the json file
-        action_keys = []
+        self._actions = []
         low_bounds = []
         upper_bounds = []
 
         for component_id, inputs in self.simulator.control_inputs.items():
             for input_name in inputs:
-                action_keys.append(input_name)
+                self._actions.append(component_id + "." + input_name)
                 low_bounds.append(self.simulator.control_inputs[component_id][input_name]['min'])
                 upper_bounds.append(self.simulator.control_inputs[component_id][input_name]['max'])
 
@@ -567,7 +567,7 @@ class T4BGymEnv(gym.Env):
 
         for component_id, outputs in self.simulator.observation_outputs.items():
             for output_name in outputs:
-                self._observations.append(outputs[output_name])
+                self._observations.append(component_id + "." + output_name)
                 low_bounds.append(self.simulator.observation_outputs[component_id][output_name]['min'])
                 upper_bounds.append(self.simulator.observation_outputs[component_id][output_name]['max'])
 
@@ -591,7 +591,7 @@ class T4BGymEnv(gym.Env):
                 for signal_name, signal_config in self.io_config_dict['forecasts'][key].items():
                     # For each signal, we need forecast_horizon + 1 dimensions (current value + future values)
                     for _ in range(self.forecast_horizon + 1):
-                        self._observations.append(signal_name)
+                        self._observations.append(key + "." + signal_name)
                         low_bounds.append(signal_config['min'])
                         upper_bounds.append(signal_config['max'])
 

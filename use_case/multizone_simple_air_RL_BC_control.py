@@ -27,17 +27,17 @@ from t4b_gym.t4b_gym_env import T4BGymEnv, NormalizedObservationWrapper, Normali
 from boptest_model.rooms_and_ahu_model import load_model_and_params
 from use_case.model_eval import test_model
 
-log_dir = os.path.join(SCRIPT_DIR, 'logs_finetune_bc_3')
+log_dir = os.path.join(SCRIPT_DIR, 'logs_finetune_bc_4')
 os.makedirs(log_dir, exist_ok=True)
 
 
-POLICY_CONFIG_PATH = os.path.join(SCRIPT_DIR, "policy_input_output.json")
+POLICY_CONFIG_PATH = os.path.join(SCRIPT_DIR, "policy_input_output_co2sets.json")
 device = 'cpu'
 bc_model_path = os.path.join(os.path.dirname(__file__), "ppo_pretrained_bc.zip")
 policy_size = 'large'
 test_model_flag = True
-reload_model_flag = True
-total_timesteps = 1500000
+reload_model_flag = False
+total_timesteps = 1000000
 
 def get_custom_env(stepSize, start_time, end_time):
     model = load_model_and_params()
@@ -57,8 +57,8 @@ def get_custom_env(stepSize, start_time, end_time):
                 heating_setpoint = self.simulator.model.components[f"{zone}_temperature_heating_setpoint"].output["scheduleValue"]
                 cooling_setpoint = self.simulator.model.components[f"{zone}_temperature_cooling_setpoint"].output["scheduleValue"]
                 
-                # Calculate comfort gradient reward
-                comfort_reward = self.get_comfort_gradient_reward(temp, heating_setpoint, cooling_setpoint)
+                # Calculate comfort gradient reward with pre-cooling/pre-heating incentives
+                comfort_reward = self.get_comfort_gradient_reward(temp, heating_setpoint, cooling_setpoint, zone, observation)
                 comfort_rewards.append(comfort_reward)
                 
                 # Calculate immediate temperature violations (keeping original logic for compatibility)
@@ -69,6 +69,9 @@ def get_custom_env(stepSize, start_time, end_time):
             
             # Get forecast-aware temperature violation prediction
             forecast_violation_penalty = self.get_forecast_aware_temp_penalty(observation, zones)
+            
+            # Calculate energy efficiency bonus for exploiting relaxed setpoints
+            energy_efficiency_bonus = self.calculate_energy_efficiency_bonus(observation, zones)
             
             # Original immediate temperature violation penalty
             temp_violation_penalty = 1000 * sum(temp_violations)
@@ -114,31 +117,38 @@ def get_custom_env(stepSize, start_time, end_time):
             total_energy = coils_power_consumption_penalty + ahu_power_consumption_penalty
             energy_normalized = min(total_energy / 100.0, 1.0)  # Normalize to 0-1, cap at 1
             
+            # Energy efficiency bonus (typically 0-0.5 range, normalize to 0-1)
+            energy_efficiency_normalized = min(energy_efficiency_bonus * 2.0, 1.0)  # Normalize to 0-1, cap at 1
+            
             # Combine normalized components with meaningful weights
             reward = (comfort_reward_normalized * 0.2 -      # 20% weight for comfort
                      immediate_temp_normalized * 0.3 -       # 30% weight for immediate violations
                      forecast_temp_normalized * 0.2 -        # 20% weight for forecast violations
-                     energy_normalized * 0.3)                # 30% weight for energy
+                     energy_normalized * 0.25 +              # 25% weight for energy
+                     energy_efficiency_normalized * 0.05)    # 5% weight for energy efficiency bonus
+                     
             
             if np.isnan(reward):
                 raise ValueError("Reward is not a number")
             return -reward
         
-        def get_comfort_gradient_reward(self, zone_temp, heating_sp, cooling_sp):
-            """Calculate comfort gradient reward with smooth transitions.
-            Encourages staying close to the appropriate setpoint for energy efficiency."""
+        def get_comfort_gradient_reward(self, zone_temp, heating_sp, cooling_sp, zone_name=None, observation=None):
+            """Calculate comfort gradient reward with pre-cooling/pre-heating incentives.
+            Encourages exploiting relaxed nighttime setpoints for energy efficiency."""
             
-            # Determine if we're in heating or cooling mode based on temperature
+            # Get forecast setpoints if available
+            forecast_setpoints = None
+            if zone_name and observation is not None:
+                forecast_setpoints = self.get_forecast_setpoints(zone_name, observation)
+            
+            # Determine current mode and target
             if zone_temp < heating_sp:
-                # Heating mode - encourage staying close to heating setpoint
                 target_temp = heating_sp
                 mode = "heating"
             elif zone_temp > cooling_sp:
-                # Cooling mode - encourage staying close to cooling setpoint
                 target_temp = cooling_sp
                 mode = "cooling"
             else:
-                # Within comfort zone - encourage staying close to the nearest setpoint
                 if zone_temp < (heating_sp + cooling_sp) / 2:
                     target_temp = heating_sp
                     mode = "heating"
@@ -146,18 +156,252 @@ def get_custom_env(stepSize, start_time, end_time):
                     target_temp = cooling_sp
                     mode = "cooling"
             
-            # Calculate distance from the target setpoint
+            # Calculate base comfort reward
             distance_from_target = abs(zone_temp - target_temp)
             comfort_range = (cooling_sp - heating_sp) / 2
             
             if distance_from_target <= comfort_range:
-                # Within comfort zone - reward decreases linearly with distance from target setpoint
-                # Higher reward for being closer to the appropriate setpoint
-                return 1.0 - (distance_from_target / comfort_range) * 0.3
+                base_reward = 1.0 - (distance_from_target / comfort_range) * 0.3
             else:
-                # Outside comfort zone - increasing penalty
                 excess = distance_from_target - comfort_range
-                return -0.5 - (excess / comfort_range) * 2.0
+                base_reward = -0.5 - (excess / comfort_range) * 2.0
+            
+            # Add pre-cooling/pre-heating incentives if forecasts are available
+            strategy_bonus = 0.0
+            if forecast_setpoints and len(forecast_setpoints['heating']) > 0:
+                strategy_bonus = self.calculate_strategy_bonus(
+                    zone_temp, heating_sp, cooling_sp, forecast_setpoints, mode
+                )
+            
+            return base_reward + strategy_bonus
+        
+        def calculate_strategy_bonus(self, zone_temp, heating_sp, cooling_sp, forecast_setpoints, current_mode):
+            """Calculate bonus reward for pre-cooling/pre-heating strategies."""
+            
+            # Look ahead 2-6 hours (4-12 timesteps with 30-min steps) for setpoint changes
+            look_ahead_hours = 4  # 4 hours ahead
+            look_ahead_steps = min(look_ahead_hours * 2, len(forecast_setpoints['heating']))  # 2 steps per hour
+            
+            if look_ahead_steps < 2:
+                return 0.0
+            
+            # Find significant setpoint changes in the forecast
+            current_comfort_range = cooling_sp - heating_sp
+            strategy_opportunities = []
+            
+            for i in range(1, look_ahead_steps):
+                future_heating_sp = forecast_setpoints['heating'][i]
+                future_cooling_sp = forecast_setpoints['cooling'][i]
+                future_comfort_range = future_cooling_sp - future_heating_sp
+                
+                # Check if there's a significant change in comfort range
+                range_change = future_comfort_range - current_comfort_range
+                
+                if abs(range_change) > 2.0:  # Significant change (more than 2°C)
+                    # Determine if this is a relaxation (nighttime) or tightening (daytime)
+                    if range_change > 0:
+                        # Relaxation - opportunity for pre-cooling/pre-heating
+                        strategy_opportunities.append({
+                            'hours_ahead': i / 2,  # Convert steps to hours
+                            'type': 'relaxation',
+                            'range_change': range_change,
+                            'future_heating_sp': future_heating_sp,
+                            'future_cooling_sp': future_cooling_sp
+                        })
+                    else:
+                        # Tightening - need to prepare for stricter requirements
+                        strategy_opportunities.append({
+                            'hours_ahead': i / 2,
+                            'type': 'tightening',
+                            'range_change': range_change,
+                            'future_heating_sp': future_heating_sp,
+                            'future_cooling_sp': future_cooling_sp
+                        })
+            
+            if not strategy_opportunities:
+                return 0.0
+            
+            # Calculate strategy bonus based on opportunities
+            total_bonus = 0.0
+            
+            for opportunity in strategy_opportunities:
+                if opportunity['type'] == 'relaxation':
+                    # Pre-cooling/pre-heating opportunity
+                    bonus = self.calculate_preconditioning_bonus(
+                        zone_temp, heating_sp, cooling_sp, opportunity, current_mode
+                    )
+                else:
+                    # Preparation for stricter requirements
+                    bonus = self.calculate_preparation_bonus(
+                        zone_temp, heating_sp, cooling_sp, opportunity, current_mode
+                    )
+                
+                # Weight by time distance (closer opportunities get higher weight)
+                time_weight = max(0.1, 1.0 - (opportunity['hours_ahead'] / 6.0))
+                total_bonus += bonus * time_weight
+            
+            return total_bonus * 0.5  # Scale factor for strategy bonus
+        
+        def calculate_preconditioning_bonus(self, zone_temp, heating_sp, cooling_sp, opportunity, current_mode):
+            """Calculate bonus for pre-cooling/pre-heating during relaxation periods."""
+            
+            future_heating_sp = opportunity['future_heating_sp']
+            future_cooling_sp = opportunity['future_cooling_sp']
+            range_change = opportunity['range_change']
+            
+            # Determine optimal preconditioning strategy
+            if current_mode == "cooling":
+                # Currently cooling - check if we can pre-cool more aggressively
+                if zone_temp > future_cooling_sp:
+                    # Can pre-cool to future cooling setpoint
+                    optimal_temp = future_cooling_sp
+                    distance_to_optimal = zone_temp - optimal_temp
+                    
+                    if distance_to_optimal > 0.5:  # Significant pre-cooling opportunity
+                        # Bonus increases with range change and decreases with distance
+                        bonus = min(0.3, (range_change / 10.0) * (distance_to_optimal / 5.0))
+                        return bonus
+            
+            elif current_mode == "heating":
+                # Currently heating - check if we can pre-heat more aggressively
+                if zone_temp < future_heating_sp:
+                    # Can pre-heat to future heating setpoint
+                    optimal_temp = future_heating_sp
+                    distance_to_optimal = optimal_temp - zone_temp
+                    
+                    if distance_to_optimal > 0.5:  # Significant pre-heating opportunity
+                        # Bonus increases with range change and decreases with distance
+                        bonus = min(0.3, (range_change / 10.0) * (distance_to_optimal / 5.0))
+                        return bonus
+            
+            return 0.0
+        
+        def calculate_preparation_bonus(self, zone_temp, heating_sp, cooling_sp, opportunity, current_mode):
+            """Calculate bonus for preparing for stricter requirements."""
+            
+            future_heating_sp = opportunity['future_heating_sp']
+            future_cooling_sp = opportunity['future_cooling_sp']
+            
+            # Check if current temperature is well-positioned for future requirements
+            future_midpoint = (future_heating_sp + future_cooling_sp) / 2
+            current_midpoint = (heating_sp + cooling_sp) / 2
+            
+            # Calculate how well-positioned we are for the future
+            distance_from_future_midpoint = abs(zone_temp - future_midpoint)
+            future_comfort_range = future_cooling_sp - future_heating_sp
+            
+            # Bonus for being close to future comfort zone center
+            if distance_from_future_midpoint < future_comfort_range / 2:
+                bonus = 0.2 * (1.0 - distance_from_future_midpoint / (future_comfort_range / 2))
+                return bonus
+            
+            return 0.0
+        
+        def calculate_energy_efficiency_bonus(self, observation, zones):
+            """Calculate bonus for energy-efficient strategies using relaxed setpoints."""
+            
+            total_bonus = 0.0
+            
+            for zone in zones:
+                # Get current conditions
+                current_temp = self.simulator.model.components[f"{zone}_indoor_temp_sensor"].output["measuredValue"]
+                current_heating_sp = self.simulator.model.components[f"{zone}_temperature_heating_setpoint"].output["scheduleValue"]
+                current_cooling_sp = self.simulator.model.components[f"{zone}_temperature_cooling_setpoint"].output["scheduleValue"]
+                current_comfort_range = current_cooling_sp - current_heating_sp
+                
+                # Get forecast setpoints
+                forecast_setpoints = self.get_forecast_setpoints(zone, observation)
+                if not forecast_setpoints or len(forecast_setpoints['heating']) == 0:
+                    continue
+                
+                # Look for energy efficiency opportunities
+                zone_bonus = 0.0
+                
+                # Check if we're in a relaxed period (nighttime)
+                if current_comfort_range > 8.0:  # Relaxed setpoints (18°C range vs 2°C daytime)
+                    # Bonus for exploiting relaxed setpoints for energy savings
+                    zone_bonus += self.calculate_relaxed_period_bonus(
+                        current_temp, current_heating_sp, current_cooling_sp, forecast_setpoints
+                    )
+                
+                # Check for pre-cooling/pre-heating opportunities
+                zone_bonus += self.calculate_preconditioning_efficiency_bonus(
+                    current_temp, current_heating_sp, current_cooling_sp, forecast_setpoints
+                )
+                
+                total_bonus += zone_bonus
+            
+            return total_bonus / len(zones)  # Average across zones
+        
+        def calculate_relaxed_period_bonus(self, current_temp, heating_sp, cooling_sp, forecast_setpoints):
+            """Calculate bonus for energy savings during relaxed setpoint periods."""
+            
+            comfort_range = cooling_sp - heating_sp
+            if comfort_range < 8.0:  # Not a relaxed period
+                return 0.0
+            
+            # Find when setpoints will tighten (return to daytime values)
+            tightening_hours = None
+            for i in range(1, min(12, len(forecast_setpoints['heating']))):  # Look up to 6 hours ahead
+                future_heating_sp = forecast_setpoints['heating'][i]
+                future_cooling_sp = forecast_setpoints['cooling'][i]
+                future_comfort_range = future_cooling_sp - future_heating_sp
+                
+                if future_comfort_range < 4.0:  # Setpoints will tighten
+                    tightening_hours = i / 2  # Convert steps to hours
+                    break
+            
+            if tightening_hours is None:
+                return 0.0
+            
+            # Calculate energy savings potential
+            # During relaxed periods, we can allow more temperature drift
+            # Bonus for staying within relaxed bounds while preparing for tightening
+            current_midpoint = (heating_sp + cooling_sp) / 2
+            distance_from_midpoint = abs(current_temp - current_midpoint)
+            
+            # Higher bonus for being closer to the relaxed midpoint
+            # This encourages energy savings while maintaining comfort
+            if distance_from_midpoint < comfort_range / 4:
+                bonus = 0.3 * (1.0 - distance_from_midpoint / (comfort_range / 4))
+                # Scale by time until tightening (more time = more savings potential)
+                time_scale = min(1.0, tightening_hours / 4.0)
+                return bonus * time_scale
+            
+            return 0.0
+        
+        def calculate_preconditioning_efficiency_bonus(self, current_temp, heating_sp, cooling_sp, forecast_setpoints):
+            """Calculate bonus for efficient pre-cooling/pre-heating strategies."""
+            
+            # Look for opportunities to use relaxed setpoints for energy storage
+            total_bonus = 0.0
+            
+            for i in range(1, min(8, len(forecast_setpoints['heating']))):  # Look up to 4 hours ahead
+                future_heating_sp = forecast_setpoints['heating'][i]
+                future_cooling_sp = forecast_setpoints['cooling'][i]
+                future_comfort_range = future_cooling_sp - future_heating_sp
+                current_comfort_range = cooling_sp - heating_sp
+                
+                # Check if we're transitioning from relaxed to strict setpoints
+                if current_comfort_range > 8.0 and future_comfort_range < 4.0:
+                    # Opportunity for energy storage during relaxed period
+                    hours_ahead = i / 2
+                    
+                    # Calculate optimal temperature for energy storage
+                    future_midpoint = (future_heating_sp + future_cooling_sp) / 2
+                    current_midpoint = (heating_sp + cooling_sp) / 2
+                    
+                    # Bonus for moving toward future optimal temperature
+                    distance_to_future_optimal = abs(current_temp - future_midpoint)
+                    distance_to_current_optimal = abs(current_temp - current_midpoint)
+                    
+                    if distance_to_future_optimal < distance_to_current_optimal:
+                        # Moving toward future optimal - good energy storage strategy
+                        improvement = distance_to_current_optimal - distance_to_future_optimal
+                        bonus = 0.2 * improvement * (1.0 - hours_ahead / 4.0)  # Decay with time
+                        total_bonus += bonus
+            
+            return total_bonus
         
         def get_forecast_aware_temp_penalty(self, observation, zones):
             """Calculate forecast-aware temperature violation penalty."""
@@ -1337,9 +1581,9 @@ def PPO_BC_finetune_training(test_model_flag=False, reload_model_flag=False,  to
     
     stepSize = 600 #Seconds
     #Define the range of available data
-    start_time = datetime.datetime(year=2024, month=1, day=1, hour=0, minute=0, second=0, tzinfo=gettz("Europe/Copenhagen"))
-    end_time = datetime.datetime(year=2024, month=1, day=15, hour=0, minute=0, second=0, tzinfo=gettz("Europe/Copenhagen"))        
-    fine_tune_lr = 1e-5
+    start_time = datetime.datetime(year=2024, month=5, day=17, hour=0, minute=0, second=0, tzinfo=gettz("Europe/Copenhagen"))
+    end_time = datetime.datetime(year=2024, month=5, day=31, hour=0, minute=0, second=0, tzinfo=gettz("Europe/Copenhagen"))        
+    fine_tune_lr = 5e-4
     StablePPOKL4BC = create_stable_ppokl4bc_class()
     env = get_custom_env(stepSize, start_time, end_time)
     env = NormalizedObservationWrapper(env)
@@ -1349,7 +1593,7 @@ def PPO_BC_finetune_training(test_model_flag=False, reload_model_flag=False,  to
     policy_kwargs = create_large_ppo_policy_kwargs(network_size=policy_size)
 
     if test_model_flag:
-        model_path = os.path.join(log_dir, "model_2200001.zip")
+        model_path = os.path.join(log_dir, "ppo_pretrained_bc.zip")
         if not os.path.exists(model_path):
             print(f"Model file not found: {model_path}")
             print("Available model files:")
@@ -1440,7 +1684,7 @@ def PPO_BC_finetune_training(test_model_flag=False, reload_model_flag=False,  to
     AdaptKLtoBC_callback = AdaptKLtoBC(target_kl=0.01,  # Lower target since we start with similar policies
                                             beta0=0.5,   # Lower initial beta to allow gradual divergence
                                             beta_final=1e-4,  # Higher final beta to maintain some BC constraint
-                                            decay_steps=100000,  
+                                            decay_steps=20000,  
                                             verbose=0
                                         )
     progress_callback = SingleLineProgressCallback(total_timesteps, verbose=0)

@@ -28,7 +28,7 @@ log_dir = os.path.join(SCRIPT_DIR, 'logs')
 os.makedirs(log_dir, exist_ok=True)
 
 
-POLICY_CONFIG_PATH = os.path.join(SCRIPT_DIR, "policy_input_output.json")
+POLICY_CONFIG_PATH = os.path.join(SCRIPT_DIR, "policy_input_output_co2sets.json")
 device = 'cpu'
 
 
@@ -229,7 +229,7 @@ def PPO_training(test_model_flag=False, reload_model_flag=False, use_autoencoder
             The expert data is unnormalized, so we need to normalize it to match the environment's action space.
             """
             if expert_data_path is None:
-                expert_data_path = os.path.join(os.path.dirname(__file__), "expert_trajectories.npz")
+                expert_data_path = os.path.join(os.path.dirname(__file__), "expert_trajectories_extended.npz")
             
             if not os.path.exists(expert_data_path):
                 print(f"Warning: Expert data file not found at {expert_data_path}")

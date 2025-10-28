@@ -1,0 +1,461 @@
+{
+    "actions": {
+        "supply_air_temp_setpoint_sensor": {
+            "measuredValue": {
+                "signal_key" : "measuredValue",
+                "min": 12,
+                "max": 35,
+                "description": "AHU supply air temperature setpoint"
+            }
+        },
+        "core_temperature_heating_controller": {
+            "heatingsetpointValue": {
+                "signal_key" : "heatingsetpointValue",
+                "min": 12,
+                "max": 20,
+                "description": "Core temperature heating setpoint"
+            },
+            "coolingsetpointValue": {
+                "signal_key" : "coolingsetpointValue",
+                "min": 24,
+                "max": 30,
+                "description": "Core temperature cooling setpoint"
+            }
+        },
+        "core_supply_damper_position_sensor": {
+            "measuredValue": {
+                "signal_key" : "measuredValue",
+                "min": 0,
+                "max": 1,
+                "description": "Core supply damper position"
+            }
+        },
+        "north_temperature_heating_controller": {
+            "heatingsetpointValue": {
+                "signal_key" : "heatingsetpointValue",
+                "min": 12,
+                "max": 20,
+                "description": "North temperature heating setpoint"
+            },
+            "coolingsetpointValue": {
+                "signal_key" : "coolingsetpointValue",
+                "min": 24,
+                "max": 30,
+                "description": "North temperature cooling setpoint"
+            }
+        },
+        "north_supply_damper_position_sensor": {
+            "measuredValue": {
+                "signal_key" : "measuredValue",
+                "min": 0,
+                "max": 1,
+                "description": "North supply damper position"
+            }
+        },
+        "east_temperature_heating_controller": {
+            "heatingsetpointValue": {
+                "signal_key" : "heatingsetpointValue",
+                "min": 12,
+                "max": 20,
+                "description": "East temperature heating setpoint"
+            },
+            "coolingsetpointValue": {  
+                "signal_key" : "coolingsetpointValue",
+                "min": 24,
+                "max": 30,
+                "description": "East temperature cooling setpoint"
+            }
+        },
+        "east_supply_damper_position_sensor": {
+            "measuredValue": {
+                "signal_key" : "measuredValue",
+                "min": 0,
+                "max": 1,
+                "description": "East supply damper position"
+            }
+        },
+        "south_temperature_heating_controller": { 
+            "heatingsetpointValue": {
+                "signal_key" : "heatingsetpointValue",
+                "min": 12,
+                "max": 20,
+                "description": "South temperature heating setpoint"
+            },
+            "coolingsetpointValue": {
+                "signal_key" : "coolingsetpointValue",
+                "min": 24,
+                "max": 30,
+                "description": "South temperature cooling setpoint"
+            }  
+        },  
+        "south_supply_damper_position_sensor": {
+            "measuredValue": {
+                "signal_key" : "measuredValue",
+                "min": 0,
+                "max": 1,
+                "description": "South supply damper position"
+            }
+        },
+        "west_temperature_heating_controller": {
+            "heatingsetpointValue": {
+                "signal_key" : "heatingsetpointValue",
+                "min": 12,
+                "max": 20,
+                "description": "West temperature heating setpoint"
+            },
+            "coolingsetpointValue": {
+                "signal_key" : "coolingsetpointValue",
+                "min": 24,
+                "max": 30,
+                "description": "West temperature cooling setpoint"
+            }
+        },
+        "west_supply_damper_position_sensor": {
+            "measuredValue": {
+                "signal_key" : "measuredValue",
+                "min": 0,
+                "max": 1,
+                "description": "West supply damper position"
+            }
+        }
+    },
+    "observations": {
+        "vent_supply_air_temp_sensor": {
+            "measuredValue": {
+                "signal_key" : "measuredValue",
+                "min": 0,
+                "max": 40,
+                "description": "Supply air temperature"
+            }
+        },
+        "vent_supply_airflow_sensor": {
+            "measuredValue": {
+                "signal_key" : "measuredValue",
+                "min": 0,
+                "max": 20,
+                "description": "Ventilation airflow rate"
+            }
+        },
+        "core_indoor_temp_sensor": {
+            "measuredValue": {
+                "signal_key" : "measuredValue",
+                "min": 0,
+                "max": 40,
+                "description": "Core indoor temperature"
+            }
+        },
+        "core_supply_damper_position_sensor": {
+            "measuredValue": {
+                "signal_key" : "measuredValue",
+                "min": 0,
+                "max": 1,
+                "description": "Core supply damper position"
+            }
+        },
+        "core_reheat_control_sensor": {
+            "measuredValue": {
+                "signal_key" : "measuredValue",
+                "min": 0,
+                "max": 1,
+                "description": "Core reheat valve position setpoint"
+            }
+        },
+        "north_indoor_temp_sensor": {
+            "measuredValue": {
+                "signal_key" : "measuredValue",
+                "min": 0,
+                "max": 40,
+                "description": "North indoor temperature"
+            }
+        },
+        "north_supply_damper_position_sensor": {
+            "measuredValue": {
+                "signal_key" : "measuredValue",
+                "min": 0,
+                "max": 1,
+                "description": "North supply damper position"
+            }
+        },
+        "north_reheat_control_sensor": {
+            "measuredValue": {
+                "signal_key" : "measuredValue",
+                "min": 0,
+                "max": 1,
+                "description": "North reheat valve position setpoint"
+            }
+        },
+        "east_indoor_temp_sensor": {
+            "measuredValue": {
+                "signal_key" : "measuredValue",
+                "min": 0,
+                "max": 40,
+                "description": "East indoor temperature"
+            }
+        },
+        "east_supply_damper_position_sensor": {
+            "measuredValue": {
+                "signal_key" : "measuredValue",
+                "min": 0,
+                "max": 1,
+                "description": "East supply damper position"
+            }
+        },
+        "east_reheat_control_sensor": {
+            "measuredValue": {
+                "signal_key" : "measuredValue",
+                "min": 0,
+                "max": 1,
+                "description": "East reheat valve position setpoint"
+            }
+        },
+        "south_indoor_temp_sensor": {
+            "measuredValue": {
+                "signal_key" : "measuredValue",
+                "min": 0,
+                "max": 40,
+                "description": "South indoor temperature"
+            }
+        },
+        "south_supply_damper_position_sensor": {
+            "measuredValue": {
+                "signal_key" : "measuredValue",
+                "min": 0,
+                "max": 1,
+                "description": "South supply damper position"
+            }
+        },
+        "south_reheat_control_sensor": {
+            "measuredValue": {
+                "signal_key" : "measuredValue",
+                "min": 0,
+                "max": 1,
+                "description": "South reheat valve position setpoint"
+            }
+        },
+        "west_indoor_temp_sensor": {
+            "measuredValue": {
+                "signal_key" : "measuredValue",
+                "min": 0,
+                "max": 40,
+                "description": "West indoor temperature"
+            }
+        },
+        "west_supply_damper_position_sensor": {
+            "measuredValue": {
+                "signal_key" : "measuredValue",
+                "min": 0,
+                "max": 1,
+                "description": "West supply damper position"
+            }
+        },
+        "west_reheat_control_sensor": {
+            "measuredValue": {
+                "signal_key" : "measuredValue",
+                "min": 0,
+                "max": 1,
+                "description": "West reheat valve position setpoint"
+            }
+        }
+    },
+    "time_embeddings": {
+        "time_of_day": {
+            "signal_key" : "timeOfDay",
+            "min": 0,
+            "max": 24,
+            "description": "Time of day in hours"
+        },
+        "day_of_week": {
+            "signal_key" : "dayOfWeek",
+            "min": 0,
+            "max": 7,
+            "description": "Day of week"
+        },
+        "month_of_year": {
+            "signal_key" : "monthOfYear",
+            "min": 1,
+            "max": 12,
+            "description": "Month of year"
+        }
+    },
+    "forecasts": {
+        "outdoor_temperature": {
+            "outdoorTemperature": {
+                "signal_key" : "outdoorTemperature",
+                "min": -20,
+                "max": 50,
+                "description": "Outdoor temperature forecast"
+            }
+        },
+        "global_irradiation": {
+            "globalIrradiation": {
+                "signal_key" : "globalIrradiation",
+                "min": 0,
+                "max": 1000,
+                "description": "Global irradiance forecast"
+            }
+        },
+        "core_co2_setpoint": {
+            "scheduleValue": {
+                "signal_key" : "scheduleValue",
+                "min": 500,
+                "max": 2000,
+                "description": "Core CO2 setpoint"
+            }
+        },
+        "north_co2_setpoint": {
+            "scheduleValue": {
+                "signal_key" : "scheduleValue",
+                "min": 500,
+                "max": 2000,
+                "description": "North CO2 setpoint"
+            }
+        },
+        "east_co2_setpoint": {
+            "scheduleValue": {
+                "signal_key" : "scheduleValue",
+                "min": 500,
+                "max": 2000,
+                "description": "East CO2 setpoint"
+            }
+        },
+        "south_co2_setpoint": {
+            "scheduleValue": {
+                "signal_key" : "scheduleValue",
+                "min": 500,
+                "max": 2000,
+                "description": "South CO2 setpoint"
+            }
+        },
+        "west_co2_setpoint": {
+            "scheduleValue": {
+                "signal_key" : "scheduleValue",
+                "min": 500,
+                "max": 2000,
+                "description": "West CO2 setpoint"
+            }
+        },
+        "core_occupancy_profile": {
+            "scheduleValue": {   
+                "signal_key" : "scheduleValue",
+                "min": 0,
+                "max": 400,
+                "description": "Core occupancy profile"
+            }
+        },
+        "north_occupancy_profile": {
+            "scheduleValue": {
+                "signal_key" : "scheduleValue",
+                "min": 0,
+                "max": 100,
+                "description": "North occupancy profile"
+            }
+        },
+        "east_occupancy_profile": {
+            "scheduleValue": {
+                "signal_key" : "scheduleValue",
+                "min": 0,
+                "max": 100,
+                "description": "East occupancy profile"
+            }
+        },
+        "south_occupancy_profile": {
+            "scheduleValue": {
+                "signal_key" : "scheduleValue",
+                "min": 0,
+                "max": 100,
+                "description": "South occupancy profile"
+            }
+        },
+        "west_occupancy_profile": {
+            "scheduleValue": {
+                "signal_key" : "scheduleValue",
+                "min": 0,
+                "max": 100,
+                "description": "West occupancy profile"
+            }
+        },
+        "core_temperature_heating_setpoint": {
+            "scheduleValue": {
+                "signal_key" : "scheduleValue",
+                "min": 12,
+                "max": 20,
+                "description": "Core temperature heating setpoint"
+            }
+        },
+        "core_temperature_cooling_setpoint": {
+            "scheduleValue": {
+                "signal_key" : "scheduleValue",
+                "min": 24,
+                "max": 30,
+                "description": "Core temperature cooling setpoint"
+            }
+        },
+        "north_temperature_heating_setpoint": {
+            "scheduleValue": {
+                "signal_key" : "scheduleValue",
+                "min": 12,
+                "max": 20,
+                "description": "North temperature heating setpoint"
+            }
+        },
+        "north_temperature_cooling_setpoint": {
+            "scheduleValue": {
+                "signal_key" : "scheduleValue",
+                "min": 24,
+                "max": 30,
+                "description": "North temperature cooling setpoint"
+            }
+        },
+        "east_temperature_heating_setpoint": {
+            "scheduleValue": {
+                "signal_key" : "scheduleValue",
+                "min": 12,
+                "max": 20,
+                "description": "East temperature heating setpoint"
+            }
+        },
+        "east_temperature_cooling_setpoint": {
+            "scheduleValue": {  
+                "signal_key" : "scheduleValue",
+                "min": 24,
+                "max": 30,
+                "description": "East temperature cooling setpoint"
+            }
+        },
+        "south_temperature_heating_setpoint": { 
+            "scheduleValue": {
+                "signal_key" : "scheduleValue",
+                "min": 12,
+                "max": 20,
+                "description": "South temperature heating setpoint"
+            }   
+        },
+        "south_temperature_cooling_setpoint": {
+            "scheduleValue": {
+                "signal_key" : "scheduleValue",
+                "min": 24,
+                "max": 30,
+                "description": "South temperature cooling setpoint"
+            }   
+        },
+        "west_temperature_heating_setpoint": {
+            "scheduleValue": {
+                "signal_key" : "scheduleValue",
+                "min": 12,
+                "max": 20,
+                "description": "West temperature heating setpoint"
+            }
+        },
+        "west_temperature_cooling_setpoint": {  
+            "scheduleValue": {
+                "signal_key" : "scheduleValue",
+                "min": 24,
+                "max": 30,
+                "description": "West temperature cooling setpoint"
+            }
+        }
+    }
+}
+  
+
+  

@@ -35,11 +35,11 @@ def run(scenario = 'typical_heat_day',points=None, plot=False, url='http://127.0
     # RUN THE CONTROL TEST
     # --------------------
     control_module = 'controllers.baseline'
-    forecast_points = ['Occupancy[cor]',
-                        'Occupancy[nor]',
-                        'Occupancy[sou]',
-                        'Occupancy[eas]',
-                        'Occupancy[wes]'] #from the controller definition
+    forecast_points = ['UpperCO2[cor]',
+                        'UpperCO2[nor]',
+                        'UpperCO2[sou]',
+                        'UpperCO2[eas]',
+                        'UpperCO2[wes]'] #from the controller definition
 
     scenario = {'time_period': scenario, 'electricity_price': 'dynamic'}
     step = 600
@@ -142,62 +142,11 @@ def run(scenario = 'typical_heat_day',points=None, plot=False, url='http://127.0
 
 if __name__ == "__main__":
     scenarios = ['typical_heat_day', 'typical_cool_day', 'mix_day']
-    """
-    # Define zones and measurement types
-    zones = ['Cor', 'Nor', 'Sou', 'Eas', 'Wes']
-    measurements = [
-        {
-            'name': 'Supply air temperature',
-            'prefix': 'hvac_reaZon',
-            'suffix': 'TSup_y'
-        },
-        {
-            'name': 'Supply air flow rate',
-            'prefix': 'hvac_reaZon',
-            'suffix': 'V_flow_y'
-        },
-        {
-            'name': 'CO2 concentration',
-            'prefix': 'hvac_reaZon',
-            'suffix': 'CO2Zon_y'
-        },
-        {
-            'name': 'Indoor air temperature',
-            'prefix': 'hvac_reaZon',
-            'suffix': 'TZon_y'
-        },
-        {
-            'name': 'Supply damper position',
-            'prefix': 'hvac_oveZonAct',
-            'suffix': 'yDam_u'
-        },
-        {
-            'name': 'Heating setpoint',
-            'prefix': 'hvac_oveZonSup',
-            'suffix': 'TZonHeaSet_u'
-        },
-        {
-            'name': 'Cooling setpoint',
-            'prefix': 'hvac_oveZonSup',
-            'suffix': 'TZonCooSet_u'
-        }
-    ]
 
-    # For each measurement type
-    #for measurement in measurements:
-    measurement =         {
-        'name': 'Cooling setpoint',
-        'prefix': 'hvac_oveZonSup',
-        'suffix': 'TZonCooSet_u'
-    }
-    points = [f"{measurement['prefix']}{zone}_{measurement['suffix']}" for zone in zones]
-    print(f"\nProcessing {measurement['name']} measurements...")
-    print(f"Points to process: {points}")
-    """
     points = ["hvac_oveZonActCor_yReaHea_u", "hvac_oveZonActNor_yReaHea_u", "hvac_oveZonActSou_yReaHea_u", "hvac_oveZonActEas_yReaHea_u", "hvac_oveZonActWes_yReaHea_u"] # Reheat control signal
-    url='http://192.168.8.65:80'
+    #url='http://192.168.8.65:80'
     
-    #url='http://127.0.0.1:80'
+    url='http://127.0.0.1:80'
     # For each scenario
     for scenario in scenarios:
         print(f"\nRunning scenario: {scenario}")
@@ -206,7 +155,7 @@ if __name__ == "__main__":
             points=points, 
             plot=False, 
             url=url,
-            save_forecasts=False
+            save_forecasts=True
         )
         print(f"Successfully completed {scenario}")
 

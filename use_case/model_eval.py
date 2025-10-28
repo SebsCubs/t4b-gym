@@ -20,15 +20,29 @@ from boptest_model.rooms_and_ahu_model import load_model_and_params
 POLICY_CONFIG_PATH = os.path.join(SCRIPT_DIR, "policy_input_output.json")
 device = 'cpu'
 
+
+
 def get_baseline(model):
         stepSize = 60 #Seconds
         #Define the range of available data
-        start_time = datetime.datetime(year=2024, month=1, day=1, hour=0, minute=0, second=0, tzinfo=gettz("Europe/Copenhagen"))
-        end_time = datetime.datetime(year=2024, month=1, day=15, hour=0, minute=0, second=0, tzinfo=gettz("Europe/Copenhagen"))        
+        # Three time periods for the three cases
+        time_periods = [
+            # Typical heat day: January 11-25, 2024
+            (datetime.datetime(year=2024, month=1, day=11, hour=0, minute=0, second=0, tzinfo=gettz("Europe/Copenhagen")),
+             datetime.datetime(year=2024, month=1, day=25, hour=0, minute=0, second=0, tzinfo=gettz("Europe/Copenhagen"))),
+            
+            # Mix day: March 17 - March 31, 2024
+            (datetime.datetime(year=2024, month=3, day=17, hour=0, minute=0, second=0, tzinfo=gettz("Europe/Copenhagen")),
+             datetime.datetime(year=2024, month=3, day=31, hour=0, minute=0, second=0, tzinfo=gettz("Europe/Copenhagen"))),
+            
+            # Typical cool day: May 17-31, 2024
+            (datetime.datetime(year=2024, month=5, day=17, hour=0, minute=0, second=0, tzinfo=gettz("Europe/Copenhagen")),
+             datetime.datetime(year=2024, month=5, day=31, hour=0, minute=0, second=0, tzinfo=gettz("Europe/Copenhagen")))
+        ]        
 
         simulator = tb.Simulator()
 
-        simulator.simulate(model, start_time, end_time, stepSize)
+        simulator.simulate(model, time_periods[1][0], time_periods[1][1], stepSize)
       
         plot_results(simulator, save_plots=True)
 
@@ -37,7 +51,7 @@ def get_baseline(model):
 def test_model(env, model):
         stepSize = 600 #Seconds
         #Define the range of available data
-        start_time = datetime.datetime(year=2024, month=1, day=1, hour=0, minute=0, second=0, tzinfo=gettz("Europe/Copenhagen"))
+        start_time = datetime.datetime(year=2024, month=1, day=11, hour=0, minute=0, second=0, tzinfo=gettz("Europe/Copenhagen"))
         #end_time = datetime.datetime(year=2024, month=1, day=15, hour=0, minute=0, second=0, tzinfo=gettz("Europe/Copenhagen"))        
         episode_length = int(3600*24*15 / stepSize)
         warmup_period = 0
@@ -78,6 +92,121 @@ def test_model(env, model):
         plot_results(env.unwrapped.simulator, rewards, save_plots=True)
 
         return observations, rewards
+
+
+
+
+def thermal_discomfort(T, T_low, T_high, dt_seconds):
+    """
+    Compute D(t0, tf) = (1/N) * sum_z ∫ |s_z(t)| dt   (in K·h/zone)
+    where s_z(t) is the deviation outside the comfort band [T_low, T_high].
+
+    Parameters
+    ----------
+    T : array-like, shape (Tsteps, Nz)
+        Indoor temperatures per time step and zone.
+    T_low, T_high : array-like (broadcastable to T)
+        Lower/upper setpoints per time step and zone.
+        Can be scalars, 1D (Tsteps,), or 2D (Tsteps, Nz).
+    dt_seconds : float
+        Sampling period in seconds.
+
+    Returns
+    -------
+    D : float
+        Thermal discomfort averaged over zones (K·h/zone).
+    per_zone_D : ndarray, shape (Nz,)
+        Thermal discomfort per zone (K·h).
+    """
+    T = np.asarray(T, dtype=float)
+    T_low = np.asarray(T_low, dtype=float)
+    T_high = np.asarray(T_high, dtype=float)
+
+    # Slack outside the band (inside the band → 0)
+    slack_below = np.maximum(T_low - T, 0.0)
+    slack_above = np.maximum(T - T_high, 0.0)
+    slack = slack_below + slack_above  # magnitude in K at each step
+
+    # Discrete integral over time: sum(slack) * Δt, then convert s→h
+    per_zone_D = np.nansum(slack, axis=0) * (dt_seconds / 3600.0)  # K·h per zone
+    D = np.nanmean(per_zone_D)  # average over zones → K·h/zone
+    return D, per_zone_D
+
+def iaq_violation_building(CO2, CO2_thr, dt_seconds, area_m2):
+    """
+    Compute building-level CO₂ violation in ppm·h/m².
+
+    Φ = ( Σ_z ∫ max(CO2_z(t) - CO2_thr_z(t), 0) dt ) / ( Σ_z A_z )
+
+    Parameters
+    ----------
+    CO2 : array-like, shape (Tsteps, Nz)
+        Measured CO₂ concentrations (ppm).
+    CO2_thr : array-like (broadcastable to CO2)
+        Threshold(s) (ppm). Can be scalar, (Tsteps,), or (Tsteps, Nz).
+    dt_seconds : float
+        Sampling period (seconds).
+    area_m2 : float
+        Building floor area (m²).
+
+    Returns
+    -------
+    Phi_building : float
+        Total building CO₂ violation, units ppm·h/m².
+    per_zone_Phi : ndarray, shape (Nz,)
+        Contribution of each zone, units ppm·h (not normalized).
+    """
+    CO2 = np.asarray(CO2, dtype=float)
+    CO2_thr = np.asarray(CO2_thr, dtype=float)
+
+    # Positive deviation above threshold
+    phi = np.maximum(CO2 - CO2_thr, 0.0)  # ppm
+
+    # Integrate over time → ppm·h per zone
+    per_zone_Phi = np.nansum(phi, axis=0) * (dt_seconds / 3600.0)
+
+    # Weighted building-level normalization by total floor area
+    Phi_building = np.sum(per_zone_Phi) / area_m2
+
+    return Phi_building, per_zone_Phi
+
+def calculate_energy_boptest_style(power_data, time_data, area_m2):
+    """
+    Calculate energy consumption using BOPTEST-style trapezoidal integration.
+    
+    Parameters
+    ----------
+    power_data : array-like
+        Power consumption data (W) - can be 1D or 2D array
+    time_data : array-like
+        Time data (seconds) - should match the time dimension of power_data
+    area_m2 : float
+        Building floor area (m²)
+        
+    Returns
+    -------
+    energy_kwh : float
+        Total energy consumption in kWh
+    energy_kwh_m2 : float
+        Energy consumption per m² in kWh/m²
+    """
+    power_data = np.asarray(power_data, dtype=float)
+    time_data = np.asarray(time_data, dtype=float)
+    
+    # If power_data is 2D, sum across all sources
+    if power_data.ndim > 1:
+        power_data = np.sum(power_data, axis=0)
+    
+    # Use trapezoidal integration: ∫ P(t) dt
+    energy_joules = np.trapezoid(power_data, time_data)
+    
+    # Convert J to kWh: 1 kWh = 3.6e6 J, so multiply by 2.77778e-7
+    energy_kwh = energy_joules * 2.77778e-7
+    
+    # Normalize by floor area
+    energy_kwh_m2 = energy_kwh / area_m2
+    
+    return energy_kwh, energy_kwh_m2
 
 def plot_results(simulator: tb.Simulator, rewards = None, plotting_stepSize=600, save_plots=False):
         # Convert actions and rewards to pandas DataFrames
@@ -465,9 +594,6 @@ def plot_results(simulator: tb.Simulator, rewards = None, plotting_stepSize=600,
             plt.savefig(f'plots/room_water_temp_difference.png')
         #plt.show()
 
-        
-
-
         # AHU power consumption
         fan_power = np.array(simulator.model.components["vent_power_sensor"].savedOutput["measuredValue"])
         print(f"Average fan power: {np.average(fan_power):.1f} W")
@@ -584,6 +710,82 @@ def plot_results(simulator: tb.Simulator, rewards = None, plotting_stepSize=600,
                 os.makedirs('plots', exist_ok=True)
                 plt.savefig(f'plots/action_{component_id}_{signal_key}.png')
             #plt.show()
+
+        #Calculate and print BOPTESTs KPIs
+
+        total_floor_area = 1662.664 #m2
+        step_size_seconds = 600 #s
+
+        #ener_tot - BOPTEST style calculation with trapezoidal integration
+        # Create time array for integration (same length as power data)
+        time_array = np.arange(0, len(total_hvac_power_consumption)) * step_size_seconds
+        
+        # Calculate energy for individual sources (BOPTEST style)
+        fan_energy_kwh, fan_energy_kwh_m2 = calculate_energy_boptest_style(fan_power, time_array, total_floor_area)
+        cooling_coil_energy_kwh, cooling_coil_energy_kwh_m2 = calculate_energy_boptest_style(supply_cooling_coil_power, time_array, total_floor_area)
+        heating_coil_energy_kwh, heating_coil_energy_kwh_m2 = calculate_energy_boptest_style(supply_heating_coil_power, time_array, total_floor_area)
+        reheat_coils_energy_kwh, reheat_coils_energy_kwh_m2 = calculate_energy_boptest_style(total_coils_power, time_array, total_floor_area)
+        
+        # Calculate total energy using BOPTEST-style trapezoidal integration
+        energ_tot_kwh, energ_tot_kwh_m2 = calculate_energy_boptest_style(
+            total_hvac_power_consumption, time_array, total_floor_area
+        )
+        
+        
+        print(f"Total energy consumption: {energ_tot_kwh:.3f} kWh")
+        print(f"  Fan energy: {fan_energy_kwh_m2:.3f} kWh/m2 ({fan_energy_kwh:.3f} kWh)")
+        print(f"  Cooling coil energy: {cooling_coil_energy_kwh_m2:.1f} kWh/m2 ({cooling_coil_energy_kwh:.1f} kWh)")
+        print(f"  Heating coil energy: {heating_coil_energy_kwh_m2:.1f} kWh/m2 ({heating_coil_energy_kwh:.1f} kWh)")
+        print(f"  Reheat coils energy: {reheat_coils_energy_kwh_m2:.1f} kWh/m2 ({reheat_coils_energy_kwh:.1f} kWh)")
+        
+        print(f"ener_tot: {energ_tot_kwh_m2:.3f} kWh/m2")
+        #tdis_tot
+
+        zone_temperatures = []
+        zone_temperatures_low = []
+        zone_temperatures_high = []
+        zones = ['core', 'north', 'east', 'south', 'west']
+        for zone in zones:
+            zone_temperatures.append(simulator.model.components[f"{zone}_indoor_temp_sensor"].savedOutput["measuredValue"])
+            zone_temperatures_low.append(simulator.model.components[f"{zone}_temperature_heating_setpoint"].savedOutput["scheduleValue"])
+            zone_temperatures_high.append(simulator.model.components[f"{zone}_temperature_cooling_setpoint"].savedOutput["scheduleValue"])
+        
+        # Convert to numpy arrays and transpose to (Tsteps, Nz) format
+        zone_temperatures = np.array(zone_temperatures).T  # Shape: (Tsteps, 5)
+        zone_temperatures_low = np.array(zone_temperatures_low).T  # Shape: (Tsteps, 5)
+        zone_temperatures_high = np.array(zone_temperatures_high).T  # Shape: (Tsteps, 5)
+        
+        tdis_tot, per_zone_tdis = thermal_discomfort(zone_temperatures, zone_temperatures_low, zone_temperatures_high, step_size_seconds)
+        
+        print(f"Total thermal discomfort per zone: {per_zone_tdis} K·h")
+        print(f"tdis_tot: {tdis_tot:.1f} K·h/zone")
+        
+        # Print per-zone breakdown
+        zones = ['core', 'north', 'east', 'south', 'west']
+        for i, zone in enumerate(zones):
+            print(f"  {zone}: {per_zone_tdis[i]:.1f} K·h")
+
+
+        #idis_tot
+        CO2_measurements = []
+        CO2_setpoints = []
+        for zone in zones:
+            CO2_measurements.append(simulator.model.components[f"{zone}_co2_sensor"].savedOutput["measuredValue"])
+            CO2_setpoints.append(simulator.model.components[f"{zone}_co2_setpoint"].savedOutput["scheduleValue"])
+        
+        CO2_measurements = np.array(CO2_measurements).T
+        CO2_setpoints = np.array(CO2_setpoints).T
+
+        iad_tot, per_zone_iad = iaq_violation_building(CO2_measurements, CO2_setpoints, step_size_seconds, total_floor_area)
+        print(f"Total IAQ violation per zone: {per_zone_iad} ppm·h")
+        
+        
+        # Print per-zone breakdown
+        for i, zone in enumerate(zones):
+            print(f"  {zone}: {per_zone_iad[i]:.1f} ppm·h")
+
+        print(f"iad_tot: {iad_tot:.1f} ppm·h/zone")
+
 
 if __name__ == "__main__":
         model = load_model_and_params()

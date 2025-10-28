@@ -8,24 +8,42 @@ def get_script_directory():
     return os.path.dirname(os.path.abspath(__file__))
 
 def find_csv_files(directory):
-    """Find all CSV files in the directory and its subdirectories.
+    """Find all CSV files in the directory and its subdirectories, excluding merged_data.
     
     Args:
         directory (str): Root directory to search for CSV files
         
     Returns:
-        dict: Dictionary with base filenames as keys and lists of file paths as values
+        dict: Dictionary with base filenames as keys and lists of tuples (file_path, folder_name) as values
     """
     csv_files = {}
     for root, dirs, files in os.walk(directory):
+        # Skip the merged_data directory to avoid processing already processed files
+        if 'merged_data' in root:
+            continue
+            
         for file in files:
             if file.endswith('.csv'):
                 base_name = os.path.splitext(os.path.basename(file))[0]
                 file_path = os.path.join(root, file)
+                
+                # Extract folder name from the path
+                # Look for the main folder (mix_day, typical_cool_day, typical_heat_day)
+                path_parts = os.path.normpath(file_path).split(os.sep)
+                folder_name = None
+                for part in path_parts:
+                    if part in ['mix_day', 'typical_cool_day', 'typical_heat_day']:
+                        folder_name = part
+                        break
+                
+                # If no specific folder found, use 'default'
+                if folder_name is None:
+                    folder_name = 'default'
+                
                 if base_name in csv_files:
-                    csv_files[base_name].append(file_path)
+                    csv_files[base_name].append((file_path, folder_name))
                 else:
-                    csv_files[base_name] = [file_path]
+                    csv_files[base_name] = [(file_path, folder_name)]
     return csv_files
 
 def read_and_process_dataframe(file_path):
@@ -40,16 +58,25 @@ def read_and_process_dataframe(file_path):
     df = pd.read_csv(file_path)
     return df.iloc[:, 1:]
 
-def create_timestamp_column(num_rows, start_date=datetime(2024, 1, 1)):
+def create_timestamp_column(num_rows, folder_name='default'):
     """Create a timestamp column with 30-second intervals.
     
     Args:
         num_rows (int): Number of rows needed
-        start_date (datetime): Starting date for timestamps
+        folder_name (str): Name of the folder to determine start date
         
     Returns:
         list: List of timestamps
     """
+    # Define start dates based on folder names
+    start_dates = {
+        'typical_heat_day': datetime(2024, 1, 11),  # 11th of January
+        'mix_day': datetime(2024, 3, 17),           # 17th of March
+        'typical_cool_day': datetime(2024, 5, 17),  # 17th of May
+        'default': datetime(2024, 1, 1)             # Default fallback
+    }
+    
+    start_date = start_dates.get(folder_name, start_dates['default'])
     return [start_date + timedelta(seconds=i*30) for i in range(num_rows)]
 
 def save_dataframe(df, output_path):
@@ -59,45 +86,63 @@ def save_dataframe(df, output_path):
         df (pd.DataFrame): Dataframe to save
         output_path (str): Output file path
     """
+    # Check if file already exists to indicate override
+    file_exists = os.path.exists(output_path)
     df.to_csv(output_path, index=False)
-    print(f"Created file: {output_path}")
+    
+    if file_exists:
+        print(f"Overridden file: {output_path}")
+    else:
+        print(f"Created file: {output_path}")
 
 def process_csv_files():
-    """Main function to process all CSV files."""
+    """Main function to process all CSV files from original directories and merge files with same base name from different folders."""
     script_dir = get_script_directory()
     csv_files = find_csv_files(script_dir)
     
-    # Group files by their base name
-    df_dict = {}
-    for base_name, file_paths in csv_files.items():
-        # Process each CSV file
-        for file_path in file_paths:
-            df = read_and_process_dataframe(file_path)
-            if base_name in df_dict:
-                # Append to existing dataframe if base_name already exists
-                df_dict[base_name] = pd.concat([df_dict[base_name], df], ignore_index=True)
-            else:
-                # Create new entry if base_name doesn't exist
-                df_dict[base_name] = df
+    # Group files by their base name only (not by folder)
+    base_name_dict = {}
+    for base_name, file_info_list in csv_files.items():
+        if base_name not in base_name_dict:
+            base_name_dict[base_name] = []
+        base_name_dict[base_name].extend(file_info_list)
     
-    # Create timestamps for each dataframe
-    for base_name, df in df_dict.items():
-        # Add timestamp column
-        timestamps = create_timestamp_column(len(df))
-        df.insert(0, 'timestamp', timestamps)
-        # Create merged_data directory if it doesn't exist
-        merged_data_dir = os.path.join(script_dir, "merged_data")
-        os.makedirs(merged_data_dir, exist_ok=True)
+    # Process each base name and merge files from different folders
+    for base_name, file_info_list in base_name_dict.items():
+        merged_dfs = []
         
-        # Save processed dataframe
-        output_path = os.path.join(merged_data_dir, f"{base_name}_processed.csv")
-        save_dataframe(df, output_path)
+        # Define the order for concatenation: heat day, mix day, cool day
+        folder_order = ['typical_heat_day', 'mix_day', 'typical_cool_day']
+        
+        # Process files in the specified order
+        for folder_name in folder_order:
+            for file_path, file_folder_name in file_info_list:
+                if file_folder_name == folder_name:
+                    df = read_and_process_dataframe(file_path)
+                    
+                    # Add timestamp column with folder-specific start date
+                    timestamps = create_timestamp_column(len(df), folder_name)
+                    df.insert(0, 'timestamp', timestamps)
+                    
+                    merged_dfs.append(df)
+        
+        # Concatenate all dataframes for this base name in the specified order
+        if merged_dfs:
+            final_df = pd.concat(merged_dfs, ignore_index=True)
+            
+            # Create merged_data directory if it doesn't exist
+            merged_data_dir = os.path.join(script_dir, "merged_data")
+            os.makedirs(merged_data_dir, exist_ok=True)
+            
+            # Save processed dataframe with original name (this will override existing files)
+            output_path = os.path.join(merged_data_dir, f"{base_name}_processed.csv")
+            save_dataframe(final_df, output_path)
 
 def split_heating_and_cooling_setpoints(verbose=True):
     """Split the heating and cooling setpoints into separate files."""
     script_dir = get_script_directory()
-    supply_temp_setpoint_dir = os.path.join(script_dir, "merged_data\hvac_oveAhu_TSupSet_u_processed.csv")
-    outdoor_temp_dir = os.path.join(script_dir, "merged_data\weaSta_reaWeaTWetBul_y_processed.csv")
+    supply_temp_setpoint_dir = os.path.join(script_dir, "merged_data", "hvac_oveAhu_TSupSet_u_processed.csv")
+    outdoor_temp_dir = os.path.join(script_dir, "merged_data", "weaSta_reaWeaTWetBul_y_processed.csv")
     
     # Read the supply temperature setpoint and outdoor temperature dataframes
     if verbose:
@@ -128,8 +173,8 @@ def split_heating_and_cooling_setpoints(verbose=True):
         print("Saving files...")
 
     # Save the heating and cooling dataframes
-    heating_df.to_csv(os.path.join(script_dir, "merged_data\heating_setpoints.csv"), index=False)
-    cooling_df.to_csv(os.path.join(script_dir, "merged_data\cooling_setpoints.csv"), index=False)
+    heating_df.to_csv(os.path.join(script_dir, "merged_data", "heating_setpoints.csv"), index=False)
+    cooling_df.to_csv(os.path.join(script_dir, "merged_data", "cooling_setpoints.csv"), index=False)
 
     if verbose:
         print("Files saved successfully!")
@@ -142,18 +187,18 @@ def clean_negative_values(df, column_name):
 def clean_fan_power():
     """Clean negative values in the 'power' column of a dataframe."""
     script_dir = get_script_directory() 
-    fan_power_dir = os.path.join(script_dir, "merged_data\hvac_reaAhu_PFanSup_y_processed.csv")
+    fan_power_dir = os.path.join(script_dir, "merged_data", "hvac_reaAhu_PFanSup_y_processed.csv")
     df = pd.read_csv(fan_power_dir)
     df = clean_negative_values(df, 'hvac_reaAhu_PFanSup_y')
-    df.to_csv(os.path.join(script_dir, "merged_data\hvac_reaAhu_PFanSup_y_processed.csv"), index=False)
+    df.to_csv(os.path.join(script_dir, "merged_data", "hvac_reaAhu_PFanSup_y_processed.csv"), index=False)
 
 def clean_airflow_rate():
     """Clean negative values in the 'airflow_rate' column of a dataframe."""
     script_dir = get_script_directory()
-    airflow_rate_dir = os.path.join(script_dir, "merged_data\hvac_reaAhu_V_flow_sup_y_processed.csv")
+    airflow_rate_dir = os.path.join(script_dir, "merged_data", "hvac_reaAhu_V_flow_sup_y_processed.csv")
     df = pd.read_csv(airflow_rate_dir)
     df = clean_negative_values(df, 'hvac_reaAhu_V_flow_sup_y')
-    df.to_csv(os.path.join(script_dir, "merged_data\hvac_reaAhu_V_flow_sup_y_processed.csv"), index=False)
+    df.to_csv(os.path.join(script_dir, "merged_data", "hvac_reaAhu_V_flow_sup_y_processed.csv"), index=False)
 
 def process_occupancy_data(csv_file_path, save_csv=True):
     """
@@ -285,7 +330,7 @@ def process_all_raw_occupancy_data():
     mix_day_dir = os.path.join(script_dir, "mix_day/forecasts")
     typical_cool_day_dir = os.path.join(script_dir, "typical_cool_day/forecasts")
     typical_heat_day_dir = os.path.join(script_dir, "typical_heat_day/forecasts")   
-    file_names = ["Occupancy[cor].csv", "Occupancy[eas].csv", "Occupancy[nor].csv", "Occupancy[sou].csv", "Occupancy[wes].csv"]
+    file_names = ["UpperCO2[cor].csv", "UpperCO2[eas].csv", "UpperCO2[nor].csv", "UpperCO2[sou].csv", "UpperCO2[wes].csv"]
     for file_name in file_names:
         process_raw_occupancy_data(os.path.join(mix_day_dir, file_name), save_csv=True)
         process_raw_occupancy_data(os.path.join(typical_cool_day_dir, file_name), save_csv=True)
@@ -295,8 +340,8 @@ def process_all_raw_occupancy_data():
 def create_outdoor_env_data():
     """Create outdoor environment data."""
     script_dir = get_script_directory()
-    outdoorTemperature = os.path.join(script_dir, "merged_data\weaSta_reaWeaTWetBul_y_processed.csv")
-    globalIrradiation = os.path.join(script_dir, "merged_data\weaSta_reaWeaHGloHor_y_processed.csv")
+    outdoorTemperature = os.path.join(script_dir, "merged_data", "weaSta_reaWeaTWetBul_y_processed.csv")
+    globalIrradiation = os.path.join(script_dir, "merged_data", "weaSta_reaWeaHGloHor_y_processed.csv")
 
     outdoorTemperature_df = pd.read_csv(outdoorTemperature)
 
@@ -313,13 +358,13 @@ def create_outdoor_env_data():
     })
 
 
-    merged_df.to_csv(os.path.join(script_dir, "merged_data\outdoor_env_data.csv"), index=False)
+    merged_df.to_csv(os.path.join(script_dir, "merged_data", "outdoor_env_data.csv"), index=False)
     print("Outdoor environment data created successfully!")
 
 def create_water_temperature_data():
     """Create water temperature data."""
     script_dir = get_script_directory()
-    main_coil_inlet_water_temperature = os.path.join(script_dir, "merged_data\hvac_reaAhu_THeaCoiSup_y_processed.csv")
+    main_coil_inlet_water_temperature = os.path.join(script_dir, "merged_data", "hvac_reaAhu_THeaCoiSup_y_processed.csv")
     #Create two dataframes, one for the inlet and one for the outlet with the same size
     # and timestamp as the main_coil_inlet_water_temperature, then fill the inlet with constant 45 degrees
     # and the outlet with constant 35 degrees
@@ -337,8 +382,8 @@ def create_water_temperature_data():
     coils_outlet_water_temperature['outlet_water_temperature'] = 35
 
     #Save the two dataframes to csv
-    coils_inlet_water_temperature.to_csv(os.path.join(script_dir, "merged_data\coils_inlet_water_temperature.csv"), index=False)
-    coils_outlet_water_temperature.to_csv(os.path.join(script_dir, "merged_data\coils_outlet_water_temperature.csv"), index=False)
+    coils_inlet_water_temperature.to_csv(os.path.join(script_dir, "merged_data", "coils_inlet_water_temperature.csv"), index=False)
+    coils_outlet_water_temperature.to_csv(os.path.join(script_dir, "merged_data", "coils_outlet_water_temperature.csv"), index=False)
     print("Water temperature data created successfully!")
 
 def create_airflow_based_damper_positions():

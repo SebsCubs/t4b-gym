@@ -63,11 +63,11 @@ def get_forecast_parameters():
     """
     # Occupancy[cor], Occupancy[nor], Occupancy[sou], Occupancy[eas], Occupancy[wes]
 
-    forecast_parameters = {'point_names':['Occupancy[cor]',
-                                          'Occupancy[nor]',
-                                          'Occupancy[sou]',
-                                          'Occupancy[eas]',
-                                          'Occupancy[wes]'],
+    forecast_parameters = {'point_names':['UpperCO2[cor]',
+                                            'UpperCO2[nor]',
+                                            'UpperCO2[sou]',
+                                            'UpperCO2[eas]',
+                                            'UpperCO2[wes]'],
                            'horizon': 600,
                            'interval': 300}
 

@@ -205,6 +205,7 @@ def vavs_fcn(self):
     #Add core components
     core_temperature_heating_setpoint = tb.ScheduleSystem(id="core_temperature_heating_setpoint", saveSimulationResult=True)
     core_temperature_cooling_setpoint = tb.ScheduleSystem(id="core_temperature_cooling_setpoint", saveSimulationResult=True)
+    core_co2_setpoint = tb.ScheduleSystem(id="core_co2_setpoint", saveSimulationResult=True)
     core_temperature_heating_controller = tb.VAVReheatControllerSystem(id="core_temperature_heating_controller", rat_v_flo_min=0.15, saveSimulationResult=True)
     core_reheat_control_sensor = tb.SensorSystem(id="core_reheat_control_sensor", saveSimulationResult=True)
     core_supply_air_temp_sensor = tb.SensorSystem(id="core_supply_air_temp_sensor", saveSimulationResult=True)    
@@ -224,6 +225,7 @@ def vavs_fcn(self):
     #Add core connections
     self.add_connection(core_temperature_heating_setpoint, core_temperature_heating_controller, "scheduleValue", "heatingsetpointValue")
     self.add_connection(core_temperature_cooling_setpoint, core_temperature_heating_controller, "scheduleValue", "coolingsetpointValue")
+    self.add_connection(core_co2_setpoint, core_temperature_heating_controller, "scheduleValue", "co2setpointValue")
     
 
        
@@ -246,6 +248,7 @@ def vavs_fcn(self):
     #Add north components
     north_temperature_heating_setpoint = tb.ScheduleSystem(id="north_temperature_heating_setpoint", saveSimulationResult=True)
     north_temperature_cooling_setpoint = tb.ScheduleSystem(id="north_temperature_cooling_setpoint", saveSimulationResult=True)
+    north_co2_setpoint = tb.ScheduleSystem(id="north_co2_setpoint", saveSimulationResult=True)
     north_temperature_heating_controller = tb.VAVReheatControllerSystem(id="north_temperature_heating_controller", rat_v_flo_min=0.15, saveSimulationResult=True)
     north_reheat_control_sensor = tb.SensorSystem(id="north_reheat_control_sensor", saveSimulationResult=True)
     north_supply_air_temp_sensor = tb.SensorSystem(id="north_supply_air_temp_sensor", saveSimulationResult=True)    
@@ -263,6 +266,7 @@ def vavs_fcn(self):
     #Add north connections
     self.add_connection(north_temperature_heating_setpoint, north_temperature_heating_controller, "scheduleValue", "heatingsetpointValue")
     self.add_connection(north_temperature_cooling_setpoint, north_temperature_heating_controller, "scheduleValue", "coolingsetpointValue")
+    self.add_connection(north_co2_setpoint, north_temperature_heating_controller, "scheduleValue", "co2setpointValue")
 
     self.add_connection(north_temperature_heating_controller, north_reheat_control_sensor, "y_valve", "measuredValue")
     self.add_connection(north_reheat_control_sensor, north_reheat_coil, "measuredValue", "valvePosition")
@@ -283,6 +287,7 @@ def vavs_fcn(self):
     #Add south components
     south_temperature_heating_setpoint = tb.ScheduleSystem(id="south_temperature_heating_setpoint", saveSimulationResult=True)
     south_temperature_cooling_setpoint = tb.ScheduleSystem(id="south_temperature_cooling_setpoint", saveSimulationResult=True)
+    south_co2_setpoint = tb.ScheduleSystem(id="south_co2_setpoint", saveSimulationResult=True)
     south_temperature_heating_controller = tb.VAVReheatControllerSystem(id="south_temperature_heating_controller", rat_v_flo_min=0.15, saveSimulationResult=True)
     south_reheat_control_sensor = tb.SensorSystem(id="south_reheat_control_sensor", saveSimulationResult=True)
     south_supply_air_temp_sensor = tb.SensorSystem(id="south_supply_air_temp_sensor", saveSimulationResult=True)    
@@ -300,7 +305,7 @@ def vavs_fcn(self):
     #Add south connections
     self.add_connection(south_temperature_heating_setpoint, south_temperature_heating_controller, "scheduleValue", "heatingsetpointValue")
     self.add_connection(south_temperature_cooling_setpoint, south_temperature_heating_controller, "scheduleValue", "coolingsetpointValue")
-    
+    self.add_connection(south_co2_setpoint, south_temperature_heating_controller, "scheduleValue", "co2setpointValue")
 
     self.add_connection(south_temperature_heating_controller, south_reheat_control_sensor, "y_valve", "measuredValue")
     self.add_connection(south_reheat_control_sensor, south_reheat_coil, "measuredValue", "valvePosition")
@@ -321,6 +326,7 @@ def vavs_fcn(self):
     #Add east components
     east_temperature_heating_setpoint = tb.ScheduleSystem(id="east_temperature_heating_setpoint", saveSimulationResult=True)
     east_temperature_cooling_setpoint = tb.ScheduleSystem(id="east_temperature_cooling_setpoint", saveSimulationResult=True)
+    east_co2_setpoint = tb.ScheduleSystem(id="east_co2_setpoint", saveSimulationResult=True)
     east_temperature_heating_controller = tb.VAVReheatControllerSystem(id="east_temperature_heating_controller", rat_v_flo_min=0.15, saveSimulationResult=True)
     east_reheat_control_sensor = tb.SensorSystem(id="east_reheat_control_sensor", saveSimulationResult=True)
     east_supply_air_temp_sensor = tb.SensorSystem(id="east_supply_air_temp_sensor", saveSimulationResult=True)    
@@ -338,7 +344,7 @@ def vavs_fcn(self):
     #Add east connections
     self.add_connection(east_temperature_heating_setpoint, east_temperature_heating_controller, "scheduleValue", "heatingsetpointValue")
     self.add_connection(east_temperature_cooling_setpoint, east_temperature_heating_controller, "scheduleValue", "coolingsetpointValue")
-    
+    self.add_connection(east_co2_setpoint, east_temperature_heating_controller, "scheduleValue", "co2setpointValue")
 
     self.add_connection(east_temperature_heating_controller, east_reheat_control_sensor, "y_valve", "measuredValue")
     self.add_connection(east_reheat_control_sensor, east_reheat_coil, "measuredValue", "valvePosition")
@@ -359,6 +365,7 @@ def vavs_fcn(self):
     #Add west components
     west_temperature_heating_setpoint = tb.ScheduleSystem(id="west_temperature_heating_setpoint", saveSimulationResult=True)
     west_temperature_cooling_setpoint = tb.ScheduleSystem(id="west_temperature_cooling_setpoint", saveSimulationResult=True)
+    west_co2_setpoint = tb.ScheduleSystem(id="west_co2_setpoint", saveSimulationResult=True)
     west_temperature_heating_controller = tb.VAVReheatControllerSystem(id="west_temperature_heating_controller", rat_v_flo_min=0.15, saveSimulationResult=True)
     west_supply_air_temp_sensor = tb.SensorSystem(id="west_supply_air_temp_sensor", saveSimulationResult=True)    
     west_supply_damper_position_sensor = tb.SensorSystem(id="west_supply_damper_position_sensor", saveSimulationResult=True)
@@ -376,7 +383,7 @@ def vavs_fcn(self):
     #Add west connections
     self.add_connection(west_temperature_heating_setpoint, west_temperature_heating_controller, "scheduleValue", "heatingsetpointValue")
     self.add_connection(west_temperature_cooling_setpoint, west_temperature_heating_controller, "scheduleValue", "coolingsetpointValue")
-
+    self.add_connection(west_co2_setpoint, west_temperature_heating_controller, "scheduleValue", "co2setpointValue")    
 
     self.add_connection(west_temperature_heating_controller, west_reheat_control_sensor, "y_valve", "measuredValue")
     self.add_connection(west_reheat_control_sensor, west_reheat_coil, "measuredValue", "valvePosition")
@@ -523,18 +530,31 @@ def get_model(id=None, fcn_=None):
     
     model.load(fcn=fcn_, create_signature_graphs=False, validate_model=True, verbose=False, force_config_update=True)
     return model
-
+ 
 
 
 def run(model = None):
     stepSize = 60  # Seconds
     
-    startTime = datetime.datetime(year=2024, month=1, day=1, hour=0, minute=0, second=0,
-                                tzinfo=gettz("Europe/Copenhagen"))
-    endTime = datetime.datetime(year=2024, month=1, day=15, hour=0, minute=0, second=0,
-                                tzinfo=gettz("Europe/Copenhagen"))
+    time_periods = [
+        # Typical heat day: January 11-25, 2024
+        (datetime.datetime(year=2024, month=1, day=11, hour=0, minute=0, second=0, tzinfo=gettz("Europe/Copenhagen")),
+            datetime.datetime(year=2024, month=1, day=25, hour=0, minute=0, second=0, tzinfo=gettz("Europe/Copenhagen"))),
+        
+        # Mix day: March 17 - March 31, 2024
+        (datetime.datetime(year=2024, month=3, day=17, hour=0, minute=0, second=0, tzinfo=gettz("Europe/Copenhagen")),
+            datetime.datetime(year=2024, month=3, day=31, hour=0, minute=0, second=0, tzinfo=gettz("Europe/Copenhagen"))),
+        
+        # Typical cool day: May 17-31, 2024
+        (datetime.datetime(year=2024, month=5, day=17, hour=0, minute=0, second=0, tzinfo=gettz("Europe/Copenhagen")),
+            datetime.datetime(year=2024, month=5, day=31, hour=0, minute=0, second=0, tzinfo=gettz("Europe/Copenhagen")))
+    ]     
+
+    startTime = time_periods[0][0]
+    endTime = time_periods[0][1]
+
     if model is None:
-        model = get_model()
+        raise ValueError("No model provided to run(). Please provide a model instance.")
 
     simulator = tb.Simulator()
 
@@ -597,14 +617,12 @@ def parameter_estimation():
     """
     stepSize = 60  # Seconds can go down to 30
     # Then set the startTime and endTime to a valid range
-    startTime = datetime.datetime(year=2024, month=1, day=1, hour=0, minute=0, second=0,
-                                tzinfo=gettz("Europe/Copenhagen"))
-    endTime = datetime.datetime(year=2024, month=1, day=15, hour=0, minute=0, second=0,
-                                tzinfo=gettz("Europe/Copenhagen"))
+    startTime = datetime.datetime(year=2024, month=1, day=11, hour=0, minute=0, second=0, tzinfo=gettz("Europe/Copenhagen"))
+    endTime = datetime.datetime(year=2024, month=1, day=25, hour=0, minute=0, second=0, tzinfo=gettz("Europe/Copenhagen"))
 
-    envelope_filepath = r"C:\Users\asces\OneDriveUni\Projects\RL_control\boptest_model\generated_files\models\only_rooms_estimation\model_parameters\estimation_results\LS_result\mix_day_most_accurate_08042025.pickle"
-    vavs_filepath = r"C:\Users\asces\OneDriveUni\Projects\RL_control\boptest_model\generated_files\models\vav_controllers_param_est\model_parameters\estimation_results\LS_result\20250506_095811_ls.pickle"
-    ahu_filepath = r"C:\Users\asces\OneDriveUni\Projects\RL_control\boptest_model\generated_files\models\only_ahu_model\model_parameters\estimation_results\LS_result\20250314_163600_ls.pickle"
+    envelope_filepath = r"C:\repos\RL_control\boptest_model\generated_files\models\only_rooms_estimation\model_parameters\estimation_results\LS_result\mix_day_most_accurate_08042025.pickle"
+    vavs_filepath = r"C:\repos\RL_control\boptest_model\generated_files\models\vav_controllers_param_est\model_parameters\estimation_results\LS_result\20250506_095811_ls.pickle"
+    ahu_filepath = r"C:\repos\RL_control\boptest_model\generated_files\models\only_ahu_model\model_parameters\estimation_results\LS_result\20250314_163600_ls.pickle"
     parameter_filenames = {"envelope": envelope_filepath, "vavs": vavs_filepath, "ahu": ahu_filepath}
     # Load model with estimated parameters and run simulation
     model = get_model(id="rooms_and_ahu_estimation")
@@ -813,9 +831,9 @@ def rooms_parameter_estimation():
     endTime = datetime.datetime(year=2024, month=1, day=15, hour=0, minute=0, second=0,
                                 tzinfo=gettz("Europe/Copenhagen"))
 
-    envelope_filepath = r"C:\Users\asces\OneDriveUni\Projects\RL_control\boptest_model\generated_files\models\only_rooms_estimation\model_parameters\estimation_results\LS_result\mix_day_most_accurate_08042025.pickle"
-    vavs_filepath = r"C:\Users\asces\OneDriveUni\Projects\RL_control\boptest_model\generated_files\models\vav_controllers_param_est\model_parameters\estimation_results\LS_result\20250506_095811_ls.pickle"
-    ahu_filepath = r"C:\Users\asces\OneDriveUni\Projects\RL_control\boptest_model\generated_files\models\only_ahu_model\model_parameters\estimation_results\LS_result\20250314_163600_ls.pickle"
+    envelope_filepath = r"C:\repos\RL_control\boptest_model\generated_files\models\only_rooms_estimation\model_parameters\estimation_results\LS_result\mix_day_most_accurate_08042025.pickle"
+    vavs_filepath = r"C:\repos\RL_control\boptest_model\generated_files\models\vav_controllers_param_est\model_parameters\estimation_results\LS_result\20250506_095811_ls.pickle"
+    ahu_filepath = r"C:\repos\RL_control\boptest_model\generated_files\models\only_ahu_model\model_parameters\estimation_results\LS_result\20250314_163600_ls.pickle"
     parameter_filenames = {"envelope": envelope_filepath, "vavs": vavs_filepath, "ahu": ahu_filepath}
     # Load model with estimated parameters and run simulation
     model = get_model(id="rooms_and_ahu_estimation")
@@ -964,7 +982,7 @@ def load_model_parameters(model_id="rooms_and_ahu_estimation"):
     # Load additional estimation results
     model.load_estimation_result(r"C:\repos\RL_control\boptest_model\generated_files\models\rooms_and_ahu_estimation\model_parameters\estimation_results\LS_result\damper_params_13_06.pickle")
     model.load_estimation_result(r"C:\repos\RL_control\boptest_model\generated_files\models\rooms_and_ahu_estimation\model_parameters\estimation_results\LS_result\fan_params_13_06.pickle")
-    model.load_estimation_result(r"C:\repos\RL_control\boptest_model\generated_files\models\rooms_and_ahu_estimation\model_parameters\estimation_results\LS_result\20250613_122822_ls.pickle")
+    model.load_estimation_result(r"C:\repos\RL_control\boptest_model\generated_files\models\rooms_and_ahu_estimation\model_parameters\estimation_results\LS_result\20251026_151452_ls.pickle")
 
     return model
 
@@ -1074,6 +1092,7 @@ def load_model_and_params(model_id="rooms_and_ahu_model"):
 
 if __name__ == "__main__":
 
+    #parameter_estimation()
     parameter_evaluation(data_points = model_output_points, save_plots=True)
     #rooms_parameter_estimation()
     
