@@ -25,9 +25,9 @@ MAIN_DIR = os.path.dirname(SCRIPT_DIR)
 sys.path.append(MAIN_DIR)
 from t4b_gym.t4b_gym_env import T4BGymEnv, NormalizedObservationWrapper, NormalizedActionWrapper
 from boptest_model.rooms_and_ahu_model import load_model_and_params
-from use_case.model_eval import test_model
+from use_case.model_eval import test_model, get_baseline, plot_baseline_vs_rl
 
-log_dir = os.path.join(SCRIPT_DIR, 'logs_finetune_bc_4')
+log_dir = os.path.join(SCRIPT_DIR, 'logs_finetune_bc_7')
 os.makedirs(log_dir, exist_ok=True)
 
 
@@ -37,7 +37,7 @@ bc_model_path = os.path.join(os.path.dirname(__file__), "ppo_pretrained_bc.zip")
 policy_size = 'large'
 test_model_flag = True
 reload_model_flag = False
-total_timesteps = 1000000
+total_timesteps = 500000
 
 def get_custom_env(stepSize, start_time, end_time):
     model = load_model_and_params()
@@ -45,6 +45,7 @@ def get_custom_env(stepSize, start_time, end_time):
         def __init__(self, *args, **kwargs):
             super().__init__(*args, **kwargs)
             self.previous_objective = 0.0
+            self.reward_components = {}
         def get_reward(self, action, observation):
             zones = ['core', 'north', 'east', 'south', 'west']
             
@@ -72,9 +73,6 @@ def get_custom_env(stepSize, start_time, end_time):
             
             # Calculate energy efficiency bonus for exploiting relaxed setpoints
             energy_efficiency_bonus = self.calculate_energy_efficiency_bonus(observation, zones)
-            
-            # Original immediate temperature violation penalty
-            temp_violation_penalty = 1000 * sum(temp_violations)
             
             # Energy consumption calculations (keeping original logic)
             coils_power_consumption = []
@@ -105,32 +103,59 @@ def get_custom_env(stepSize, start_time, end_time):
             # Comfort gradient reward (already in range -0.5 to 1.0, normalize to 0-1)
             comfort_reward_total = sum(comfort_rewards) / len(comfort_rewards)  # Average per zone
             comfort_reward_normalized = (comfort_reward_total + 0.5) / 1.5  # Normalize to 0-1
+            #comfort_reward_normalized = np.clip(comfort_reward_normalized, 0, 1)
             
-            # Temperature violations (typically 0-50 range, normalize to 0-1)
-            immediate_temp_penalty = sum(temp_violations) / len(temp_violations)  # Average per zone
-            immediate_temp_normalized = min(immediate_temp_penalty * 10.0, 1.0)  # Normalize to 0-1, cap at 1
+            # Temperature violations (typically 2-50 range, normalize to 0-1)
+            immediate_temp_penalty = (sum(temp_violations) / len(temp_violations)) - 2  # Average for all zones and subtract 2 to start range at 0
+            immediate_temp_normalized = max(0, immediate_temp_penalty) / 10  # Normalize to 0-1, assuming a max range of 10
+            immediate_temp_normalized = np.clip(immediate_temp_normalized, 0, 1)
             
             # Forecast violations (typically 0-100 range, normalize to 0-1)
             forecast_temp_normalized = min(forecast_violation_penalty / 100.0, 1.0)  # Normalize to 0-1, cap at 1
-            
+            forecast_temp_normalized = np.clip(forecast_temp_normalized, 0, 1)
             # Energy penalties (typically 0-1000 range, normalize to 0-1)
             total_energy = coils_power_consumption_penalty + ahu_power_consumption_penalty
-            energy_normalized = min(total_energy / 100.0, 1.0)  # Normalize to 0-1, cap at 1
-            
+            energy_normalized = min(total_energy / 500.0, 1.0)  # Normalize to 0-1, cap at 1
+            energy_normalized = np.clip(energy_normalized, 0, 1)
+
             # Energy efficiency bonus (typically 0-0.5 range, normalize to 0-1)
             energy_efficiency_normalized = min(energy_efficiency_bonus * 2.0, 1.0)  # Normalize to 0-1, cap at 1
+            energy_efficiency_normalized = np.clip(energy_efficiency_normalized, 0, 1)
             
             # Combine normalized components with meaningful weights
-            reward = (comfort_reward_normalized * 0.2 -      # 20% weight for comfort
-                     immediate_temp_normalized * 0.3 -       # 30% weight for immediate violations
-                     forecast_temp_normalized * 0.2 -        # 20% weight for forecast violations
-                     energy_normalized * 0.25 +              # 25% weight for energy
-                     energy_efficiency_normalized * 0.05)    # 5% weight for energy efficiency bonus
-                     
-            
+            reward = ((comfort_reward_normalized * 0.3) -      # 20% weight for comfort
+                     (immediate_temp_normalized * 0.4) -       # 30% weight for immediate violations
+                     #(forecast_temp_normalized * 0.2) -        # 20% weight for forecast violations
+                     (energy_normalized * 0.3) #+              # 25% weight for energy
+                     #(energy_efficiency_normalized * 0.05)
+                     )    
+
+            self.reward_components = {
+                'reward_total': reward,
+                'comfort_raw': comfort_reward_total,
+                'comfort_normalized': comfort_reward_normalized,
+                'comfort_weighted': comfort_reward_normalized * 0.2,
+                'temp_violation_raw': immediate_temp_penalty,
+                'temp_violation_normalized': immediate_temp_normalized,
+                'temp_violation_weighted': immediate_temp_normalized * 0.3,
+                #'forecast_violation_raw': forecast_violation_penalty,
+                #'forecast_violation_normalized': forecast_temp_normalized,
+                #'forecast_violation_weighted': forecast_temp_normalized * 0.2,
+                'energy_raw': total_energy,
+                'energy_normalized': energy_normalized,
+                'energy_weighted': energy_normalized * 0.25,
+                #'energy_efficiency_raw': energy_efficiency_bonus,
+                #'energy_efficiency_normalized': energy_efficiency_normalized,
+                #'energy_efficiency_weighted': energy_efficiency_normalized * 0.05,
+                'coils_power_W': sum(coils_power_consumption),
+                'fan_power_W': fan_power,
+                'ahu_cooling_power_W': supply_cooling_coil_power,
+                'ahu_heating_power_W': supply_heating_coil_power,
+            }
+
             if np.isnan(reward):
                 raise ValueError("Reward is not a number")
-            return -reward
+            return reward
         
         def get_comfort_gradient_reward(self, zone_temp, heating_sp, cooling_sp, zone_name=None, observation=None):
             """Calculate comfort gradient reward with pre-cooling/pre-heating incentives.
@@ -178,9 +203,9 @@ def get_custom_env(stepSize, start_time, end_time):
         def calculate_strategy_bonus(self, zone_temp, heating_sp, cooling_sp, forecast_setpoints, current_mode):
             """Calculate bonus reward for pre-cooling/pre-heating strategies."""
             
-            # Look ahead 2-6 hours (4-12 timesteps with 30-min steps) for setpoint changes
+            # Look ahead 2-6 hours (4-12 timesteps with 10-min steps) for setpoint changes
             look_ahead_hours = 4  # 4 hours ahead
-            look_ahead_steps = min(look_ahead_hours * 2, len(forecast_setpoints['heating']))  # 2 steps per hour
+            look_ahead_steps = min(look_ahead_hours * 6, len(forecast_setpoints['heating']))  # 6 steps per hour
             
             if look_ahead_steps < 2:
                 return 0.0
@@ -202,7 +227,7 @@ def get_custom_env(stepSize, start_time, end_time):
                     if range_change > 0:
                         # Relaxation - opportunity for pre-cooling/pre-heating
                         strategy_opportunities.append({
-                            'hours_ahead': i / 2,  # Convert steps to hours
+                            'hours_ahead': i * self.step_size / 3600,  # Convert steps to hours
                             'type': 'relaxation',
                             'range_change': range_change,
                             'future_heating_sp': future_heating_sp,
@@ -211,7 +236,7 @@ def get_custom_env(stepSize, start_time, end_time):
                     else:
                         # Tightening - need to prepare for stricter requirements
                         strategy_opportunities.append({
-                            'hours_ahead': i / 2,
+                            'hours_ahead': i * self.step_size / 3600,
                             'type': 'tightening',
                             'range_change': range_change,
                             'future_heating_sp': future_heating_sp,
@@ -237,7 +262,7 @@ def get_custom_env(stepSize, start_time, end_time):
                     )
                 
                 # Weight by time distance (closer opportunities get higher weight)
-                time_weight = max(0.1, 1.0 - (opportunity['hours_ahead'] / 6.0))
+                time_weight = max(0.1, 1.0 - (opportunity['hours_ahead'] / look_ahead_hours))
                 total_bonus += bonus * time_weight
             
             return total_bonus * 0.5  # Scale factor for strategy bonus
@@ -441,8 +466,8 @@ def get_custom_env(stepSize, start_time, end_time):
             setpoints = {'heating': [], 'cooling': []}
             
             # Find indices for heating and cooling setpoint forecasts
-            heating_sp_name = f"{zone}_temperature_heating_setpoint:scheduleValue"
-            cooling_sp_name = f"{zone}_temperature_cooling_setpoint:scheduleValue"
+            heating_sp_name = f"{zone}_temperature_heating_setpoint.scheduleValue"
+            cooling_sp_name = f"{zone}_temperature_cooling_setpoint.scheduleValue"
             
             try:
                 # Find the indices in the observation array
@@ -607,7 +632,7 @@ def get_custom_env(stepSize, start_time, end_time):
         warmup_period=0)
     
     # Copy observation names from base environment
-    env._observations = base_env._observations
+    #env._observations = base_env._observations
 
     return env
 
@@ -860,6 +885,63 @@ class ActionBoundsMonitorCallback(BaseCallback):
                         self.model.logger.record("train/action_max", action.max())
         
         return True
+
+
+class RewardComponentsLoggerCallback(BaseCallback):
+    """
+    Log individual reward components to a CSV file every step.
+    Reads `reward_components` dict stored on the unwrapped environment by get_reward().
+    """
+    def __init__(self, log_path: str, flush_freq: int = 1000, verbose: int = 0):
+        super().__init__(verbose)
+        self.log_path = log_path
+        self.flush_freq = flush_freq
+        self._rows = []
+        self._header_written = False
+        self._columns = None
+
+    def _get_reward_components(self) -> dict:
+        try:
+            base_env = self.training_env.envs[0].unwrapped
+            return getattr(base_env, 'reward_components', {})
+        except (AttributeError, IndexError):
+            return {}
+
+    def _on_step(self) -> bool:
+        rc = self._get_reward_components()
+        if not rc:
+            return True
+
+        if self._columns is None:
+            self._columns = ['timestep'] + sorted(rc.keys())
+
+        row = {'timestep': self.num_timesteps}
+        row.update(rc)
+        self._rows.append(row)
+
+        if len(self._rows) >= self.flush_freq:
+            self._flush()
+
+        return True
+
+    def _flush(self):
+        if not self._rows or self._columns is None:
+            return
+        import csv
+        mode = 'a' if self._header_written else 'w'
+        with open(self.log_path, mode, newline='') as f:
+            writer = csv.DictWriter(f, fieldnames=self._columns)
+            if not self._header_written:
+                writer.writeheader()
+                self._header_written = True
+            writer.writerows(self._rows)
+        self._rows.clear()
+
+    def _on_training_end(self) -> None:
+        self._flush()
+
+    def _on_rollout_end(self) -> None:
+        self._flush()
 
 
 class RobustNormalizedActionWrapper(gym.ActionWrapper):
@@ -1568,21 +1650,23 @@ def analyze_expert_policy_distribution(bc_model_path, env, num_samples=1000):
     return expert_actions
 
 
-def PPO_BC_finetune_training(test_model_flag=False, reload_model_flag=False,  total_timesteps=100000,
-                 load_pretrained_bc=False):
+def PPO_BC_finetune_training(test_model_flag=False, reload_model_flag=False,  total_timesteps=100000):
     """
     Train PPO with optional autoencoder support.
     
     Args:
         test_model_flag: If True, test the model instead of training
         reload_model_flag: If True, reload an existing model for continued training
-        load_pretrained_bc: If True, load pretrained behavioral cloning model
     """
     
     stepSize = 600 #Seconds
     #Define the range of available data
     start_time = datetime.datetime(year=2024, month=5, day=17, hour=0, minute=0, second=0, tzinfo=gettz("Europe/Copenhagen"))
-    end_time = datetime.datetime(year=2024, month=5, day=31, hour=0, minute=0, second=0, tzinfo=gettz("Europe/Copenhagen"))        
+    end_time = datetime.datetime(year=2024, month=5, day=31, hour=0, minute=0, second=0, tzinfo=gettz("Europe/Copenhagen"))      
+
+    start_time = datetime.datetime(year=2024, month=1, day=11, hour=0, minute=0, second=0, tzinfo=gettz("Europe/Copenhagen"))
+    end_time = datetime.datetime(year=2024, month=1, day=25, hour=0, minute=0, second=0, tzinfo=gettz("Europe/Copenhagen"))
+
     fine_tune_lr = 5e-4
     StablePPOKL4BC = create_stable_ppokl4bc_class()
     env = get_custom_env(stepSize, start_time, end_time)
@@ -1593,7 +1677,7 @@ def PPO_BC_finetune_training(test_model_flag=False, reload_model_flag=False,  to
     policy_kwargs = create_large_ppo_policy_kwargs(network_size=policy_size)
 
     if test_model_flag:
-        model_path = os.path.join(log_dir, "ppo_pretrained_bc.zip")
+        model_path = os.path.join(log_dir, "model_900000.zip")
         if not os.path.exists(model_path):
             print(f"Model file not found: {model_path}")
             print("Available model files:")
@@ -1605,7 +1689,14 @@ def PPO_BC_finetune_training(test_model_flag=False, reload_model_flag=False,  to
         bc_model = PPO.load(bc_model_path, env=env, device=device)
         model = StablePPOKL4BC.load(model_path, env=env, bc_policy=bc_model.policy, policy_kwargs=policy_kwargs, device=device)
         print(f"Training steps: {model.num_timesteps}")
+
+        twin_model = load_model_and_params()
+        baseline_sim = get_baseline(twin_model)
+
         test_model(env, model)
+        rl_sim = env.unwrapped.simulator
+
+        plot_baseline_vs_rl(baseline_sim, rl_sim)
         return
 
     # Load pretrained behavioral cloning model if requested
@@ -1690,7 +1781,11 @@ def PPO_BC_finetune_training(test_model_flag=False, reload_model_flag=False,  to
     progress_callback = SingleLineProgressCallback(total_timesteps, verbose=0)
     periodic_save_callback = PeriodicSaveCallback(save_freq=100000, save_path=log_dir, verbose=0)
     action_bounds_callback = ActionBoundsMonitorCallback(check_freq=1000, verbose=1)
-    callback = CallbackList([AdaptKLtoBC_callback, progress_callback, periodic_save_callback, action_bounds_callback])
+    reward_logger_callback = RewardComponentsLoggerCallback(
+        log_path=os.path.join(log_dir, 'reward_components.csv'),
+        flush_freq=500,
+    )
+    callback = CallbackList([AdaptKLtoBC_callback, progress_callback, periodic_save_callback, action_bounds_callback, reward_logger_callback])
 
     # Train the model
     print(f"\n{'='*60}")
@@ -1754,6 +1849,6 @@ def PPO_BC_finetune_training(test_model_flag=False, reload_model_flag=False,  to
 
 
 if __name__ == "__main__":
-    PPO_BC_finetune_training(test_model_flag=test_model_flag, reload_model_flag=reload_model_flag, load_pretrained_bc=True, total_timesteps=total_timesteps)
+    PPO_BC_finetune_training(test_model_flag=test_model_flag, reload_model_flag=reload_model_flag, total_timesteps=total_timesteps)
 
 

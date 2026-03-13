@@ -965,23 +965,30 @@ def load_model_parameters(model_id="rooms_and_ahu_estimation"):
     north = model.components["north"]
     north.C_boundary = 94407.559
     north.Q_occ_gain = 150 #224.04964129088137
+    
 
     east = model.components["east"]
     east.C_boundary = 31197951.98026053
     east.Q_occ_gain = 150 #232.5238692961377
+    
 
     south = model.components["south"]
     south.Q_occ_gain = 150 #232.5238692961377
 
     west = model.components["west"]
     west.Q_occ_gain = 150 #232.5238692961377
-    
     # Load additional estimation results
     model.load_estimation_result(r"C:\repos\RL_control\boptest_model\generated_files\models\rooms_and_ahu_estimation\model_parameters\estimation_results\LS_result\damper_params_13_06.pickle")
     model.load_estimation_result(r"C:\repos\RL_control\boptest_model\generated_files\models\rooms_and_ahu_estimation\model_parameters\estimation_results\LS_result\fan_params_13_06.pickle")
     model.load_estimation_result(r"C:\repos\RL_control\boptest_model\generated_files\models\rooms_and_ahu_estimation\model_parameters\estimation_results\LS_result\20251026_151452_ls.pickle")
     model.load_estimation_result(r"C:\repos\RL_control\boptest_model\generated_files\models\rooms_and_ahu_estimation\model_parameters\estimation_results\LS_result\20251028_094629_ls.pickle")
     model.load_estimation_result(r"C:\repos\RL_control\boptest_model\generated_files\models\rooms_and_ahu_estimation\model_parameters\estimation_results\LS_result\20251028_103636_ls.pickle")
+
+    north.CO2_occ_gain = 3.18e-5
+    east.CO2_occ_gain = 3.58e-5
+    south.CO2_occ_gain = 3.18e-5
+    west.CO2_occ_gain = 5.18e-5
+   
     return model
 
 def parameter_evaluation(data_points, save_plots=False):
@@ -1588,5 +1595,5 @@ def model_evaluation_suite(data_points, save_dir='evaluation_results'):
 if __name__ == "__main__":
     # parameter_estimation()
     # rooms_parameter_estimation()
-    # parameter_evaluation(data_points=model_output_points, save_plots=True)
+    #parameter_evaluation(data_points=model_output_points, save_plots=True)
     model_evaluation_suite(data_points=model_output_points, save_dir='evaluation_results')

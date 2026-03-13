@@ -30,6 +30,16 @@ plt.style.use('default')
 plt.rcParams['figure.figsize'] = (10, 6)
 plt.rcParams['font.size'] = 10
 
+def _set_analysis_pub_style():
+    """Apply publication-quality matplotlib defaults for analysis plots."""
+    plt.rcParams.update({
+        'font.size': 12, 'axes.labelsize': 13, 'axes.titlesize': 14,
+        'xtick.labelsize': 11, 'ytick.labelsize': 11, 'legend.fontsize': 11,
+        'figure.dpi': 150, 'savefig.dpi': 300, 'savefig.bbox': 'tight',
+        'axes.grid': True, 'grid.alpha': 0.25, 'lines.linewidth': 1.4,
+    })
+
+
 class TrainingLogAnalyzer:
     """Analyzer for training logs from T4B Gym PPO training."""
     
@@ -43,6 +53,7 @@ class TrainingLogAnalyzer:
         self.log_dir = Path(log_dir)
         self.monitor_file = self.log_dir / "monitor.csv"
         self.progress_file = self.log_dir / "progress.csv"
+        self.reward_components_file = self.log_dir / "reward_components.csv"
         
         # Check if files exist
         if not self.monitor_file.exists():
@@ -53,10 +64,13 @@ class TrainingLogAnalyzer:
         # Load data
         self.monitor_data = self._load_monitor_data()
         self.progress_data = self._load_progress_data()
+        self.reward_components_data = self._load_reward_components_data()
         
         print(f"Loaded training data from {log_dir}")
         print(f"Monitor data: {len(self.monitor_data)} episodes")
         print(f"Progress data: {len(self.progress_data)} training steps")
+        if self.reward_components_data is not None:
+            print(f"Reward components data: {len(self.reward_components_data)} steps")
     
     def _load_monitor_data(self) -> pd.DataFrame:
         """Load and parse monitor.csv data."""
@@ -94,6 +108,19 @@ class TrainingLogAnalyzer:
             data['timesteps_millions'] = range(len(data))
         
         return data
+
+    def _load_reward_components_data(self) -> Optional[pd.DataFrame]:
+        """Load reward_components.csv if it exists."""
+        if not self.reward_components_file.exists():
+            return None
+        try:
+            data = pd.read_csv(self.reward_components_file)
+            if 'timestep' in data.columns:
+                data['timesteps_thousands'] = data['timestep'] / 1e3
+            return data
+        except Exception as e:
+            print(f"Warning: Could not load reward components data: {e}")
+            return None
     
     def plot_mean_reward_trend(self, window_size: int = 50, save_path: Optional[str] = None):
         """
@@ -365,6 +392,151 @@ class TrainingLogAnalyzer:
         else:
             plt.close()  # Close figure to free memory
     
+    def plot_reward_components(self, window_size: int = 2000,
+                                save_path: Optional[str] = None):
+        """
+        Publication-quality plot of reward component evolution during training.
+
+        Produces a two-figure output:
+          Figure 1 – Weighted contributions that compose the total reward.
+          Figure 2 – Raw (un-normalised) values of each component for physical
+                     interpretation plus a power breakdown panel.
+
+        Args:
+            window_size: Rolling-window width (in env steps) for smoothing.
+            save_path:   If given, figures are saved with '_weighted' / '_raw'
+                         suffixes.  Otherwise displayed interactively.
+        """
+        rc = self.reward_components_data
+        if rc is None or rc.empty:
+            print("No reward_components.csv found – skipping reward components plot.")
+            return
+
+        _set_analysis_pub_style()
+        x_col = 'timesteps_thousands'
+        x_label = 'Environment Steps (×10³)'
+
+        # ── Palette ──────────────────────────────────────────────────
+        pal = {
+            'comfort':    '#2E7D32',
+            'temp_viol':  '#D32F2F',
+            'forecast':   '#F57F17',
+            'energy':     '#1565C0',
+            'efficiency': '#7B1FA2',
+            'total':      '#212121',
+        }
+
+        def _smooth(series):
+            return series.rolling(window=window_size, min_periods=1,
+                                  center=True).mean()
+
+        # ────────────────────────────────────────────────────────────
+        # Figure 1 – Weighted contributions + total reward
+        # ────────────────────────────────────────────────────────────
+        weighted_cols = {
+            'comfort_weighted':           ('Comfort  (×0.20)',    pal['comfort']),
+            'temp_violation_weighted':    ('Temp. Violation  (×0.30)', pal['temp_viol']),
+            'forecast_violation_weighted':('Forecast Viol.  (×0.20)', pal['forecast']),
+            'energy_weighted':            ('Energy  (×0.25)',     pal['energy']),
+            'energy_efficiency_weighted': ('Efficiency  (×0.05)', pal['efficiency']),
+        }
+        available_w = {k: v for k, v in weighted_cols.items() if k in rc.columns}
+
+        fig1, axes1 = plt.subplots(len(available_w) + 1, 1,
+                                   figsize=(12, 2.6 * (len(available_w) + 1)),
+                                   sharex=True)
+
+        for ax, (col, (label, color)) in zip(axes1, available_w.items()):
+            raw = rc[col]
+            smoothed = _smooth(raw)
+            ax.fill_between(rc[x_col], 0, smoothed, alpha=0.18, color=color)
+            ax.plot(rc[x_col], smoothed, color=color, lw=1.4, label=label)
+            ax.axhline(0, color='grey', lw=0.5, ls='--')
+            ax.set_ylabel(label, fontsize=11)
+            ax.legend(loc='upper right', fontsize=10)
+
+        ax_total = axes1[-1]
+        if 'reward_total' in rc.columns:
+            sm_total = _smooth(rc['reward_total'])
+            ax_total.plot(rc[x_col], sm_total, color=pal['total'], lw=2,
+                          label='Total Reward')
+            ax_total.fill_between(rc[x_col], 0, sm_total, alpha=0.10,
+                                  color=pal['total'])
+            ax_total.axhline(0, color='grey', lw=0.5, ls='--')
+            ax_total.set_ylabel('Total Reward', fontsize=11)
+            ax_total.legend(loc='upper right', fontsize=10)
+
+        axes1[-1].set_xlabel(x_label)
+        fig1.suptitle('Reward Components – Weighted Contributions',
+                       fontsize=16, y=1.002)
+        fig1.tight_layout()
+
+        if save_path:
+            p = Path(save_path)
+            path_w = p.with_name(p.stem + '_weighted' + p.suffix)
+            fig1.savefig(path_w, dpi=300, bbox_inches='tight')
+            print(f"Saved weighted reward components plot to {path_w}")
+            plt.close(fig1)
+        else:
+            plt.show()
+
+        # ────────────────────────────────────────────────────────────
+        # Figure 2 – Raw values + power breakdown
+        # ────────────────────────────────────────────────────────────
+        raw_panels = [
+            ('comfort_raw',              'Comfort (raw)',      pal['comfort']),
+            ('temp_violation_raw',       'Temp. Violation (raw)', pal['temp_viol']),
+            ('forecast_violation_raw',   'Forecast Viol. (raw)', pal['forecast']),
+            ('energy_raw',              'Energy (raw)',       pal['energy']),
+            ('energy_efficiency_raw',   'Efficiency (raw)',   pal['efficiency']),
+        ]
+        available_r = [(c, l, clr) for c, l, clr in raw_panels if c in rc.columns]
+
+        power_cols = {
+            'fan_power_W':          ('Fan',           '#1565C0'),
+            'ahu_heating_power_W':  ('AHU Heating',   '#D32F2F'),
+            'ahu_cooling_power_W':  ('AHU Cooling',   '#2196F3'),
+            'coils_power_W':        ('Reheat Coils',  '#FF9800'),
+        }
+        available_p = {k: v for k, v in power_cols.items() if k in rc.columns}
+        has_power = len(available_p) > 0
+        n_panels = len(available_r) + (1 if has_power else 0)
+
+        fig2, axes2 = plt.subplots(n_panels, 1,
+                                   figsize=(12, 2.6 * n_panels),
+                                   sharex=True)
+        if n_panels == 1:
+            axes2 = [axes2]
+
+        for ax, (col, label, color) in zip(axes2, available_r):
+            smoothed = _smooth(rc[col])
+            ax.plot(rc[x_col], smoothed, color=color, lw=1.4, label=label)
+            ax.fill_between(rc[x_col], 0, smoothed, alpha=0.15, color=color)
+            ax.set_ylabel(label, fontsize=11)
+            ax.legend(loc='upper right', fontsize=10)
+
+        if has_power:
+            ax_pwr = axes2[-1]
+            for col, (label, color) in available_p.items():
+                sm = _smooth(rc[col])
+                ax_pwr.plot(rc[x_col], sm, color=color, lw=1.3, label=label)
+            ax_pwr.set_ylabel('Power  [W]', fontsize=11)
+            ax_pwr.legend(loc='upper right', ncol=2, fontsize=10)
+
+        axes2[-1].set_xlabel(x_label)
+        fig2.suptitle('Reward Components – Raw Values & Power Breakdown',
+                       fontsize=16, y=1.002)
+        fig2.tight_layout()
+
+        if save_path:
+            p = Path(save_path)
+            path_r = p.with_name(p.stem + '_raw' + p.suffix)
+            fig2.savefig(path_r, dpi=300, bbox_inches='tight')
+            print(f"Saved raw reward components plot to {path_r}")
+            plt.close(fig2)
+        else:
+            plt.show()
+
     def generate_summary_report(self) -> str:
         """Generate a comprehensive summary report of the training."""
         report = []
@@ -451,6 +623,7 @@ class TrainingLogAnalyzer:
         self.plot_training_metrics(save_path=output_path / "training_metrics.png")
         self.plot_reward_distribution(save_path=output_path / "reward_distribution.png")
         self.plot_training_speed(save_path=output_path / "training_speed.png")
+        self.plot_reward_components(save_path=output_path / "reward_components.png")
         
         # Save summary report
         report = self.generate_summary_report()
@@ -489,6 +662,7 @@ def main():
                 analyzer.plot_training_metrics()
                 analyzer.plot_reward_distribution()
                 analyzer.plot_training_speed()
+                analyzer.plot_reward_components()
             else:
                 # Save plots to default location when --no-display is used
                 default_output = Path(args.log_dir) / "analysis_plots"
