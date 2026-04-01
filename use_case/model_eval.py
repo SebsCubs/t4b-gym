@@ -960,9 +960,9 @@ def plot_baseline_vs_rl(baseline_simulator, rl_simulator,
             _plot_cmp_individual(dmp_items)
 
             # ── Compact 2-panel per-room figures ──────────────────────
-            CLR_RL_TEMP     = '#E53935'
+            CLR_RL_TEMP     = '#00897B'   # teal – high contrast vs orange/green/blue
             CLR_BL_DARK     = '#333333'
-            CLR_RL_HEAT_SP  = '#D84315'
+            CLR_RL_HEAT_SP  = '#E65100'   # bright orange – high contrast vs temp
             CLR_RL_COOL_SP  = '#0D47A1'
             CLR_RL_DAMPER   = '#1565C0'
             CLR_COMFORT     = '#43A047'
